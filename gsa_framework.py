@@ -4,6 +4,7 @@
 import brightway2 as bw
 import numpy as np
 import os
+import pickle
 from copy import copy, deepcopy
 import plotly.graph_objects as go
 from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
@@ -13,7 +14,7 @@ from sensitivity_analysis.get_gsa_indices import *
 
 
 sampler_mapping = {
-    # 'saltelli': sampling.saltelli_samples,
+    # 'saltelli': saltelli_samples,
     'sobol':    sobol_samples,
     'random':   random_samples,
     'custom':   custom_samples,
@@ -143,23 +144,88 @@ class Problem:
         fig.write_image(filename)
 
 
-
-
-from bw2calc import MonteCarloLCA
-
-
 class LCAModel:
     """A simple LCA model which uses uncertainty in the background database."""
-    def __init__(self, func_unit, method):
+    def __init__(self, func_unit, method, write_dir):
         self.lca = bw.LCA(func_unit, method)
         self.lca.lci()
         self.lca.lcia()
 
-        self.uncertain_tech_params_where = np.where(self.lca.tech_params['uncertainty_type'] > 1)[0]
+        self.write_dir = write_dir
+        self.make_dirs()
+
+        # self.uncertain_tech_params_where = np.where(self.lca.tech_params['uncertainty_type'] > 1)[0]
+        # self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
+
+        self.uncertain_tech_params_where = self.get_LSA_params(var_threshold=0)
         self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
+
+        self.num_params = self.__num_input_params__()
 
         self.choices = uncertainty_choices
         self.mc = MCRandomNumberGenerator(self.uncertain_tech_params)
+
+
+    def make_dirs(self):
+        directories = {
+            'LSA_scores': os.path.join(self.write_dir, 'LSA_scores')
+        }
+        # dir_reg = os.path.join(self.write_dir, 'regression')
+        for dir in directories.values():
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+        self.directories = directories
+
+
+    def get_lsa_scores_pickle(self, path):
+        files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))
+                 and 'LSA_scores_' in f]
+        starts = [int(f.split('_')[2]) for f in files]
+        ind_sort = np.argsort(starts)
+
+        files_sorted = [files[i] for i in ind_sort]
+
+        scores = {}
+        for file in files_sorted:
+            filepath = os.path.join(path, file)
+            with open(filepath, 'rb') as f:
+                temp = pickle.load(f)
+            temp_int = {int(k): v['scores'] for k, v in temp.items()}
+            scores.update(temp_int)
+
+        return scores
+
+
+    def get_nonzero_params(self, scores_dict, var_threshold):
+
+        keys = np.array(list(scores_dict.keys()))
+        vals = np.array(list(scores_dict.values()))
+
+        # Variance of LSA scores for each input / parameter
+        var = np.var(vals, axis=1)
+        where = np.where(var > var_threshold)[0]
+
+        params_yes = keys[where]
+        params_no = np.setdiff1d(keys, params_yes)
+        params_yes.sort(), params_no.sort()
+
+        return params_no, params_yes
+
+
+    def get_LSA_params(self, var_threshold):
+        params_yes_filename = os.path.join(self.directories['LSA_scores'],
+                                           'params_yes_' + str(var_threshold) + '.pickle')
+        if not os.path.exists(params_yes_filename):
+            scores_dict = self.get_lsa_scores_pickle(self.directories['LSA_scores'])
+            _, params_yes = self.get_nonzero_params(scores_dict, var_threshold=var_threshold)
+            with open(params_yes_filename, 'wb') as f:
+                pickle.dump(params_yes, f)
+        else:
+            with open(params_yes_filename, 'rb') as f:
+                params_yes = pickle.load(f)
+
+        return params_yes
+
 
     def __num_input_params__(self):
         # self.uncertain_bio_params  = self.lca.bio_params[self.lca.bio_params['uncertainty_type'] > 1]
