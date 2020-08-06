@@ -25,14 +25,10 @@ class Morris:
 
     Parameters
     ----------
-    iterations : int
-        Number of samples (model runs)
     num_params : int
         Number of model inputs
     num_influential : int
         Number of influential inputs
-    seed : int
-        Random seed for sample generation
 
     Returns
     -------
@@ -43,7 +39,7 @@ class Morris:
     def __init__(self, num_params=None, num_influential=None):
 
         if not num_params:
-            num_params = 50
+            num_params = 10
         if not num_influential:
             num_influential = int(0.1 * num_params) # if n_inf not defined, set 10% of inputs to be influential
         assert num_influential <= num_params
@@ -61,6 +57,9 @@ class Morris:
 
     def __num_input_params__(self):
         return self.num_params
+
+    def __rescale__(self, X):
+        return X
 
     def __call__(self, X):
         y = np.zeros(X.shape[0])
@@ -87,13 +86,6 @@ class Borehole:
     Links:
         http://www.sfu.ca/~ssurjano/borehole.html
 
-    Parameters
-    ----------
-    n_samples : int
-        Number of samples (model runs)
-    seed : int
-        Random seed for sample generation
-
     Returns
     -------
     y : np.array of size n_samples x 1
@@ -111,7 +103,7 @@ class Borehole:
             'Kw': [9855, 12045],    # hydraulic conductivity of borehole (m/yr)
         }
         self.num_params = len(self.params)
-        self.influential_params = np.array([3,5]) # TODO we already know for this function, for comparing with GSA results
+        self.influential_params = np.array([3,5]) # TODO check correcteness in the literature
 
     def __num_input_params__(self):
         return self.num_params
@@ -145,13 +137,6 @@ class Wingweight:
     Links:
         http://www.sfu.ca/~ssurjano/wingweight.html
 
-    Parameters
-    ----------
-    n_samples : int
-        Number of samples (model runs)
-    seed : int
-        Random seed for sample generation
-
     Returns
     -------
     y : np.array of size n_samples x 1
@@ -171,7 +156,7 @@ class Wingweight:
             'Wp':  [0.025, 0.08],    # paint weight (lb / ft2)
         }
         self.num_params = len(self.params)
-        self.influential_params = np.array([0,9]) # TODO swe already know for this function, for comparing with GSA results
+        self.influential_params = np.array([0,9]) # TODO check correcteness in the literature
 
     def __num_input_params__(self):
         return self.num_params
@@ -213,13 +198,6 @@ class OTLcircuit:
     Links:
         http://www.sfu.ca/~ssurjano/otlcircuit.html
 
-    Parameters
-    ----------
-    n_samples : int
-        Number of samples (model runs)
-    seed : int
-        Random seed for sample generation
-
     Returns
     -------
     y : np.array of size n_samples x 1
@@ -235,7 +213,7 @@ class OTLcircuit:
             'beta': [50, 300],      # current gain (Amperes)
         }
         self.num_params = len(self.params)
-        self.influential_params = np.array([0,1,2,3])  # TODO we already know for this function, for comparing with GSA results
+        self.influential_params = np.array([0,1,2,3])  # TODO check correcteness in the literature
 
     def __num_input_params__(self):
         return self.num_params
@@ -274,13 +252,6 @@ class Piston:
     Links:
         http://www.sfu.ca/~ssurjano/piston.html
 
-    Parameters
-    ----------
-    n_samples : int
-        Number of samples (model runs)
-    seed : int
-        Random seed for sample generation
-
     Returns
     -------
     y : np.array of size n_samples x 1
@@ -297,7 +268,7 @@ class Piston:
             'T0': [340, 360], # filling gas temperature (K)
         }
         self.num_params = len(self.params)
-        self.influential_params = np.array([0,2,4,5,6])  # TODO we already know for this function, for comparing with GSA results
+        self.influential_params = np.array([0,2,4,5,6])  # TODO check correcteness in the literature
 
     def __num_input_params__(self):
         return self.num_params
@@ -336,10 +307,8 @@ class Moon:
 
     Parameters
     ----------
-    n_samples : int
-        Number of samples (model runs)
-    seed : int
-        Random seed for sample generation
+    num_dummy : int
+        Number of non-influential dummy variables to add to the model
 
     Returns
     -------
@@ -352,7 +321,7 @@ class Moon:
             wingweight = [8,18],
             otlcircuit = [18,24],
             piston = [24,31],
-            dummy = [31,-1],
+            dummy = [31,31+num_dummy],
         )
         self.borehole, self.wingweight, self.otlcircuit, self.piston = Borehole(), Wingweight(), OTLcircuit(), Piston()
         self.params = {
@@ -377,6 +346,16 @@ class Moon:
         return self.num_params
 
     def __rescale__(self, X):
+        X1 = X[:, self.functions_indices['borehole'][0]: self.functions_indices['borehole'][1]]
+        X2 = X[:, self.functions_indices['wingweight'][0]: self.functions_indices['wingweight'][1]]
+        X3 = X[:, self.functions_indices['otlcircuit'][0]: self.functions_indices['otlcircuit'][1]]
+        X4 = X[:, self.functions_indices['piston'][0]: self.functions_indices['piston'][1]]
+        Xdummy = X[:, self.functions_indices['dummy'][0]: self.functions_indices['dummy'][1]]
+        X1_rescaled = self.borehole.__rescale__(X1)
+        X2_rescaled = self.wingweight.__rescale__(X2)
+        X3_rescaled = self.otlcircuit.__rescale__(X3)
+        X4_rescaled = self.piston.__rescale__(X4)
+        X = np.hstack([X1_rescaled, X2_rescaled, X3_rescaled, X4_rescaled, Xdummy])
         return X
 
     def __call__(self, X):

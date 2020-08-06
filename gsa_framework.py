@@ -5,6 +5,7 @@ import brightway2 as bw
 import numpy as np
 import os
 import pickle
+import h5py
 from copy import copy, deepcopy
 import plotly.graph_objects as go
 from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
@@ -14,13 +15,17 @@ from sensitivity_analysis.get_gsa_indices import *
 
 
 sampler_mapping = {
-    # 'saltelli': saltelli_samples,
+    'saltelli': saltelli_samples,
     'sobol':    sobol_samples,
     'random':   random_samples,
     'custom':   custom_samples,
+    'dissimilarity_samples': dissimilarity_samples
 }
 interpreter_mapping = {
     'correlation_coefficients': correlation_coefficients,
+    'sobol_indices': sobol_indices,
+    'xgboost': xgboost_scores,
+    'dissimilarity_measure': dissimilarity_measure,
 }
 
 
@@ -52,46 +57,128 @@ class Problem:
     """
     def __init__(self, sampler, model, interpreter, write_dir, iterations=None, seed=None, X=None):
 
-        # 1. Sampling
-        self.iterations = iterations or self.guess_iterations()
-        self.sampler = sampler_mapping.get(sampler, 'random')
+        # General
         self.seed = seed
         self.model = model
         self.num_params = self.model.__num_input_params__()
+        self.iterations = iterations or self.guess_iterations()
         self.write_dir = write_dir
 
-        if X == None:
-            np.random.seed(seed)
-            self.X = np.random.rand(self.iterations,self.num_params)
-
-        self.sampler_dict = {
+        self.gsa_dict = {
             'iterations': self.iterations,
             'num_params': self.num_params,
-            'X': self.X,
-            'seed': self.seed,
+            'write_dir': self.write_dir,
         }
 
-        # 2. Model runs
-        self.run_locally()
+        # Make necessary directories
+        self.make_dirs()
 
-        # 3. GSA
-        self.interpreter = interpreter_mapping.get(interpreter, 'correlation_coefficients')
-        self.results_dict = {
-            'X': self.X,
-            'y': self.results
-        }
-        self.sa_dict = self.interpret()
+        # Sampling strategy depends on the interpreter
+        self.interpreter_str = interpreter
+        self.interpreter_fnc = interpreter_mapping.get(self.interpreter_str, 'correlation_coefficients')
+        self.sampler_str = sampler
+
+        # Generate samples
+        self.gsa_dict.update({
+            'sampler_str': self.sampler_str,
+            'X': X,
+        })
+        self.gsa_dict.update({'X': self.generate_samples()})
+        self.gsa_dict.update({'X_rescaled': self.rescale_samples()})
+        # Run model
+        self.gsa_dict.update({'y': self.run_locally()})
+        # Compute GSA indices
+        self.gsa_dict.update({'sa_results': self.interpret()})
+
+    def make_dirs(self):
+        dirs_list = [
+            'arrays'
+        ]
+        for dir in dirs_list:
+            dir_path = os.path.join(self.write_dir, dir)
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
 
     def guess_iterations(self, CONSTANT=10):
         # Default value for now...
         return self.num_params * CONSTANT
 
-    def generate_samples(self):
+    def generate_samples(self, X=None):
         """Use ``self.sampler`` to generate normalized samples for this problem"""
-        self.samples = self.sampler(self.sampler_dict)
+        self.base_sampler_fnc = 'no_base'
+        if self.interpreter_str == 'sobol_indices':
+            print('Changing samples to saltelli, because of faster indices convergence')
+            self.sampler_str = 'saltelli'
+            self.seed = None
+        elif self.interpreter_str == 'dissimilarity_measure':
+            print('Samples should be adapted for dissimilarity sensitivity measure')
+            self.base_sampler_fnc = sampler_mapping.get(self.sampler_str, 'random')
+            self.sampler_str = 'dissimilarity_samples'
+            self.gsa_dict.update({'base_sampler_fnc': self.base_sampler_fnc})
+        else:
+            if X != None:
+                self.sampler_str = 'custom'
+                self.seed = None
+        self.sampler_fnc = sampler_mapping.get(self.sampler_str, 'random')
+        self.gsa_dict.update({'sampler_fnc': self.sampler_fnc})
+        self.gsa_dict.update({'seed': self.seed})
+
+        self.filename_X = os.path.join(
+            self.write_dir,
+            'arrays',
+            'X_' + self.sampler_str + '_' + self.base_sampler_fnc + \
+            '_iterations_' + str(self.iterations) + \
+            '_num_params_' + str(self.num_params) + \
+            '_seed_' + str(self.seed) + '.hdf5',
+        )
+        if not os.path.exists(self.filename_X):
+            X = self.sampler_fnc(self.gsa_dict)
+            self.write_hdf5_array(X, self.filename_X)
+
+        return self.filename_X
+
+    def rescale_samples(self):
+        path_start = os.path.split(self.filename_X)[0]
+        path_end = os.path.split(self.filename_X)[-1]
+        self.filename_X_rescaled = os.path.join(path_start, 'X_rescaled' + path_end[1:])
+        if not os.path.exists(self.filename_X_rescaled):
+            X = self.read_hdf5_array(self.filename_X)
+            X_rescaled = self.model.__rescale__(X)
+            print(X.shape, X_rescaled.shape)
+            self.write_hdf5_array(X_rescaled, self.filename_X_rescaled)
+        return self.filename_X_rescaled
+
+
+    def write_hdf5_array(self, array, filename):
+        try:
+            n_rows, n_cols = array.shape[0], array.shape[1]
+        except IndexError:
+            n_rows, n_cols = 1, array.shape[0]
+
+        with h5py.File(filename, 'w') as f:
+            d = f.create_dataset('dataset',
+                                 (n_rows, n_cols),
+                                 maxshape=(n_rows, n_cols),
+                                 dtype=array.dtype
+                                 )
+            d[:] = array
+
+
+    def read_hdf5_array(self, filename):
+        with h5py.File(filename, 'r') as f:
+            X = np.array(f['dataset'][:])
+            return X
+
 
     def run_locally(self):
-        self.results = self.model(self.X)
+        path_start = os.path.split(self.filename_X)[0]
+        path_end = os.path.split(self.filename_X)[-1]
+        self.filename_y = os.path.join(path_start, 'y' + path_end[1:])
+        if not os.path.exists(self.filename_y):
+            X_rescaled = self.read_hdf5_array(self.filename_X_rescaled)
+            y = self.model(X_rescaled)
+            self.write_hdf5_array(y, self.filename_y)
+        return self.filename_y
     #
     # def run_remotely(self):
     #     """Prepare files for remote execution.
@@ -101,12 +188,15 @@ class Problem:
     #     This function needs to create evaluation batches, e.g. 100 Monte Carlo iterations."""
     #     pass
     #
+
     def interpret(self):
-        assert hasattr(self, "results")
-        return self.interpreter(self.results_dict)
+        y = self.read_hdf5_array(self.filename_y)
+        print(y.shape)
+        self.gsa_dict.update({'y': y.flatten()})
+        return self.interpreter_fnc(self.gsa_dict)
 
 
-    def plot_sa_results(self, sa_indices, influential_inputs=[]):
+    def plot_sa_results(self, sa_indices, influential_inputs=[], filename=''):
         index_name = list(sa_indices.keys())[0]
         index_vals = list(sa_indices.values())[0]
 
@@ -140,8 +230,10 @@ class Problem:
             xaxis_title = "Model parameters",
             yaxis_title = index_name,
         )
-        filename = os.path.join(self.write_dir, 'write_figures', 'sensitivity_plot.pdf')
-        fig.write_image(filename)
+        if not filename:
+            filename = 'sensitivity_plot.pdf'
+        pathname = os.path.join(self.write_dir, filename)
+        fig.write_image(pathname)
 
 
 class LCAModel:
@@ -157,7 +249,7 @@ class LCAModel:
         # self.uncertain_tech_params_where = np.where(self.lca.tech_params['uncertainty_type'] > 1)[0]
         # self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
 
-        self.uncertain_tech_params_where = self.get_LSA_params(var_threshold=0)
+        self.uncertain_tech_params_where = self.get_LSA_params(var_threshold=100000)
         self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
 
         self.num_params = self.__num_input_params__()
@@ -178,20 +270,26 @@ class LCAModel:
 
 
     def get_lsa_scores_pickle(self, path):
-        files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))
-                 and 'LSA_scores_' in f]
-        starts = [int(f.split('_')[2]) for f in files]
-        ind_sort = np.argsort(starts)
+        filepath_all =  os.path.join(path, 'LSA_scores.pickle')
+        if os.path.isfile(filepath_all):
+            with open(filepath_all, 'rb') as f:
+                scores_ = pickle.load(f)
+            scores = {int(k): v for k, v in scores_.items()}
+        else:
+            files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))
+                     and 'LSA_scores_' in f]
+            starts = [int(f.split('_')[2]) for f in files]
+            ind_sort = np.argsort(starts)
 
-        files_sorted = [files[i] for i in ind_sort]
+            files_sorted = [files[i] for i in ind_sort]
 
-        scores = {}
-        for file in files_sorted:
-            filepath = os.path.join(path, file)
-            with open(filepath, 'rb') as f:
-                temp = pickle.load(f)
-            temp_int = {int(k): v['scores'] for k, v in temp.items()}
-            scores.update(temp_int)
+            scores = {}
+            for file in files_sorted:
+                filepath = os.path.join(path, file)
+                with open(filepath, 'rb') as f:
+                    temp = pickle.load(f)
+                temp_int = {int(k): v['scores'] for k, v in temp.items()}
+                scores.update(temp_int)
 
         return scores
 
