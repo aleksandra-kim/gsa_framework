@@ -381,3 +381,76 @@ class Moon:
         y += np.sum(Xdummy, axis=1) / self.num_dummy / 10 #TODO add dummy differently
 
         return y
+
+
+class SobolLevitan:
+    '''
+    Sobol-Levitan function, where coefficients stored in the `b` vector define variables' importance.
+    ---------------
+    Source:
+        Two-stage sensitivity-based group screening in computer experiments.
+        Moon, H., Dean, A. M., & Santner, T. J., 2012
+        https://doi.org/10.1080/00401706.2012.725994
+    Original paper:
+        On the use of variance reducing multipliers in Monte Carlo computations of a global sensitivity index
+        Sobol' I., Levitan Yu.
+        https://doi.org/10.1016/S0010-4655(98)00156-8
+    Links:
+        http://www.sfu.ca/~ssurjano/soblev99.html
+
+    Parameters
+    ----------
+    num_params : int
+        Number of model inputs
+    num_influential : int
+        Number of influential inputs
+    case : str
+        Can take values `easy` and `hard`, where `easy` corresponds to `b[:num_influential]=1` and the rest to 0,
+        so that influential inputs are clearly active.
+        Whereas `hard` corresponds to setting b[:20] to an array of gradually decreasing values, and the rest to 0.
+
+    Returns
+    -------
+    y : np.array of size n_samples x 1
+        Function output for each input sample
+    '''
+
+    def __init__(self, num_params=None, num_influential=None, case='hard'):
+
+        if not num_params:
+            num_params = 60
+        if not num_influential:
+            num_influential = 8
+        assert num_influential <= num_params
+
+        if case == 'easy':
+            b = np.zeros(num_params)
+            b[:num_influential] = 1
+        elif case == 'hard':
+            b = np.zeros(num_params)
+            b[:20] = np.array([2.6795, 2.2289, 1.8351, 1.4938, 1.2004, 0.9507, 0.7406, 0.5659, 0.4228, 0.3077,
+                               0.2169, 0.1471, 0.0951, 0.0577, 0.0323, 0.0161, 0.0068, 0.0021, 0.0004, 0.0])
+
+        self.influential_params = np.arange(
+            num_influential
+        )  # we already know for this function, for comparing with GSA results
+
+        # Set b and c0 values as in the Moon paper
+        self.num_params = num_params
+        self.num_influential = num_influential
+        self.influential_params = self.influential_params
+        self.case = case
+        self.b = b
+        self.c0 = 0
+
+    def __num_input_params__(self):
+        return self.num_params
+
+    def __rescale__(self, X):
+        return X
+
+    def __call__(self, X):
+        Id = (np.exp(self.b) - 1)/self.b
+        Id[np.isnan(Id)] = 1
+        y = np.exp(np.sum(self.b*X, axis=1)) - np.prod(Id) + self.c0
+        return y

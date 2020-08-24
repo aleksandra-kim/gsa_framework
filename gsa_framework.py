@@ -101,19 +101,33 @@ class Problem:
 
     def guess_iterations(self, CONSTANT=10):
         # Default value for now...
-        return self.num_params * CONSTANT
+        if self.interpreter == 'correlation_coefficients':
+            corrcoef_constants = get_corrcoef_num_iterations()
+            num_iterations = np.max(
+                corrcoef_constants['pearson']['num_iterations'],
+                corrcoef_constants['spearman']['num_iterations'],
+                corrcoef_constants['kendall']['num_iterations']
+            )
+            return num_iterations
+        else:
+            return self.num_params * CONSTANT
 
     def generate_samples(self, X=None):
         """Use ``self.sampler`` to generate normalized samples for this problem"""
-        self.base_sampler_fnc = 'no_base'
+        self.base_sampler_str = 'no_base'
         if self.interpreter_str == 'sobol_indices':
             print('Changing samples to saltelli, because of faster indices convergence')
             self.sampler_str = 'saltelli'
             self.seed = None
         elif self.interpreter_str == 'dissimilarity_measure':
             print('Samples should be adapted for dissimilarity sensitivity measure')
-            self.base_sampler_fnc = sampler_mapping.get(self.sampler_str, 'random')
+            if self.sampler_str in sampler_mapping.keys():
+                self.base_sampler_str = self.sampler_str
+            else:
+                self.base_sampler_str = 'random'
+            self.base_sampler_fnc = sampler_mapping.get(self.base_sampler_str)
             self.sampler_str = 'dissimilarity_samples'
+            self.gsa_dict.update({'base_sampler_str': self.base_sampler_str})
             self.gsa_dict.update({'base_sampler_fnc': self.base_sampler_fnc})
         else:
             if X != None:
@@ -126,7 +140,7 @@ class Problem:
         self.filename_X = os.path.join(
             self.write_dir,
             'arrays',
-            'X_' + self.sampler_str + '_' + self.base_sampler_fnc + \
+            'X_' + self.sampler_str + '_' + self.base_sampler_str + \
             '_iterations_' + str(self.iterations) + \
             '_num_params_' + str(self.num_params) + \
             '_seed_' + str(self.seed) + '.hdf5',
@@ -144,7 +158,6 @@ class Problem:
         if not os.path.exists(self.filename_X_rescaled):
             X = self.read_hdf5_array(self.filename_X)
             X_rescaled = self.model.__rescale__(X)
-            print(X.shape, X_rescaled.shape)
             self.write_hdf5_array(X_rescaled, self.filename_X_rescaled)
         return self.filename_X_rescaled
 
@@ -191,8 +204,9 @@ class Problem:
 
     def interpret(self):
         y = self.read_hdf5_array(self.filename_y)
-        print(y.shape)
+        X_rescaled = self.read_hdf5_array(self.filename_X_rescaled)
         self.gsa_dict.update({'y': y.flatten()})
+        self.gsa_dict.update({'X': X_rescaled})
         return self.interpreter_fnc(self.gsa_dict)
 
 

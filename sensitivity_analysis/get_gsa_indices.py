@@ -60,6 +60,17 @@ def sobol_indices(dict_):
 ###################################
 ### 2. Correlation coefficients ###
 ###################################
+def kendalltau_mat(X, y):
+    from scipy.stats import kendalltau
+    num_params = X.shape[1]
+    kendall, pval_kendall = np.zeros(num_params), np.zeros(num_params)
+    kendall[:], pval_kendall[:] = np.nan, np.nan
+    for i in range(num_params):
+        kendall_tuple = kendalltau(X[:,i], y)
+        kendall[i] = kendall_tuple[0]
+        pval_kendall[i] = kendall_tuple[1]
+    return kendall, pval_kendall
+
 def correlation_coefficients(dict_):
 
     X = dict_.get('X')
@@ -68,17 +79,73 @@ def correlation_coefficients(dict_):
     from scipy.stats import spearmanr
     spearman, pval_spearman = spearmanr(X, y)
     spearman = spearman[:-1, -1]
+    kendall, pval_kendall = kendalltau_mat(X, y)
 
     X_temp = np.hstack([X, y.reshape(X.shape[0], -1)]).T
     pearson = np.corrcoef(X_temp)
     pearson = pearson[:-1, -1]
 
     sa_dict = {
+        'pearson': pearson,
         'spearman': spearman,
         'pval_spearman': pval_spearman,
-        'pearson': pearson,
+        'kendall': kendall,
+        'pval_kendall': pval_kendall,
     }
     return sa_dict
+
+Z_ALPHA_2 = {
+    0.50: 0.674,
+    0.80: 1.282,
+    0.90: 1.645,
+    0.95: 1.960,
+    0.98: 2.326,
+    0.99: 2.576,
+}
+n0_DEFAULT = 10
+
+def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level=0.99):
+    '''
+    References
+    ----------
+    Sample size requirements for estimating Pearson, Kendall and Spearman correlations
+    Bonett, Douglas G and Wright, Thomas A, 2000
+    http://doi.org/10.1007/BF02294183
+    `num_iterations` should agree with the values from Table 1. This was tested in the tests.
+    Sometimes there's a difference of +-1 iteration. I think this is due to numerical problems,
+    because this paper is very old.
+    '''
+
+    z_alpha_2 = Z_ALPHA_2[confidence_level]
+
+    corrcoeff_constants = {
+        'pearson':  {'b': 3, 'c': 1, 'theta': theta or 0.95}, # "hardest" correlation value to estimate
+        'spearman': {'b': 3, 'theta': theta or 0.8},
+        'kendall':  {'b': 4, 'c': (0.437)**0.5, 'theta': theta or 0.8},
+    }
+    corrcoeff_constants['spearman']['c'] = (1 + corrcoeff_constants['spearman']['theta']**2/2) ** 0.5
+
+    compute_n0 = lambda b, c, theta: np.round(4 * c**2 * (1 - theta**2)**2 * (z_alpha_2 / interval_width)**2 + b)
+    compute_L1 = lambda b, c, theta, n: 0.5 * (np.log(1+theta) - np.log(1-theta)) - c*z_alpha_2 / (n-b)**0.5
+    compute_L2 = lambda b, c, theta, n: 0.5 * (np.log(1+theta) - np.log(1-theta)) + c*z_alpha_2 / (n-b)**0.5
+    compute_limit = lambda L: (np.exp(2*L)-1) / (np.exp(2*L)+1)
+    compute_n = lambda b, n0, w0: np.round((n0-b) * (w0/interval_width)**2 + b)
+
+    for val in corrcoeff_constants.values():
+        b,c,theta = val['b'], val['c'], val['theta']
+        # First stage approximation
+        val['n0'] = max( compute_n0(b,c,theta), n0_DEFAULT )
+        val['L1'] = compute_L1(b,c,theta,val['n0'])
+        val['L2'] = compute_L2(b,c,theta,val['n0'])
+        val['lower_limit'] = compute_limit(val['L1'])
+        val['upper_limit'] = compute_limit(val['L2'])
+        assert val['upper_limit'] > val['lower_limit']
+        val['w0'] = val['upper_limit']  - val['lower_limit']
+
+        # Second stage approximation
+        val['num_iterations'] = max( compute_n(b,val['n0'],val['w0']), n0_DEFAULT )
+
+    return corrcoeff_constants
 
 
 ############################

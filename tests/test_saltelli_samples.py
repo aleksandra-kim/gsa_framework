@@ -22,6 +22,5 @@ def test_output():
             'num_params': num_params,
         }
         samples_gsa = saltelli_samples(sampling_dict)
-        print(samples_salib.shape, samples_gsa.shape)
 
         assert np.allclose(samples_salib, samples_gsa)
