@@ -29,41 +29,47 @@
 
 import numpy as np
 import math
-import sys
 
 # local files
 from .directions import directions
 
 
 class SobolSample:
-    """
-    Generate Sobol quasi random sequences of size n_dimension one at a time using method __next__ or
-    all samples simultaneously as a matrix of size n_samples x n_dimensions.
+    """Generate Sobol quasi-random sequences.
 
-    Literature
+    The samples can be either of size ``num_params`` and generated one at a time using method ``next()`` or
+    all samples computed simultaneously as a matrix of size ``[iterations, num_params]``.
+
+    Parameters
     ----------
-    [2003] Joe and Kuo
-        Remark on Algorithm 659: Implementing Sobol's quasirandom sequence generator
+    iterations : int
+        Number of samples to generate.
+    num_params : int
+        Number of parameters (dimensions) in the Sobol sequence.
+    scale : int
+
+    References
+    ----------
+    Papers
+        Remark on Algorithm 659: Implementing Sobol's quasi-random sequence generator.
+        Stephen Joe, Frances Y. Kuo
         https://doi.org/10.1145/641876.641879
-    [2008] Joe and Kuo
-        Constructing Sobol sequences with better two-dimensional projections
+
+        Constructing Sobol sequences with better two-dimensional projections.
+        Stephen Joe, Frances Y. Kuo
         https://doi.org/10.1137/070709359
 
     """
 
-    def __init__(self, n_samples, n_dimensions, scale=31):
-
-        if n_dimensions > len(directions.data) + 1:
+    def __init__(self, iterations, num_params, scale=31):
+        if num_params > len(directions.data) + 1:
             raise ValueError("Error in Sobol sequence: not enough dimensions")
-
-        L = int(math.ceil(math.log(n_samples) / math.log(2)))
-
+        L = int(math.ceil(math.log(iterations) / math.log(2)))
         if L > scale:
             raise ValueError("Error in Sobol sequence: not enough bits")
-
         self.n_samples, self.n_dimensions, self.scale, self.L = (
-            n_samples,
-            n_dimensions,
+            iterations,
+            num_params,
             scale,
             L,
         )
@@ -72,19 +78,7 @@ class SobolSample:
         self.V = self.generate_V()
 
     def index_of_least_significant_zero_bit(self, value):
-        """
-        Generate index of the least significant zero bit of a value.
-
-        Attributes
-        ----------
-        Value : int
-
-        Returns
-        -------
-        Index : int
-            Index of the least significant zero bit
-
-        """
+        """Generate index of the least significant zero bit of a value."""
 
         index = 1
         while (value & 1) != 0:
@@ -93,25 +87,14 @@ class SobolSample:
         return index
 
     def generate_V(self):
-        """
-        Compute matrix V that is needed for Sobol quasi random sequences generation.
-
-        Returns
-        -------
-        V : ndarray
-
-        """
+        """Compute matrix V that is needed for Sobol quasi-random sequences generation."""
 
         n_samples, n_dimensions, L = self.n_samples, self.n_dimensions, self.L
-
         V = np.zeros([L + 1, n_dimensions], dtype=int)
         V[1:, 0] = [1 << (self.scale - j) for j in range(1, L + 1)]
-
         for i in range(n_dimensions - 1):
-
             m = np.array(directions[i], dtype=int)
             s = len(m) - 1
-
             # The following code discards the first row of the ``m`` array
             # Because it has floating point errors, e.g. values of 2.24e-314
             if L <= s:
@@ -124,24 +107,15 @@ class SobolSample:
                     V[j, i + 1] = V[j - s, i + 1] ^ (V[j - s, i + 1] >> s)
                     for k in range(1, s):
                         V[j, i + 1] ^= ((m[0] >> (s - 1 - k)) & 1) * V[j - k][i + 1]
-
         return V
 
     def generate_sample(self):
-        """
-        Generate an array of size n_dimensions that contains one samples of Sobol quasi random sequence.
-
-        Returns
-        -------
-        sample_one : array
-            Array of size n_dimensions that contains one Sobol quasi random sequence
-
-        """
+        """Generate an array of size ``num_params`` that contains one sample of Sobol sequence."""
 
         sample_one = np.zeros(self.n_dimensions)
 
         """C: Huge gains here from using numpy functions at once instead of a Python loop"""
-        """S: How..?"""
+        """S: How..?""" #TODO Chris
 
         for i in range(self.n_dimensions):
             self.Y[i] ^= self.V[
@@ -152,6 +126,8 @@ class SobolSample:
         return sample_one
 
     def __iter__(self):
+        """S: Is that needed here?"""
+        # TODO Chris
         return self
 
     def __next__(self):
@@ -164,19 +140,10 @@ class SobolSample:
             return self.generate_sample()
 
     def generate_all_samples(self):
-        """
-        Generate a matrix that contains n_samples number of samples for n_dimensions number of dimensions.
-
-        Returns
-        -------
-        sample_all : ndarray
-            Matrix of size n_samples x n_dimensions that contains Sobol quasi random sequences
-
-        """
+        """Generate a matrix that contains samples for all ``iterations`` and ``num_params``."""
 
         n_samples, n_dimensions, V = self.n_samples, self.n_dimensions, self.V
         sample_all = np.zeros([n_samples, n_dimensions])
-
         X = int(0)
         for j in range(1, n_samples):
             X ^= V[self.index_of_least_significant_zero_bit(j - 1)]

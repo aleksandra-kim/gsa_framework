@@ -1,43 +1,42 @@
 import numpy as np
-# import brightway2 as bw
-# from setup_files import setup_bw_project_simple
 
 
-# Utils functions
-def uniform_rescale(X, inputs):
-    left_rescale  = np.array(list(inputs.values()))[:, 0]
-    right_rescale = np.array(list(inputs.values()))[:, 1]
-    X_rescaled = (right_rescale - left_rescale) * X + left_rescale
-    return X_rescaled
+#######################
+### Utils functions ###
+#######################
 
 
-# Test functions
+
+######################
+### Test functions ###
+######################
 class Morris:
-    '''
-    Morris function
-    ---------------
-    Source:
-        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
-        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
-        https://doi.org/10.1016/j.jspi.2005.01.001
-    Links:
-        http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
+    """Class that implements the Morris function.
 
     Parameters
     ----------
     num_params : int
-        Number of model inputs
+        Number of model inputs.
     num_influential : int
-        Number of influential inputs
+        Number of influential inputs.
 
     Returns
     -------
-    y : np.array of size n_samples x 1
-        Function output for each input sample
-    '''
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Paper:
+        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
+        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
+        https://doi.org/10.1016/j.jspi.2005.01.001
+    Useful link:
+        http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
+
+    """
 
     def __init__(self, num_params=None, num_influential=None):
-
         if not num_params:
             num_params = 10
         if not num_influential:
@@ -71,26 +70,29 @@ class Morris:
 
 
 class Borehole:
-    '''
-    Borehole function
-    ---------------
-    Original source:
+    """Class that implements the Borehole function.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Original paper:
         Sensitivity/uncertainty analysis of a borehole scenario comparing
         Latin Hypercube Sampling and deterministic sensitivity approaches.
         Harper, W. V., Gupta, S. K., 1983
         - here the function is slightly different than in the below paper
-    Source:
+    Other paper:
         Two-stage sensitivity-based group screening in computer experiments.
         Moon, H., Dean, A. M., & Santner, T. J., 2012
         https://doi.org/10.1080/00401706.2012.725994
-    Links:
+    Useful link:
         http://www.sfu.ca/~ssurjano/borehole.html
 
-    Returns
-    -------
-    y : np.array of size n_samples x 1
-        Function output for each input sample
-    '''
+    """
+
     def __init__(self):
         self.params = {
             'rw': [0.05, 0.15],     # radius of borehole (m)
@@ -127,21 +129,24 @@ class Borehole:
 
 
 class Wingweight:
-    '''
-    Wing weight function
-    ---------------
-    Source:
-        Engineering Design via Surrogate Modelling.
-        Forrester, 2008
-        https://doi.org/10.1002/9780470770801
-    Links:
-        http://www.sfu.ca/~ssurjano/wingweight.html
+    """Class that implements the Wing weight function.
 
     Returns
     -------
-    y : np.array of size n_samples x 1
-        Function output for each input sample
-    '''
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Original paper:
+        Engineering Design via Surrogate Modelling.
+        Forrester, 2008
+        https://doi.org/10.1002/9780470770801
+    Useful link:
+        http://www.sfu.ca/~ssurjano/wingweight.html
+
+    """
+
     def __init__(self):
         self.params = {
             'Sw':  [150, 200],       # wing area (ft2)
@@ -165,7 +170,6 @@ class Wingweight:
         return uniform_rescale(X, self.params)
 
     def __call__(self, X):
-
         Sw =  X[:, 0]
         Wfw = X[:, 1]
         A =   X[:, 2]
@@ -187,22 +191,25 @@ class Wingweight:
 
 
 class OTLcircuit:
-    '''
-    OTL circuit function
-    ---------------
-    Source:
+    """Class that implements the OTL circuit function.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Model outputs.s
+
+    References
+    ----------
+    Original paper:
         Modeling Data from Computer Experiments: An Empirical Comparison of Kriging with
         MARS and Projection Pursuit Regression
         Einat Neumann Ben-Ari, David M. Steinberg, 2008
         https://doi.org/10.1080/08982110701580930
-    Links:
+    Useful link:
         http://www.sfu.ca/~ssurjano/otlcircuit.html
 
-    Returns
-    -------
-    y : np.array of size n_samples x 1
-        Function output for each input sample
-    '''
+    """
+
     def __init__(self):
         self.params = {
             'Rb1':  [50, 150],      # resistance b1 (K-Ohms)
@@ -222,7 +229,6 @@ class OTLcircuit:
         return uniform_rescale(X, self.params)
 
     def __call__(self, X):
-
         Rb1  = X[:,0]
         Rb2  = X[:,1]
         Rf   = X[:,2]
@@ -241,22 +247,25 @@ class OTLcircuit:
 
 
 class Piston:
-    '''
-    Piston simulation function function
-    ---------------
-    Source:
+    """Class that implements the Piston simulation function.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Original paper:
         Modeling Data from Computer Experiments: An Empirical Comparison of Kriging with
         MARS and Projection Pursuit Regression
         Einat Neumann Ben-Ari, David M. Steinberg, 2008
         https://doi.org/10.1080/08982110701580930
-    Links:
+    Useful link:
         http://www.sfu.ca/~ssurjano/piston.html
 
-    Returns
-    -------
-    y : np.array of size n_samples x 1
-        Function output for each input sample
-    '''
+    """
+
     def __init__(self):
         self.params = {
             'M': [30, 60],  # piston weight (kg)
@@ -277,7 +286,6 @@ class Piston:
         return uniform_rescale(X, self.params)
 
     def __call__(self, X):
-
         M  = X[:,0]
         S  = X[:,1]
         V0 = X[:,2]
@@ -295,26 +303,24 @@ class Piston:
 
 
 class Moon:
-    '''
-    Moon function
-    ---------------
-    Source:
-        Two-stage sensitivity-based group screening in computer experiments.
-        Moon, H., Dean, A. M., & Santner, T. J., 2012
-        https://doi.org/10.1080/00401706.2012.725994
-    Links:
-        http://www.sfu.ca/~ssurjano/moonetal12.html
-
-    Parameters
-    ----------
-    num_dummy : int
-        Number of non-influential dummy variables to add to the model
+    """Class that implements the Moon function.
 
     Returns
     -------
-    y : np.array of size n_samples x 1
-        Function output for each input sample
-    '''
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Original paper:
+        Two-stage sensitivity-based group screening in computer experiments.
+        Moon, H., Dean, A. M., & Santner, T. J., 2012
+        https://doi.org/10.1080/00401706.2012.725994
+    Useful link:
+        http://www.sfu.ca/~ssurjano/moonetal12.html
+
+    """
+
     def __init__(self, num_dummy=29):
         self.functions_indices = dict( # left included, right excluded
             borehole = [0,8],
@@ -359,7 +365,6 @@ class Moon:
         return X
 
     def __call__(self, X):
-
         X1 = X[ : , self.functions_indices['borehole'][0]   : self.functions_indices['borehole'][1]   ]
         X2 = X[ : , self.functions_indices['wingweight'][0] : self.functions_indices['wingweight'][1] ]
         X3 = X[ : , self.functions_indices['otlcircuit'][0] : self.functions_indices['otlcircuit'][1] ]
@@ -384,19 +389,7 @@ class Moon:
 
 
 class SobolLevitan:
-    '''
-    Sobol-Levitan function, where coefficients stored in the `b` vector define variables' importance.
-    ---------------
-    Source:
-        Two-stage sensitivity-based group screening in computer experiments.
-        Moon, H., Dean, A. M., & Santner, T. J., 2012
-        https://doi.org/10.1080/00401706.2012.725994
-    Original paper:
-        On the use of variance reducing multipliers in Monte Carlo computations of a global sensitivity index
-        Sobol' I., Levitan Yu.
-        https://doi.org/10.1016/S0010-4655(98)00156-8
-    Links:
-        http://www.sfu.ca/~ssurjano/soblev99.html
+    """Class that implements the Sobol-Levitan function.
 
     Parameters
     ----------
@@ -405,15 +398,29 @@ class SobolLevitan:
     num_influential : int
         Number of influential inputs
     case : str
-        Can take values `easy` and `hard`, where `easy` corresponds to `b[:num_influential]=1` and the rest to 0,
+        Can take values `easy` and `hard`, where `easy` corresponds to ``b[:num_influential]=1`` and the rest to 0,
         so that influential inputs are clearly active.
         Whereas `hard` corresponds to setting b[:20] to an array of gradually decreasing values, and the rest to 0.
 
     Returns
     -------
-    y : np.array of size n_samples x 1
-        Function output for each input sample
-    '''
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Original paper:
+        On the use of variance reducing multipliers in Monte Carlo computations of a global sensitivity index
+        Sobol' I., Levitan Yu.
+        https://doi.org/10.1016/S0010-4655(98)00156-8
+    Other paper:
+        Two-stage sensitivity-based group screening in computer experiments.
+        Moon, H., Dean, A. M., & Santner, T. J., 2012
+        https://doi.org/10.1080/00401706.2012.725994
+    Useful link:
+        http://www.sfu.ca/~ssurjano/soblev99.html
+
+    """
 
     def __init__(self, num_params=None, num_influential=None, case='hard'):
 

@@ -109,4 +109,5 @@ sompy/.DS_Store
 
 # local files
 write_files
-.idea
+.idea/
+other
