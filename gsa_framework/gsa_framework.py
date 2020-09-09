@@ -1,14 +1,13 @@
-import plotly.graph_objects as go
+from .sampling.get_samples import *
+from .sensitivity_analysis.correlation_coefficients import  correlation_coefficients
+from .sensitivity_analysis.dissimilarity_measures import dissimilarity_measure
+from .sensitivity_analysis.extended_FAST import  eFAST_indices
+from .sensitivity_analysis.gradient_boosting import xgboost_scores
+from .sensitivity_analysis.sobol_indices import sobol_indices
+from .utils import read_hdf5_array, write_hdf5_array
+from pathlib import Path
 import os
-from utils import read_hdf5_array, write_hdf5_array
-
-# Local files
-from sampling.get_samples import *
-from sensitivity_analysis.correlation_coefficients import  correlation_coefficients
-from sensitivity_analysis.sobol_indices import sobol_indices
-from sensitivity_analysis.extended_FAST import  eFAST_indices
-from sensitivity_analysis.gradient_boosting import xgboost_scores
-from sensitivity_analysis.dissimilarity_measures import dissimilarity_measure
+import plotly.graph_objects as go
 
 # Sampler and Global Sensitivity Analysis (GSA) mapping dictionaries
 sampler_mapping = {
@@ -136,22 +135,23 @@ class Problem:
 
         self.base_sampler_str = 'no_base'
         if self.interpreter_str == 'sobol_indices':
-            print('Changing samples to saltelli, because of faster indices convergence')
+            # Printing is OK, but not great on clusters. Consider using warnings and/or proper logging
+            print('Changing samples to saltelli, because indices convergence faster')
+
+            # 1) you don't know if this is actually a change, and
+            # 2) if this change is always happening, you could skip the warning message
+
             self.sampler_str = 'saltelli'
             self.seed = None
         elif self.interpreter_str == 'eFAST_indices':
-            print('Changing samples to eFAST, because of faster indices convergence')
+            print('Changing samples to eFAST, because indices convergence faster')
             self.sampler_str = 'eFAST'
         elif self.interpreter_str == 'dissimilarity_measure':
             print('Samples should be adapted for dissimilarity sensitivity measure')
-            if self.sampler_str in sampler_mapping.keys():
-                self.base_sampler_str = self.sampler_str
-            else:
-                self.base_sampler_str = 'random'
+            self.base_sampler_str = sampler_mapping.get(self.sampler_str, 'random')
             self.base_sampler_fnc = sampler_mapping.get(self.base_sampler_str)
             self.sampler_str = 'dissimilarity_samples'
-            self.gsa_dict.update({'base_sampler_str': self.base_sampler_str})
-            self.gsa_dict.update({'base_sampler_fnc': self.base_sampler_fnc})
+            self.gsa_dict.update({'base_sampler_str': self.base_sampler_str, 'base_sampler_fnc': self.base_sampler_fnc})
         else:
             if X != None:
                 self.sampler_str = 'custom'
@@ -160,17 +160,21 @@ class Problem:
         self.gsa_dict.update({'sampler_fnc': self.sampler_fnc})
         self.gsa_dict.update({'seed': self.seed})
 
-        self.filename_X = os.path.join(
-            self.write_dir,
-            'arrays',
-            'X_' + self.sampler_str + '_' + self.base_sampler_str + \
-            '_iterations_' + str(self.iterations) + \
-            '_num_params_' + str(self.num_params) + \
-            '_seed_' + str(self.seed) + '.hdf5',
+        self.filename_X = (Path(self.write_dir) /
+            'arrays' /
+            'X_' + self.sampler_str + '_' + self.base_sampler_str /
+            '_iterations_' + str(self.iterations) /
+            '_num_params_' + str(self.num_params) /
+            '_seed_' + str(self.seed) + '.hdf5'
         )
-        if not os.path.exists(self.filename_X):
+        if not self.filename_X.exists():
             X = self.sampler_fnc(self.gsa_dict)
             write_hdf5_array(X, self.filename_X)
+
+        # I don't like this changing global state, and then returning something as well.
+        # This is a question of personal preference, but I would set global state on class instantiation, and then
+        # change it as little as possible, just pass around the variables needed for each method.
+
         return self.filename_X
 
     def rescale_samples(self):
@@ -238,9 +242,6 @@ class Problem:
         self.gsa_dict.update({'X': X_rescaled})
         gsa_indices_dict = self.interpreter_fnc(self.gsa_dict)
         return gsa_indices_dict
-
-    # def validate_gsa(self): TODO
-
 
     def plot_sa_results(self, sa_indices, influential_inputs=[], filename=''):
         """Simplistic plotting of GSA results of GSA indices vs parameters. Figure is saved in the ``write_dir``.

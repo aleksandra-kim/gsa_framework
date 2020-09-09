@@ -1,5 +1,4 @@
-from sensitivity_analysis.correlation_coefficients import get_corrcoef_num_iterations
-# import pytest
+from gsa_framework.sensitivity_analysis.correlation_coefficients import get_corrcoef_num_iterations
 
 def test_num_iterations():
     '''

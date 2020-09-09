@@ -1,3 +1,4 @@
+from sklearn.metrics import r2_score, explained_variance_score
 import numpy as np
 import json
 import os
@@ -57,7 +58,6 @@ def xgboost_scores(dict_):
     model = xgb.train(params, dtrain)
 
     # 5. make predictions and compute prediction score
-    from sklearn.metrics import r2_score, explained_variance_score
     y_pred = model.predict(X_dtest)
     r2 = r2_score(y_test, y_pred)
     exp_v_score = explained_variance_score(y_test, y_pred)

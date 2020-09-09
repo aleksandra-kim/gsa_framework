@@ -1,3 +1,4 @@
+from ..sampling.get_samples import get_omega_eFAST
 import numpy as np
 
 def eFAST_first_order(Y, N, M, omega):
@@ -51,7 +52,6 @@ def eFAST_indices(dict_):
     iterations = dict_.get('iterations')
     num_params = dict_.get('num_params')
     # Recreate the vector omega used in the sampling
-    from sampling.get_samples import get_omega_eFAST
     M = 4
     omega = get_omega_eFAST(num_params, iterations, M)
     # Calculate and Output the First and Total Order Values

@@ -1,4 +1,4 @@
-from sampling.get_samples import eFAST_samples
+from gsa_framework.sampling.get_samples import eFAST_samples
 from SALib.sample import fast_sampler
 import numpy as np
 

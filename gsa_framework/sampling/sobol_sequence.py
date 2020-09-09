@@ -27,11 +27,9 @@
 # S. Joe and F. Y. Kuo, Remark on Algorithm 659: Implementing Sobol's quasirandom sequence generator, 2003
 # S. Joe and F. Y. Kuo, Constructing Sobol sequences with better two-dimensional projections, 2008
 
-import numpy as np
+from .directions import Directions
 import math
-
-# local files
-from .directions import directions
+import numpy as np
 
 
 class SobolSample:
@@ -62,7 +60,8 @@ class SobolSample:
     """
 
     def __init__(self, iterations, num_params, scale=31):
-        if num_params > len(directions.data) + 1:
+        self.directions = Directions()
+        if num_params > len(self.directions.data) + 1:
             raise ValueError("Error in Sobol sequence: not enough dimensions")
         L = int(math.ceil(math.log(iterations) / math.log(2)))
         if L > scale:
@@ -93,7 +92,8 @@ class SobolSample:
         V = np.zeros([L + 1, n_dimensions], dtype=int)
         V[1:, 0] = [1 << (self.scale - j) for j in range(1, L + 1)]
         for i in range(n_dimensions - 1):
-            m = np.array(directions[i], dtype=int)
+            # Sasha - is this conversion necessary?
+            m = np.array(self.directions[i], dtype=int)
             s = len(m) - 1
             # The following code discards the first row of the ``m`` array
             # Because it has floating point errors, e.g. values of 2.24e-314
@@ -114,9 +114,6 @@ class SobolSample:
 
         sample_one = np.zeros(self.n_dimensions)
 
-        """C: Huge gains here from using numpy functions at once instead of a Python loop"""
-        """S: How..?""" #TODO Chris
-
         for i in range(self.n_dimensions):
             self.Y[i] ^= self.V[
                 self.index_of_least_significant_zero_bit(self.current - 1), i
@@ -127,7 +124,9 @@ class SobolSample:
 
     def __iter__(self):
         """S: Is that needed here?"""
-        # TODO Chris
+
+        # Yes, see https://docs.python.org/3/library/collections.abc.html#collections.abc.Iterator
+
         return self
 
     def __next__(self):

@@ -1,4 +1,4 @@
-from sampling.get_samples import saltelli_samples
+from gsa_framework.sampling.get_samples import saltelli_samples
 from SALib.sample import saltelli
 import numpy as np
 

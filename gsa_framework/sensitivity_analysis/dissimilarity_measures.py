@@ -1,5 +1,6 @@
-import numpy as np
 from copy import deepcopy
+from scipy.stats import entropy
+import numpy as np
 
 def dissimilarity_measure(dict_):
     """Naive implementation of dissimilarity measures computation between distributions.
@@ -24,10 +25,8 @@ def dissimilarity_measure(dict_):
 
     """
 
-    num_params = dict_.get('num_params')
-    iterations = dict_.get('iterations')
+    num_params, iterations, y = dict_['num_params'], dict['iterations'], dict['y']
     iterations_per_parameter = iterations // (num_params + 1)
-    y = dict_.get('y')
 
     # Bin model output ``y`` to obtain normalized histogram counts (aka densities).
     # Choose number of bins as follows:
@@ -37,7 +36,6 @@ def dissimilarity_measure(dict_):
     y_base = y[:iterations_per_parameter]
     y_base_count_normalized = get_hist_count(y_base, bins)
 
-    from scipy.stats import entropy
     # Include all dissimilarity measures on output here
     diss_measures = {
         'means_difference': means_difference_squared,
@@ -85,3 +83,6 @@ def entropy_without_zeros(p,q):
         if q[i] != 0 and p[i] != 0:
             sum_ += p[i] * np.log(p[i] / q[i])
     return sum_
+
+    # I think this should be OK
+    return sum(x[i] * np.log(x[i] / y[i] for x, y in zip(p, q) if x > 0 and y > 0))

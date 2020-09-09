@@ -1,4 +1,4 @@
-from sampling.get_samples import sobol_samples
+from gsa_framework.sampling.get_samples import sobol_samples
 from SALib.sample import sobol_sequence
 import numpy as np
 

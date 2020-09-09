@@ -1,13 +1,15 @@
-from pygsa.sampling import directions
+from gsa_framework.sampling import Directions
 import numpy as np
 import pytest
 
 
 def test_directions_dtype():
+    directions = Directions()
     assert directions[6].dtype == np.int64
 
 
 def test_directions_data():
+    directions = Directions()
     assert directions.data.shape == (20999, 19)
 
     assert np.allclose(directions[0], [0, 1])
@@ -39,5 +41,6 @@ def test_directions_data():
 
 
 def test_directions_index_error():
+    directions = Directions()
     with pytest.raises(ValueError):
         directions["a"]

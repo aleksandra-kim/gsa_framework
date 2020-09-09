@@ -1,11 +1,11 @@
+from ..utils import get_z_alpha_2
 import numpy as np
-from utils import get_z_alpha_2
+from scipy.stats import kendalltau, spearmanr
 
 n0_DEFAULT = 10
 
 def kendalltau_mat(X, y):
     """Compute Kendall tau-a correlation coefficients for all parameters."""
-    from scipy.stats import kendalltau
     num_params = X.shape[1]
     kendall, pval_kendall = np.zeros(num_params), np.zeros(num_params)
     kendall[:], pval_kendall[:] = np.nan, np.nan
@@ -15,26 +15,25 @@ def kendalltau_mat(X, y):
         pval_kendall[i] = kendall_tuple[1]
     return kendall, pval_kendall
 
-def correlation_coefficients(dict_):
+
+def correlation_coefficients(gsa_dict):
     """Compute estimations of different correlation coefficients, such as Pearson, Kendall and Spearman.
 
     Parameters
     ----------
-    dict_ : dict
+    gsa_dict : dict
         Dictionary that contains parameter sampling matrix ``X`` and model outputs ``y``.
 
     Returns
     -------
-    sa_dict : dict
-        Dictionary that contains computed sensitivity indices.
+
+    Dictionary that contains computed sensitivity indices.
 
     TODO should be X or X rescaled?
 
     """
 
-    X = dict_.get('X')
-    y = dict_.get('y')
-    from scipy.stats import spearmanr
+    X, y = gsa_dict['X'], gsa_dict['y']
     spearman, pval_spearman = spearmanr(X, y)
     spearman = spearman[:-1, -1]
     kendall, pval_kendall = kendalltau_mat(X, y)
@@ -43,14 +42,13 @@ def correlation_coefficients(dict_):
     pearson = np.corrcoef(X_temp)
     pearson = pearson[:-1, -1]
 
-    sa_dict = {
+    return {
         'pearson': pearson,
         'spearman': spearman,
         # 'pval_spearman': pval_spearman,
         'kendall': kendall,
         # 'pval_kendall': pval_kendall,
     }
-    return sa_dict
 
 def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level=0.99):
     """Computes number of iterations for confident estimation of correlation coefficient  ``theta``.
@@ -90,6 +88,8 @@ def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level
     }
     corrcoeff_constants['spearman']['c'] = (1 + corrcoeff_constants['spearman']['theta']**2/2) ** 0.5
 
+    # It seems like these could be proper functions instead of anonymous ones.
+
     compute_n0 = lambda b, c, theta: np.round(4 * c**2 * (1 - theta**2)**2 * (z_alpha_2 / interval_width)**2 + b)
     compute_L1 = lambda b, c, theta, n: 0.5 * (np.log(1+theta) - np.log(1-theta)) - c*z_alpha_2 / (n-b)**0.5
     compute_L2 = lambda b, c, theta, n: 0.5 * (np.log(1+theta) - np.log(1-theta)) + c*z_alpha_2 / (n-b)**0.5
@@ -99,6 +99,9 @@ def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level
     for val in corrcoeff_constants.values():
         b,c,theta = val['b'], val['c'], val['theta']
         # First stage approximation
+
+        # Might be OK, but feels weird to store intermediate values in result dict
+
         val['n0'] = max( compute_n0(b,c,theta), n0_DEFAULT )
         val['L1'] = compute_L1(b,c,theta,val['n0'])
         val['L2'] = compute_L2(b,c,theta,val['n0'])

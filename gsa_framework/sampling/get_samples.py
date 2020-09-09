@@ -64,6 +64,8 @@ def saltelli_samples(dict_):
     return samples
 
 
+# Would be nice to have consistent function name parameters
+
 def get_omega_eFAST(num_params, iterations, M):
     """Compute omega parameter for the extended FAST sampling."""
     omega = np.zeros([num_params])

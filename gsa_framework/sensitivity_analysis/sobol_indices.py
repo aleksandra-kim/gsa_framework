@@ -1,5 +1,5 @@
 import numpy as np
-from utils import get_z_alpha_2
+from ..utils import get_z_alpha_2
 
 # TODO confidence intervals
 
