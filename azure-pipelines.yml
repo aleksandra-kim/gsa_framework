@@ -1,0 +1,84 @@
+jobs:
+- job:
+  displayName: ubuntu-18.04-38
+  pool:
+    vmImage: 'ubuntu-18.04'
+  strategy:
+    matrix:
+      Python37:
+        python.version: '3.7'
+      Python38:
+        python.version: '3.8'
+
+  steps:
+  - bash: echo "##vso[task.prependpath]$CONDA/bin"
+    displayName: Add conda to PATH
+
+  - bash: conda create --yes --quiet --name ci
+    displayName: Create Anaconda environment
+
+  - bash: |
+      source activate ci
+      conda install --yes --quiet -c defaults -c conda-forge --name ci python=$PYTHON_VERSION pytest pytest-azurepipelines pytest-cov <add your conda dependencies here>
+    displayName: Install Anaconda packages
+
+  - bash: |
+      source activate ci
+      pytest --cov=<your_library_name>
+    displayName: pytest
+
+- job:
+  displayName: macOS-10.14-38
+  pool:
+    vmImage: 'macOS-10.14'
+  strategy:
+    matrix:
+      Python38:
+        python.version: '3.8'
+      Python37:
+        python.version: '3.7'
+
+  steps:
+  - bash: echo "##vso[task.prependpath]$CONDA/bin"
+    displayName: Add conda to PATH
+
+  - bash: conda create --yes --quiet --name ci
+    displayName: Create Anaconda environment
+
+  - bash: |
+      source activate ci
+      conda install --yes --quiet -c defaults -c conda-forge --name ci python=$PYTHON_VERSION  pytest pytest-azurepipelines pytest-cov <add your conda dependencies here>
+    displayName: Install Anaconda packages
+
+  - bash: |
+      source activate ci
+      pytest --cov=<your_library_name>
+    displayName: pytest
+
+- job:
+  displayName: vs2017-win2016-38
+  pool:
+    vmImage: 'vs2017-win2016'
+  strategy:
+    matrix:
+      Python38:
+        python.version: '3.8'
+      Python37:
+        python.version: '3.7'
+
+  steps:
+  - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
+    displayName: Add conda to PATH
+
+  - script: conda create --yes --quiet --name ci
+    displayName: Create Anaconda environment
+
+  - script: |
+      call activate ci
+      conda install --yes --quiet -c defaults -c conda-forge --name ci python=%PYTHON_VERSION% pytest pytest-azurepipelines pytest-cov win32 <add your conda dependencies here>
+    displayName: Install Anaconda packages
+
+  - script: |
+      call activate ci
+      pytest --cov=<your_library_name>
+    displayName: pytest

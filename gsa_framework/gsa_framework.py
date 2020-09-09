@@ -239,6 +239,9 @@ class Problem:
         gsa_indices_dict = self.interpreter_fnc(self.gsa_dict)
         return gsa_indices_dict
 
+    # def validate_gsa(self): TODO
+
+
     def plot_sa_results(self, sa_indices, influential_inputs=[], filename=''):
         """Simplistic plotting of GSA results of GSA indices vs parameters. Figure is saved in the ``write_dir``.
 

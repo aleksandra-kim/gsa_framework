@@ -1,0 +1,6 @@
+h5py
+numpy
+plotly
+scikit-learn
+scipy
+xgboost
