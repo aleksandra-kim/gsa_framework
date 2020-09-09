@@ -108,6 +108,6 @@ venv.bak/
 sompy/.DS_Store
 
 # local files
-write_files
+dev/write_files/*
 .idea/*
 other

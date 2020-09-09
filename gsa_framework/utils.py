@@ -19,7 +19,6 @@ def write_hdf5_array(array, filename):
                              )
         d[:] = array
 
-
 def read_hdf5_array(filename):
     """Read ``array`` from a file with an .hdf5 extension"""
     with h5py.File(filename, 'r') as f:

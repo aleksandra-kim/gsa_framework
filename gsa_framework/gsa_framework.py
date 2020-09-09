@@ -1,12 +1,12 @@
 from .sampling.get_samples import *
-from .sensitivity_analysis.correlation_coefficients import  correlation_coefficients
+from .sensitivity_analysis.correlation_coefficients import  correlation_coefficients, get_corrcoef_num_iterations
 from .sensitivity_analysis.dissimilarity_measures import dissimilarity_measure
 from .sensitivity_analysis.extended_FAST import  eFAST_indices
 from .sensitivity_analysis.gradient_boosting import xgboost_scores
 from .sensitivity_analysis.sobol_indices import sobol_indices
 from .utils import read_hdf5_array, write_hdf5_array
 from pathlib import Path
-import os
+import pickle
 import plotly.graph_objects as go
 
 # Sampler and Global Sensitivity Analysis (GSA) mapping dictionaries
@@ -62,7 +62,7 @@ class Problem:
         self.model = model
         self.num_params = self.model.__num_input_params__()
         self.iterations = iterations or self.guess_iterations()
-        self.write_dir = write_dir
+        self.write_dir = Path(write_dir)
         # Save some useful info in a GSA dictionary
         self.gsa_dict = {
             'iterations': self.iterations,
@@ -92,12 +92,14 @@ class Problem:
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
         dirs_list = [
-            'arrays'
+            'arrays',
+            'gsa_results',
+            'figures'
         ]
         for dir in dirs_list:
-            dir_path = os.path.join(self.write_dir, dir)
-            if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
+            dir_path = self.write_dir / dir
+            if not dir_path.exists():
+                dir_path.mkdir(parents=True, exist_ok=True)
 
     def guess_iterations(self, CONSTANT=10):
         """Function that computes number of Monte Carlo iterations depending on the GSA method.
@@ -160,13 +162,13 @@ class Problem:
         self.gsa_dict.update({'sampler_fnc': self.sampler_fnc})
         self.gsa_dict.update({'seed': self.seed})
 
-        self.filename_X = (Path(self.write_dir) /
-            'arrays' /
-            'X_' + self.sampler_str + '_' + self.base_sampler_str /
-            '_iterations_' + str(self.iterations) /
-            '_num_params_' + str(self.num_params) /
-            '_seed_' + str(self.seed) + '.hdf5'
-        )
+        self.filename_X = self.write_dir / \
+                          'arrays' / \
+                          Path('X_' + self.sampler_str + '_' + self.base_sampler_str \
+                          + '_iterations_' + str(self.iterations) \
+                          + '_num_params_' + str(self.num_params) \
+                          + '_seed_' + str(self.seed) + '.hdf5')
+
         if not self.filename_X.exists():
             X = self.sampler_fnc(self.gsa_dict)
             write_hdf5_array(X, self.filename_X)
@@ -186,10 +188,9 @@ class Problem:
             Path where parameter sampling matrix ``X_rescaled`` for samples from appropriate distributions is stored.
 
         """
-        path_start = os.path.split(self.filename_X)[0]
-        path_end = os.path.split(self.filename_X)[-1]
-        self.filename_X_rescaled = os.path.join(path_start, 'X_rescaled' + path_end[1:])
-        if not os.path.exists(self.filename_X_rescaled):
+
+        self.filename_X_rescaled = self.filename_X.parent / Path('X_rescaled' + self.filename_X.stem[1:] + '.hdf5')
+        if not self.filename_X_rescaled.exists():
             X = read_hdf5_array(self.filename_X)
             X_rescaled = self.model.__rescale__(X)
             write_hdf5_array(X_rescaled, self.filename_X_rescaled)
@@ -207,10 +208,8 @@ class Problem:
 
         """
 
-        path_start = os.path.split(self.filename_X)[0]
-        path_end = os.path.split(self.filename_X)[-1]
-        self.filename_y = os.path.join(path_start, 'y' + path_end[1:])
-        if not os.path.exists(self.filename_y):
+        self.filename_y = self.filename_X.parent / Path('y' + self.filename_X.stem[1:] + '.hdf5')
+        if not self.filename_y.exists():
             X_rescaled = read_hdf5_array(self.filename_X_rescaled)
             y = self.model(X_rescaled)
             write_hdf5_array(y, self.filename_y)
@@ -241,9 +240,15 @@ class Problem:
         self.gsa_dict.update({'y': y.flatten()})
         self.gsa_dict.update({'X': X_rescaled})
         gsa_indices_dict = self.interpreter_fnc(self.gsa_dict)
-        return gsa_indices_dict
+        self.filename_gsa_results = self.write_dir / 'gsa_results' / \
+                                    Path(self.interpreter_str + self.filename_X.stem[1:] + '.pickle')
 
-    def plot_sa_results(self, sa_indices, influential_inputs=[], filename=''):
+        if not self.filename_gsa_results.exists():
+            with open(self.filename_gsa_results, 'wb') as f:
+                pickle.dump(gsa_indices_dict, f)
+        return self.filename_gsa_results
+
+    def plot_sa_results(self, sa_indices, influential_inputs=[]):
         """Simplistic plotting of GSA results of GSA indices vs parameters. Figure is saved in the ``write_dir``.
 
         Parameters
@@ -290,9 +295,7 @@ class Problem:
             xaxis_title = "Model parameters",
             yaxis_title = index_name,
         )
-        if not filename:
-            filename = 'sensitivity_plot.pdf'
-        pathname = os.path.join(self.write_dir, filename)
-        fig.write_image(pathname)
+        pathname = self.write_dir / 'figures' / Path(self.filename_gsa_results.stem + '.pdf')
+        fig.write_image(pathname.as_posix())
 
 

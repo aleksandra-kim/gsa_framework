@@ -16,7 +16,7 @@ setup(
         "gsa_framework.sensitivity_analysis"
     ],
     author="Aleksanda Kim",
-    author_email="(insert your email)",
+    author_email="aleksandra.kim@icloud.com",
     license="BSD-3-Clause",
     package_data={'gsa_framework': [os.path.join("sampling", 'data', 'directions.npy')]},
     install_requires=[
