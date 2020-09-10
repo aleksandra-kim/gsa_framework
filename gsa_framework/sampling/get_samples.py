@@ -102,9 +102,7 @@ def eFAST_samples(dict_, M=4):
     iterations = dict_.get('iterations')
     num_params = dict_.get('num_params')
     omega = get_omega_eFAST(num_params, iterations, M)
-    if iterations <= 4 * M ** 2:
-        print(iterations, M)
-        raise ValueError("""Sample size N > 4M^2 is required. M=4 by default.""")
+#     iterations = max( 4 * M**2 + 1, iterations) # Sample size N > 4M^2 is required. M=4 by default.
 
     # Discretization of the frequency space, s
     s = (2 * np.pi /  iterations) * np.arange( iterations)

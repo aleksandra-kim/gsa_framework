@@ -6,16 +6,16 @@ from copy import deepcopy
 
 from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
 
-################
-### Glossary ###
-################
+# ###############
+# ## Glossary ###
+# ###############
 #
 #     LSA     Local Sensitivity Analysis
 #     GSA     Global Sensitivity Analysis
 #     LCA     Life Cycle Assessment
 #     LCIA    Life Cycle Impact Assessment
 #
-##########################################
+# #########################################
 
 class LCAModel:
     """Class that implements basic LCA model which uses uncertainty in the background database.
@@ -44,13 +44,14 @@ class LCAModel:
         self.write_dir = write_dir
         self.make_dirs()
 
-        # self.uncertain_tech_params_where = np.where(self.lca.tech_params['uncertainty_type'] > 1)[0]
-        # self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
+#         self.uncertain_tech_params_where = np.where(self.lca.tech_params['uncertainty_type'] > 1)[0]
+#         self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
 
-        self.uncertain_tech_params_where = self.get_LSA_params(var_threshold=100000) #TODO change the threshold
+        self.uncertain_tech_params_where = self.get_LSA_params(var_threshold=0) #TODO change the threshold
         self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
 
         self.num_params = self.__num_input_params__()
+        self.influential_params = []
 
         self.choices = uncertainty_choices
         self.mc = MCRandomNumberGenerator(self.uncertain_tech_params)

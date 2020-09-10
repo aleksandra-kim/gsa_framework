@@ -1,4 +1,4 @@
-from ..utils import get_z_alpha_2
+from ..utils import get_z_alpha_2, read_hdf5_array
 import numpy as np
 from scipy.stats import kendalltau, spearmanr
 
@@ -33,7 +33,10 @@ def correlation_coefficients(gsa_dict):
 
     """
 
-    X, y = gsa_dict['X'], gsa_dict['y']
+    y = read_hdf5_array(gsa_dict['filename_y'])
+    y = y.flatten()
+    X = read_hdf5_array(gsa_dict['filename_X_rescaled'])
+
     spearman, pval_spearman = spearmanr(X, y)
     spearman = spearman[:-1, -1]
     kendall, pval_kendall = kendalltau_mat(X, y)
@@ -110,5 +113,5 @@ def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level
         assert val['upper_limit'] > val['lower_limit']
         val['w0'] = val['upper_limit']  - val['lower_limit']
         # Second stage approximation
-        val['num_iterations'] = max( compute_n(b,val['n0'],val['w0']), n0_DEFAULT )
+        val['num_iterations'] = int(max( compute_n(b,val['n0'],val['w0']), n0_DEFAULT ))
     return corrcoeff_constants

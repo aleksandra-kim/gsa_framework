@@ -6,8 +6,9 @@ from .sensitivity_analysis.gradient_boosting import xgboost_scores
 from .sensitivity_analysis.sobol_indices import sobol_indices
 from .utils import read_hdf5_array, write_hdf5_array
 from pathlib import Path
-import pickle
+import pickle, json
 import plotly.graph_objects as go
+import time
 
 # Sampler and Global Sensitivity Analysis (GSA) mapping dictionaries
 sampler_mapping = {
@@ -57,24 +58,25 @@ class Problem:
 
     """
     def __init__(self, sampler, model, interpreter, write_dir, iterations=None, seed=None, X=None):
+        # Create necessary directories
+        self.write_dir = Path(write_dir)
+        self.make_dirs()
         # General
         self.seed = seed
         self.model = model
         self.num_params = self.model.__num_input_params__()
-        self.iterations = iterations or self.guess_iterations()
-        self.write_dir = Path(write_dir)
+        # Sampling strategy and ``iterations`` depend on the interpreter
+        self.interpreter_str = interpreter
+        self.interpreter_fnc = interpreter_mapping.get(self.interpreter_str)
+        self.sampler_str = sampler
+        # Iterations
+        self.iterations = self.guess_iterations(iterations)
         # Save some useful info in a GSA dictionary
         self.gsa_dict = {
             'iterations': self.iterations,
             'num_params': self.num_params,
             'write_dir': self.write_dir,
         }
-        # Create necessary directories
-        self.make_dirs()
-        # Sampling strategy depends on the interpreter
-        self.interpreter_str = interpreter
-        self.interpreter_fnc = interpreter_mapping.get(self.interpreter_str)
-        self.sampler_str = sampler
         # Generate samples
         self.gsa_dict.update(
             {
@@ -82,26 +84,30 @@ class Problem:
                 'X': X,
             }
         )
-        self.gsa_dict.update({'X': self.generate_samples()})
-        self.gsa_dict.update({'X_rescaled': self.rescale_samples()})
+        self.gsa_dict.update({'filename_X': self.generate_samples()})
+        self.gsa_dict.update({'filename_X_rescaled': self.rescale_samples()})
         # Run model
-        self.gsa_dict.update({'y': self.run_locally()})
+        self.gsa_dict.update({'filename_y': self.run_locally()})
+        t0 = time.time()
         # Compute GSA indices
         self.gsa_dict.update({'sa_results': self.interpret()})
+        t1 = time.time()
+        self.save_time(t1-t0)
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
         dirs_list = [
             'arrays',
             'gsa_results',
-            'figures'
+            'figures',
+            'computation_time'
         ]
         for dir in dirs_list:
             dir_path = self.write_dir / dir
             if not dir_path.exists():
                 dir_path.mkdir(parents=True, exist_ok=True)
 
-    def guess_iterations(self, CONSTANT=10):
+    def guess_iterations(self, iterations, CONSTANT=10):
         """Function that computes number of Monte Carlo iterations depending on the GSA method.
 
         Returns
@@ -112,16 +118,23 @@ class Problem:
 
         """
 
-        if self.interpreter == 'correlation_coefficients':
+        if self.interpreter_str == 'correlation_coefficients':
             corrcoef_constants = get_corrcoef_num_iterations()
-            num_iterations = np.max(
+            computed_iterations = max(
                 corrcoef_constants['pearson']['num_iterations'],
                 corrcoef_constants['spearman']['num_iterations'],
                 corrcoef_constants['kendall']['num_iterations']
-            )
-            return num_iterations
+            )  
+        elif self.interpreter_str == 'eFAST_indices':
+            M = 4
+            computed_iterations = 4 * M**2 + 1 # Sample size N > 4M^2 is required. M=4 by default.
         else:
-            return self.num_params * CONSTANT
+            computed_iterations = self.num_params * CONSTANT
+        
+        if iterations:
+            return max(computed_iterations, iterations)
+        else:
+            return computed_iterations
 
     def generate_samples(self, X=None):
         """Use ``self.sampler`` to generate normalized samples for this problem.
@@ -138,7 +151,7 @@ class Problem:
         self.base_sampler_str = 'no_base'
         if self.interpreter_str == 'sobol_indices':
             # Printing is OK, but not great on clusters. Consider using warnings and/or proper logging
-            print('Changing samples to saltelli, because indices convergence faster')
+#             print('Changing samples to saltelli, because indices convergence faster')
 
             # 1) you don't know if this is actually a change, and
             # 2) if this change is always happening, you could skip the warning message
@@ -146,10 +159,10 @@ class Problem:
             self.sampler_str = 'saltelli'
             self.seed = None
         elif self.interpreter_str == 'eFAST_indices':
-            print('Changing samples to eFAST, because indices convergence faster')
+#             print('Changing samples to eFAST, because indices convergence faster')
             self.sampler_str = 'eFAST'
         elif self.interpreter_str == 'dissimilarity_measure':
-            print('Samples should be adapted for dissimilarity sensitivity measure')
+#             print('Samples should be adapted for dissimilarity sensitivity measure')
             self.base_sampler_str = sampler_mapping.get(self.sampler_str, 'random')
             self.base_sampler_fnc = sampler_mapping.get(self.base_sampler_str)
             self.sampler_str = 'dissimilarity_samples'
@@ -168,7 +181,7 @@ class Problem:
                           + '_iterations_' + str(self.iterations) \
                           + '_num_params_' + str(self.num_params) \
                           + '_seed_' + str(self.seed) + '.hdf5')
-
+        
         if not self.filename_X.exists():
             X = self.sampler_fnc(self.gsa_dict)
             write_hdf5_array(X, self.filename_X)
@@ -235,10 +248,10 @@ class Problem:
             Keys are GSA indices names, values - sensitivity indices for all parameters.
 
         """
-        y = read_hdf5_array(self.filename_y)
-        X_rescaled = read_hdf5_array(self.filename_X_rescaled)
-        self.gsa_dict.update({'y': y.flatten()})
-        self.gsa_dict.update({'X': X_rescaled})
+#         y = read_hdf5_array(self.filename_y)
+#         X_rescaled = read_hdf5_array(self.filename_X_rescaled)
+#         self.gsa_dict.update({'y': y.flatten()})
+#         self.gsa_dict.update({'X': X_rescaled})
         gsa_indices_dict = self.interpreter_fnc(self.gsa_dict)
         self.filename_gsa_results = self.write_dir / 'gsa_results' / \
                                     Path(self.interpreter_str + self.filename_X.stem[1:] + '.pickle')
@@ -247,6 +260,15 @@ class Problem:
             with open(self.filename_gsa_results, 'wb') as f:
                 pickle.dump(gsa_indices_dict, f)
         return self.filename_gsa_results
+    
+    def save_time(self,elapsed_time):
+        time_dict = {'time': str((elapsed_time)/3600) + ' hours'}
+        
+        filename_time = self.write_dir / 'computation_time' / \
+                        Path('time' + self.filename_X.stem[1:] + '.json')
+        if not filename_time.exists():
+            with open(filename_time, 'w') as f:
+                json.dump(time_dict, f)
 
     def plot_sa_results(self, sa_indices, influential_inputs=[]):
         """Simplistic plotting of GSA results of GSA indices vs parameters. Figure is saved in the ``write_dir``.
@@ -296,6 +318,7 @@ class Problem:
             yaxis_title = index_name,
         )
         pathname = self.write_dir / 'figures' / Path(self.filename_gsa_results.stem + '.pdf')
-        fig.write_image(pathname.as_posix())
+        fig.show()
+#         fig.write_image(pathname.as_posix())
 
 

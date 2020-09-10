@@ -2,14 +2,14 @@ import numpy as np
 
 
 #######################
-### Utils functions ###
-#######################
+# ## Utils functions ###
+# ######################
 
 
 
 ######################
-### Test functions ###
-######################
+# ## Test functions ###
+# #####################
 class Morris:
     """Class that implements the Morris function.
 
