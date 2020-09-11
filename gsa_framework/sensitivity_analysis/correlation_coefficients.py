@@ -53,6 +53,12 @@ def correlation_coefficients(gsa_dict):
         # 'pval_kendall': pval_kendall,
     }
 
+# +
+# def correlation_coefficients_chunks(gsa_dict):
+#     with h5py.File(filename, 'r') as f:
+#         array = np.array(f['dataset'][:])
+# -
+
 def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level=0.99):
     """Computes number of iterations for confident estimation of correlation coefficient  ``theta``.
 

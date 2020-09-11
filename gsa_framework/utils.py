@@ -23,7 +23,7 @@ def read_hdf5_array(filename):
     """Read ``array`` from a file with an .hdf5 extension"""
     with h5py.File(filename, 'r') as f:
         array = np.array(f['dataset'][:])
-        return array
+    return array
 
 def uniform_rescale(X, inputs):
     """Rescale samples from standard [0,1] uniform distribution to samples from any uniform.
