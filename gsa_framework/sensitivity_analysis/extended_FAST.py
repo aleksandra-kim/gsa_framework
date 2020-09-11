@@ -1,6 +1,7 @@
 from ..sampling.get_samples import get_omega_eFAST
 import numpy as np
 
+
 def eFAST_first_order(Y, N, M, omega):
     """Sobol first order index estimator."""
     f = np.fft.fft(Y)
@@ -9,13 +10,15 @@ def eFAST_first_order(Y, N, M, omega):
     D1 = 2 * np.sum(Sp[np.arange(1, M + 1) * int(omega) - 1])
     return D1 / V
 
+
 def eFAST_total_order(Y, N, omega):
     """Sobol total order index estimator."""
     f = np.fft.fft(Y)
     Sp = np.power(np.absolute(f[np.arange(1, int((N + 1) / 2))]) / N, 2)
     V = 2 * np.sum(Sp)
     Dt = 2 * sum(Sp[np.arange(int(omega / 2))])
-    return (1 - Dt / V)
+    return 1 - Dt / V
+
 
 def eFAST_indices(dict_):
     """Compute estimations of Sobol' first and total order indices.
@@ -48,9 +51,9 @@ def eFAST_indices(dict_):
 
     """
 
-    y = dict_.get('y')
-    iterations = dict_.get('iterations')
-    num_params = dict_.get('num_params')
+    y = dict_.get("y")
+    iterations = dict_.get("iterations")
+    num_params = dict_.get("num_params")
     # Recreate the vector omega used in the sampling
     M = 4
     omega = get_omega_eFAST(num_params, iterations, M)
@@ -63,7 +66,7 @@ def eFAST_indices(dict_):
         first[i] = eFAST_first_order(y[l], iterations, M, omega[0])
         total[i] = eFAST_total_order(y[l], iterations, omega[0])
     sa_dict = {
-        'eFAST_first': first,
-        'eFAST_total': total,
+        "eFAST_first": first,
+        "eFAST_total": total,
     }
     return sa_dict

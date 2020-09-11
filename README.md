@@ -29,3 +29,14 @@ Tests require `pytest` and `SALib`.
 3. Run remotely.
 
 4. Comment tests properly
+
+# Pre-commit hooks
+Source: https://pre-commit.com/
+
+1. ``pip`` or ``conda install pre-commit``
+
+2. Create ``.pre-commit-config.yaml`` and populate it with relevant repos
+
+3. run ``pre-commit install`` to set up the git hook scripts
+
+4. Update your hooks to the latest version automatically by running ``pre-commit autoupdate``

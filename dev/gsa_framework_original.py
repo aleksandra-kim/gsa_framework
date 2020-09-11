@@ -3,11 +3,12 @@
 
 
 sampler_mapping = {
-    'saltelli': some_function_in_salib,
+    "saltelli": some_function_in_salib,
 }
 interpreter_mapping = {
-    'sobol': some_function_in_salib,
+    "sobol": some_function_in_salib,
 }
+
 
 class Problem:
     """Definition of a global sensitivity analysis problem.
@@ -34,6 +35,7 @@ class Problem:
         Errors?
 
     """
+
     def __init__(self, sampler, model, interpreter, iterations=None):
         self.sampler = sampler_mapping.get(sampler, sampler)
         self.inter
@@ -50,8 +52,9 @@ class Problem:
         self.samples = self.sampler(self.num_params)
 
     def run_locally(self):
-        self.results = [self.model(self.model.__rescale__(vector))
-                        for vector in self.samples]
+        self.results = [
+            self.model(self.model.__rescale__(vector)) for vector in self.samples
+        ]
 
     def run_remotely(self):
         """Prepare files for remote execution.
@@ -71,13 +74,18 @@ from bw_calc import MonteCarloLCA
 
 class LCAModel:
     """A simple LCA model which uses uncertainty in the background database."""
+
     def __init__(self, func_unit, data_objs):
         self.lca = MonteCarloLCA(func_unit, data_objs)
         self.lca.lci()
         self.lca.lcia()
 
     def __num_input_params__(self):
-        return len(self.lca.tech_params) + len(self.lca.bio_params) + len(self.lca.cf_params)
+        return (
+            len(self.lca.tech_params)
+            + len(self.lca.bio_params)
+            + len(self.lca.cf_params)
+        )
 
     def __rescale__(self, vector):
         return do_stuff_here()
@@ -91,4 +99,5 @@ class ParameterizedLCAModel:
     """A model which does LCA of parameterized models.
 
     Builds on the ``presamples`` library. For each Monte Carlo iteration, the model is evaluated, and the evaluation result is saved into an ``overrides`` processed array. This array is then used in building the LCA matrices."""
+
     pass

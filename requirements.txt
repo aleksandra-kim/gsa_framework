@@ -4,7 +4,7 @@ plotly
 scikit-learn
 scipy
 xgboost
+pre-commit
 
 
 # conda install -c plotly plotly-orca
-

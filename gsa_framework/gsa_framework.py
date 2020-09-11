@@ -1,7 +1,10 @@
 from .sampling.get_samples import *
-from .sensitivity_analysis.correlation_coefficients import  correlation_coefficients, get_corrcoef_num_iterations
+from .sensitivity_analysis.correlation_coefficients import (
+    correlation_coefficients,
+    get_corrcoef_num_iterations,
+)
 from .sensitivity_analysis.dissimilarity_measures import dissimilarity_measure
-from .sensitivity_analysis.extended_FAST import  eFAST_indices
+from .sensitivity_analysis.extended_FAST import eFAST_indices
 from .sensitivity_analysis.gradient_boosting import xgboost_scores
 from .sensitivity_analysis.sobol_indices import sobol_indices
 from .utils import read_hdf5_array, write_hdf5_array
@@ -12,19 +15,19 @@ import time
 
 # Sampler and Global Sensitivity Analysis (GSA) mapping dictionaries
 sampler_mapping = {
-    'saltelli': saltelli_samples,
-    'sobol':    sobol_samples,
-    'eFAST':    eFAST_samples,
-    'random':   random_samples,
-    'custom':   custom_samples,
-    'dissimilarity_samples': dissimilarity_samples
+    "saltelli": saltelli_samples,
+    "sobol": sobol_samples,
+    "eFAST": eFAST_samples,
+    "random": random_samples,
+    "custom": custom_samples,
+    "dissimilarity_samples": dissimilarity_samples,
 }
 interpreter_mapping = {
-    'correlation_coefficients': correlation_coefficients,
-    'sobol_indices': sobol_indices,
-    'eFAST_indices': eFAST_indices,
-    'xgboost': xgboost_scores,
-    'dissimilarity_measure': dissimilarity_measure,
+    "correlation_coefficients": correlation_coefficients,
+    "sobol_indices": sobol_indices,
+    "eFAST_indices": eFAST_indices,
+    "xgboost": xgboost_scores,
+    "dissimilarity_measure": dissimilarity_measure,
 }
 
 
@@ -57,7 +60,10 @@ class Problem:
         Errors?
 
     """
-    def __init__(self, sampler, model, interpreter, write_dir, iterations=None, seed=None, X=None):
+
+    def __init__(
+        self, sampler, model, interpreter, write_dir, iterations=None, seed=None, X=None
+    ):
         # Create necessary directories
         self.write_dir = Path(write_dir)
         self.make_dirs()
@@ -73,35 +79,30 @@ class Problem:
         self.iterations = self.guess_iterations(iterations)
         # Save some useful info in a GSA dictionary
         self.gsa_dict = {
-            'iterations': self.iterations,
-            'num_params': self.num_params,
-            'write_dir': self.write_dir,
+            "iterations": self.iterations,
+            "num_params": self.num_params,
+            "write_dir": self.write_dir,
         }
         # Generate samples
         self.gsa_dict.update(
             {
-                'sampler_str': self.sampler_str,
-                'X': X,
+                "sampler_str": self.sampler_str,
+                "X": X,
             }
         )
-        self.gsa_dict.update({'filename_X': self.generate_samples()})
-        self.gsa_dict.update({'filename_X_rescaled': self.rescale_samples()})
+        self.gsa_dict.update({"filename_X": self.generate_samples()})
+        self.gsa_dict.update({"filename_X_rescaled": self.rescale_samples()})
         # Run model
-        self.gsa_dict.update({'filename_y': self.run_locally()})
+        self.gsa_dict.update({"filename_y": self.run_locally()})
         t0 = time.time()
         # Compute GSA indices
-        self.gsa_dict.update({'sa_results': self.interpret()})
+        self.gsa_dict.update({"sa_results": self.interpret()})
         t1 = time.time()
-        self.save_time(t1-t0)
+        self.save_time(t1 - t0)
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
-        dirs_list = [
-            'arrays',
-            'gsa_results',
-            'figures',
-            'computation_time'
-        ]
+        dirs_list = ["arrays", "gsa_results", "figures", "computation_time"]
         for dir in dirs_list:
             dir_path = self.write_dir / dir
             if not dir_path.exists():
@@ -118,19 +119,21 @@ class Problem:
 
         """
 
-        if self.interpreter_str == 'correlation_coefficients':
+        if self.interpreter_str == "correlation_coefficients":
             corrcoef_constants = get_corrcoef_num_iterations()
             computed_iterations = max(
-                corrcoef_constants['pearson']['num_iterations'],
-                corrcoef_constants['spearman']['num_iterations'],
-                corrcoef_constants['kendall']['num_iterations']
-            )  
-        elif self.interpreter_str == 'eFAST_indices':
+                corrcoef_constants["pearson"]["num_iterations"],
+                corrcoef_constants["spearman"]["num_iterations"],
+                corrcoef_constants["kendall"]["num_iterations"],
+            )
+        elif self.interpreter_str == "eFAST_indices":
             M = 4
-            computed_iterations = 4 * M**2 + 1 # Sample size N > 4M^2 is required. M=4 by default.
+            computed_iterations = (
+                4 * M ** 2 + 1
+            )  # Sample size N > 4M^2 is required. M=4 by default.
         else:
             computed_iterations = self.num_params * CONSTANT
-        
+
         if iterations:
             return max(computed_iterations, iterations)
         else:
@@ -148,40 +151,56 @@ class Problem:
 
         """
 
-        self.base_sampler_str = 'no_base'
-        if self.interpreter_str == 'sobol_indices':
+        self.base_sampler_str = "no_base"
+        if self.interpreter_str == "sobol_indices":
             # Printing is OK, but not great on clusters. Consider using warnings and/or proper logging
-#             print('Changing samples to saltelli, because indices convergence faster')
+            #             print('Changing samples to saltelli, because indices convergence faster')
 
             # 1) you don't know if this is actually a change, and
             # 2) if this change is always happening, you could skip the warning message
 
-            self.sampler_str = 'saltelli'
+            self.sampler_str = "saltelli"
             self.seed = None
-        elif self.interpreter_str == 'eFAST_indices':
-#             print('Changing samples to eFAST, because indices convergence faster')
-            self.sampler_str = 'eFAST'
-        elif self.interpreter_str == 'dissimilarity_measure':
-#             print('Samples should be adapted for dissimilarity sensitivity measure')
-            self.base_sampler_str = sampler_mapping.get(self.sampler_str, 'random')
+        elif self.interpreter_str == "eFAST_indices":
+            #             print('Changing samples to eFAST, because indices convergence faster')
+            self.sampler_str = "eFAST"
+        elif self.interpreter_str == "dissimilarity_measure":
+            #             print('Samples should be adapted for dissimilarity sensitivity measure')
+            self.base_sampler_str = sampler_mapping.get(self.sampler_str, "random")
             self.base_sampler_fnc = sampler_mapping.get(self.base_sampler_str)
-            self.sampler_str = 'dissimilarity_samples'
-            self.gsa_dict.update({'base_sampler_str': self.base_sampler_str, 'base_sampler_fnc': self.base_sampler_fnc})
+            self.sampler_str = "dissimilarity_samples"
+            self.gsa_dict.update(
+                {
+                    "base_sampler_str": self.base_sampler_str,
+                    "base_sampler_fnc": self.base_sampler_fnc,
+                }
+            )
         else:
             if X != None:
-                self.sampler_str = 'custom'
+                self.sampler_str = "custom"
                 self.seed = None
-        self.sampler_fnc = sampler_mapping.get(self.sampler_str, 'random')
-        self.gsa_dict.update({'sampler_fnc': self.sampler_fnc})
-        self.gsa_dict.update({'seed': self.seed})
+        self.sampler_fnc = sampler_mapping.get(self.sampler_str, "random")
+        self.gsa_dict.update({"sampler_fnc": self.sampler_fnc})
+        self.gsa_dict.update({"seed": self.seed})
 
-        self.filename_X = self.write_dir / \
-                          'arrays' / \
-                          Path('X_' + self.sampler_str + '_' + self.base_sampler_str \
-                          + '_iterations_' + str(self.iterations) \
-                          + '_num_params_' + str(self.num_params) \
-                          + '_seed_' + str(self.seed) + '.hdf5')
-        
+        self.filename_X = (
+            self.write_dir
+            / "arrays"
+            / Path(
+                "X_"
+                + self.sampler_str
+                + "_"
+                + self.base_sampler_str
+                + "_iterations_"
+                + str(self.iterations)
+                + "_num_params_"
+                + str(self.num_params)
+                + "_seed_"
+                + str(self.seed)
+                + ".hdf5"
+            )
+        )
+
         if not self.filename_X.exists():
             X = self.sampler_fnc(self.gsa_dict)
             write_hdf5_array(X, self.filename_X)
@@ -202,7 +221,9 @@ class Problem:
 
         """
 
-        self.filename_X_rescaled = self.filename_X.parent / Path('X_rescaled' + self.filename_X.stem[1:] + '.hdf5')
+        self.filename_X_rescaled = self.filename_X.parent / Path(
+            "X_rescaled" + self.filename_X.stem[1:] + ".hdf5"
+        )
         if not self.filename_X_rescaled.exists():
             X = read_hdf5_array(self.filename_X)
             X_rescaled = self.model.__rescale__(X)
@@ -221,7 +242,9 @@ class Problem:
 
         """
 
-        self.filename_y = self.filename_X.parent / Path('y' + self.filename_X.stem[1:] + '.hdf5')
+        self.filename_y = self.filename_X.parent / Path(
+            "y" + self.filename_X.stem[1:] + ".hdf5"
+        )
         if not self.filename_y.exists():
             X_rescaled = read_hdf5_array(self.filename_X_rescaled)
             y = self.model(X_rescaled)
@@ -248,26 +271,32 @@ class Problem:
             Keys are GSA indices names, values - sensitivity indices for all parameters.
 
         """
-#         y = read_hdf5_array(self.filename_y)
-#         X_rescaled = read_hdf5_array(self.filename_X_rescaled)
-#         self.gsa_dict.update({'y': y.flatten()})
-#         self.gsa_dict.update({'X': X_rescaled})
+        #         y = read_hdf5_array(self.filename_y)
+        #         X_rescaled = read_hdf5_array(self.filename_X_rescaled)
+        #         self.gsa_dict.update({'y': y.flatten()})
+        #         self.gsa_dict.update({'X': X_rescaled})
         gsa_indices_dict = self.interpreter_fnc(self.gsa_dict)
-        self.filename_gsa_results = self.write_dir / 'gsa_results' / \
-                                    Path(self.interpreter_str + self.filename_X.stem[1:] + '.pickle')
+        self.filename_gsa_results = (
+            self.write_dir
+            / "gsa_results"
+            / Path(self.interpreter_str + self.filename_X.stem[1:] + ".pickle")
+        )
 
         if not self.filename_gsa_results.exists():
-            with open(self.filename_gsa_results, 'wb') as f:
+            with open(self.filename_gsa_results, "wb") as f:
                 pickle.dump(gsa_indices_dict, f)
         return self.filename_gsa_results
-    
-    def save_time(self,elapsed_time):
-        time_dict = {'time': str((elapsed_time)/3600) + ' hours'}
-        
-        filename_time = self.write_dir / 'computation_time' / \
-                        Path('time' + self.filename_X.stem[1:] + '.json')
+
+    def save_time(self, elapsed_time):
+        time_dict = {"time": str((elapsed_time) / 3600) + " hours"}
+
+        filename_time = (
+            self.write_dir
+            / "computation_time"
+            / Path("time" + self.filename_X.stem[1:] + ".json")
+        )
         if not filename_time.exists():
-            with open(filename_time, 'w') as f:
+            with open(filename_time, "w") as f:
                 json.dump(time_dict, f)
 
     def plot_sa_results(self, sa_indices, influential_inputs=[]):
@@ -292,33 +321,31 @@ class Problem:
         fig = go.Figure()
         fig.add_trace(
             go.Scatter(
-                x = np.arange(len(index_vals)),
-                y = index_vals,
-                mode = 'markers',
-                marker = dict(
-                    color = 'blue'
-                ),
-                name='All parameters',
+                x=np.arange(len(index_vals)),
+                y=index_vals,
+                mode="markers",
+                marker=dict(color="blue"),
+                name="All parameters",
             ),
         )
-        if len(influential_inputs)>0:
+        if len(influential_inputs) > 0:
             fig.add_trace(
                 go.Scatter(
-                    x = influential_inputs,
-                    y = sa_indices_influential,
-                    mode = 'markers',
-                    marker = dict(
-                        color = 'red'
-                    ),
-                name = 'Known influential parameters',
+                    x=influential_inputs,
+                    y=sa_indices_influential,
+                    mode="markers",
+                    marker=dict(color="red"),
+                    name="Known influential parameters",
                 ),
             )
         fig.update_layout(
-            xaxis_title = "Model parameters",
-            yaxis_title = index_name,
+            xaxis_title="Model parameters",
+            yaxis_title=index_name,
         )
-        pathname = self.write_dir / 'figures' / Path(self.filename_gsa_results.stem + '.pdf')
+        pathname = (
+            self.write_dir / "figures" / Path(self.filename_gsa_results.stem + ".pdf")
+        )
         fig.show()
+
+
 #         fig.write_image(pathname.as_posix())
-
-

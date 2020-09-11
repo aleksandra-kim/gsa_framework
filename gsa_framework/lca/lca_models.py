@@ -17,6 +17,7 @@ from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
 #
 # #########################################
 
+
 class LCAModel:
     """Class that implements basic LCA model which uses uncertainty in the background database.
 
@@ -44,11 +45,15 @@ class LCAModel:
         self.write_dir = write_dir
         self.make_dirs()
 
-#         self.uncertain_tech_params_where = np.where(self.lca.tech_params['uncertainty_type'] > 1)[0]
-#         self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
+        #         self.uncertain_tech_params_where = np.where(self.lca.tech_params['uncertainty_type'] > 1)[0]
+        #         self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
 
-        self.uncertain_tech_params_where = self.get_LSA_params(var_threshold=0) #TODO change the threshold
-        self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
+        self.uncertain_tech_params_where = self.get_LSA_params(
+            var_threshold=0
+        )  # TODO change the threshold
+        self.uncertain_tech_params = self.lca.tech_params[
+            self.uncertain_tech_params_where
+        ]
 
         self.num_params = self.__num_input_params__()
         self.influential_params = []
@@ -58,9 +63,7 @@ class LCAModel:
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
-        directories = {
-            'LSA_scores': os.path.join(self.write_dir, 'LSA_scores')
-        }
+        directories = {"LSA_scores": os.path.join(self.write_dir, "LSA_scores")}
         for dir in directories.values():
             if not os.path.exists(dir):
                 os.makedirs(dir)
@@ -84,24 +87,27 @@ class LCAModel:
             Keys are indices of the exchanges as they appear in the lca.tech_params, values are LCIA scores.
 
         """
-        filepath_all =  os.path.join(path, 'LSA_scores.pickle')
+        filepath_all = os.path.join(path, "LSA_scores.pickle")
         if os.path.isfile(filepath_all):
-            with open(filepath_all, 'rb') as f:
+            with open(filepath_all, "rb") as f:
                 scores_ = pickle.load(f)
             scores = {int(k): v for k, v in scores_.items()}
         else:
-            files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))
-                     and 'LSA_scores_' in f]
-            starts = [int(f.split('_')[2]) for f in files]
+            files = [
+                f
+                for f in os.listdir(path)
+                if os.path.isfile(os.path.join(path, f)) and "LSA_scores_" in f
+            ]
+            starts = [int(f.split("_")[2]) for f in files]
             ind_sort = np.argsort(starts)
             files_sorted = [files[i] for i in ind_sort]
 
             scores = {}
             for file in files_sorted:
                 filepath = os.path.join(path, file)
-                with open(filepath, 'rb') as f:
+                with open(filepath, "rb") as f:
                     temp = pickle.load(f)
-                temp_int = {int(k): v['scores'] for k, v in temp.items()}
+                temp_int = {int(k): v["scores"] for k, v in temp.items()}
                 scores.update(temp_int)
         return scores
 
@@ -139,7 +145,6 @@ class LCAModel:
 
         return params_no, params_yes
 
-
     def get_LSA_params(self, var_threshold):
         """Get ``params_yes`` with a specific threshold.
 
@@ -147,30 +152,35 @@ class LCAModel:
         ``get_nonzero_params`` and saved to the LSA_scores directory, otherwise it is loaded which saves time.
 
         """
-        params_yes_filename = os.path.join(self.directories['LSA_scores'],
-                                           'params_yes_' + str(var_threshold) + '.pickle')
+        params_yes_filename = os.path.join(
+            self.directories["LSA_scores"],
+            "params_yes_" + str(var_threshold) + ".pickle",
+        )
         if not os.path.exists(params_yes_filename):
-            scores_dict = self.get_lsa_scores_pickle(self.directories['LSA_scores'])
-            _, params_yes = self.get_nonzero_params(scores_dict, var_threshold=var_threshold)
-            with open(params_yes_filename, 'wb') as f:
+            scores_dict = self.get_lsa_scores_pickle(self.directories["LSA_scores"])
+            _, params_yes = self.get_nonzero_params(
+                scores_dict, var_threshold=var_threshold
+            )
+            with open(params_yes_filename, "wb") as f:
                 pickle.dump(params_yes, f)
         else:
-            with open(params_yes_filename, 'rb') as f:
+            with open(params_yes_filename, "rb") as f:
                 params_yes = pickle.load(f)
 
         return params_yes
 
-
     def __num_input_params__(self):
         # self.uncertain_bio_params  = self.lca.bio_params[self.lca.bio_params['uncertainty_type'] > 1]
         # self.uncertain_cf_params   = self.lca.cf_params[self.lca.cf_params['uncertainty_type'] > 1]
-        return len(self.uncertain_tech_params) # + len(self.uncertain_bio_params) + len(self.lca.cf_params)
+        return len(
+            self.uncertain_tech_params
+        )  # + len(self.uncertain_bio_params) + len(self.lca.cf_params)
 
     def __rescale__(self, X):
         iterations, num_params = X.shape[0], X.shape[1]
         assert num_params == self.uncertain_tech_params.shape[0]
 
-        X_reordered = X[:,self.mc.ordering]
+        X_reordered = X[:, self.mc.ordering]
         X_rescaled = np.zeros((iterations, num_params))
         X_rescaled[:] = np.nan
 
@@ -180,20 +190,20 @@ class LCAModel:
             if not num_uncertain_params:
                 continue
             random_data = uncertainty_type.ppf(
-                params = self.mc.params[offset:num_uncertain_params+offset],
-                percentages = X_reordered[:, offset:num_uncertain_params+offset].T
+                params=self.mc.params[offset : num_uncertain_params + offset],
+                percentages=X_reordered[:, offset : num_uncertain_params + offset].T,
             )
-            X_rescaled[:,offset:num_uncertain_params+offset] = random_data.T
+            X_rescaled[:, offset : num_uncertain_params + offset] = random_data.T
             offset += num_uncertain_params
 
-        X_rescaled = X_rescaled[:,np.argsort(self.mc.ordering)]
+        X_rescaled = X_rescaled[:, np.argsort(self.mc.ordering)]
         return X_rescaled
 
     def __call__(self, X):
         scores = np.zeros(X.shape[0])
         scores[:] = np.nan
-        for i,x in enumerate(X):
-            amounts = deepcopy(self.lca.tech_params['amount'])
+        for i, x in enumerate(X):
+            amounts = deepcopy(self.lca.tech_params["amount"])
             amounts[self.uncertain_tech_params_where] = x
             self.lca.rebuild_technosphere_matrix(amounts)
             self.lca.redo_lci()
