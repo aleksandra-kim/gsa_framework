@@ -1,8 +1,18 @@
 from ..utils import get_z_alpha_2, read_hdf5_array
 import numpy as np
 from scipy.stats import kendalltau, spearmanr
+import h5py
+import multiprocessing
 
 n0_DEFAULT = 10
+OPTIMAL_CHUNK_SIZE_PEARSON = (
+    500  # somewhat optimal chunk size for numpy.corrcoef that computes Pearson coeff.
+)
+get_chunk_size_pearson = lambda num_params: min(OPTIMAL_CHUNK_SIZE_PEARSON, num_params)
+OPTIMAL_CHUNK_SIZE_SPEARMAN = 100  # somewhat optimal chunk size for scipy.stats.spearmanr that computes Spearman coeff.
+get_chunk_size_spearman = lambda num_params: min(
+    OPTIMAL_CHUNK_SIZE_SPEARMAN, num_params
+)
 
 
 def kendalltau_mat(X, y):
@@ -17,8 +27,92 @@ def kendalltau_mat(X, y):
     return kendall, pval_kendall
 
 
+def pearson_one_chunk(X, y):
+    """Compute Pearson correlation coefficient between all columns of X and y, set nan coefficients to 0."""
+    X_temp = np.hstack([X, y.reshape(X.shape[0], -1)]).T
+    pearson = np.corrcoef(X_temp)
+    pearson = pearson[:-1, -1]
+    pearson[np.isnan(pearson)] = 0
+    return pearson
+
+
+def spearman_one_chunk(X, y):
+    """Compute Spearman correlation coefficient between all columns of X and y, set nan coefficients to 0."""
+    spearman = np.zeros(shape=X.shape[1])
+    var_X = np.var(X, axis=0)
+    var_0_where = np.where(var_X == 0)[0]
+    var_non0_where = np.setdiff1d(np.arange(X.shape[1]), var_0_where)
+    X_non0_var = X[:, var_non0_where]
+    # Spearman
+    spearman_non0, _ = spearmanr(X_non0_var, y)
+    spearman_non0 = spearman_non0[:-1, -1]
+    spearman[var_non0_where] = spearman_non0
+    return spearman
+
+
+def corrcoef_many_chunks(X, y, option):
+    """Compute correlation coefficient given by ``option`` between all columns of X and y efficiently.
+
+    This function computes correlations sequentially, by partitioning X into optimal number of columns
+    that was determined heuristically for ``option`` chosen as ``pearson`` or ``spearman``.
+
+    """
+
+    if option == "pearson":
+        corrcoef_func = pearson_one_chunk
+        get_chunk_size = get_chunk_size_pearson
+    elif option == "spearman":
+        corrcoef_func = spearman_one_chunk
+        get_chunk_size = get_chunk_size_spearman
+    num_params = X.shape[1]
+    chunk_size = get_chunk_size(num_params)
+    num_chunks = int(np.ceil(num_params / chunk_size))
+    corrcoef = np.array([])
+    for i in range(num_chunks):
+        X_partial = X[:, i * chunk_size : (i + 1) * chunk_size]
+        corrcoef = np.hstack([corrcoef, corrcoef_func(X_partial, y)])
+    return corrcoef
+
+
+def corrcoef_parallel(filename_X, y, num_params, cpus, option, start=None, end=None):
+    """Compute correlation coefficient efficiently in parallel, using multiprocessing with one job per worker.
+
+    ``option`` can be ``pearson`` or ``spearman``.
+
+    """
+
+    if option == "pearson":
+        get_chunk_size = get_chunk_size_pearson
+    elif option == "spearman":
+        get_chunk_size = get_chunk_size_spearman
+    chunk_size = get_chunk_size(num_params)
+    num_jobs = int(np.ceil(np.ceil(num_params / chunk_size) / cpus))
+    chunks = list(range(0, num_params + num_jobs * chunk_size, num_jobs * chunk_size))
+    cpus_needed = len(chunks) - 1
+    results_all = np.array([])
+    if not start:
+        start = 0
+    if not end:
+        end = len(y)
+    with h5py.File(filename_X, "r") as f:
+        X = np.array(f["dataset"][start:end, :])
+        with multiprocessing.Pool(processes=cpus_needed) as pool:
+            results = pool.starmap(
+                corrcoef_many_chunks,
+                [
+                    (X[start:end, chunks[i] : chunks[i + 1]], y[start:end], option)
+                    for i in range(cpus_needed)
+                ],
+            )
+        results_array = np.array([])
+        for res in results:
+            results_array = np.hstack([results_array, res])
+        results_all = np.hstack([results_all, results_array])
+    return results_all
+
+
 def correlation_coefficients(gsa_dict):
-    """Compute estimations of different correlation coefficients, such as Pearson, Kendall and Spearman.
+    """Compute estimations of different correlation coefficients, such as Pearson and Spearman.
 
     Parameters
     ----------
@@ -30,36 +124,17 @@ def correlation_coefficients(gsa_dict):
 
     Dictionary that contains computed sensitivity indices.
 
-    TODO should be X or X rescaled?
-
     """
 
+    num_params = gsa_dict["num_params"]
     y = read_hdf5_array(gsa_dict["filename_y"])
     y = y.flatten()
-    X = read_hdf5_array(gsa_dict["filename_X_rescaled"])
-
-    spearman, pval_spearman = spearmanr(X, y)
-    spearman = spearman[:-1, -1]
-    kendall, pval_kendall = kendalltau_mat(X, y)
-
-    X_temp = np.hstack([X, y.reshape(X.shape[0], -1)]).T
-    pearson = np.corrcoef(X_temp)
-    pearson = pearson[:-1, -1]
-
+    filename_X = gsa_dict["filename_X_rescaled"]
+    cpus = gsa_dict["cpus"]
     return {
-        "pearson": pearson,
-        "spearman": spearman,
-        # 'pval_spearman': pval_spearman,
-        "kendall": kendall,
-        # 'pval_kendall': pval_kendall,
+        "pearson": corrcoef_parallel(filename_X, y, num_params, cpus, "pearson"),
+        "spearman": corrcoef_parallel(filename_X, y, num_params, cpus, "spearman"),
     }
-
-
-# +
-# def correlation_coefficients_chunks(gsa_dict):
-#     with h5py.File(filename, 'r') as f:
-#         array = np.array(f['dataset'][:])
-# -
 
 
 def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level=0.99):
@@ -100,7 +175,7 @@ def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level
             "theta": theta or 0.95,
         },  # "hardest" correlation value to estimate
         "spearman": {"b": 3, "theta": theta or 0.8},
-        "kendall": {"b": 4, "c": (0.437) ** 0.5, "theta": theta or 0.8},
+        # "kendall": {"b": 4, "c": (0.437) ** 0.5, "theta": theta or 0.8},
     }
     corrcoeff_constants["spearman"]["c"] = (
         1 + corrcoeff_constants["spearman"]["theta"] ** 2 / 2
@@ -138,3 +213,49 @@ def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level
         # Second stage approximation
         val["num_iterations"] = int(max(compute_n(b, val["n0"], val["w0"]), n0_DEFAULT))
     return corrcoeff_constants
+
+
+################
+### Not used ###
+################
+def correlation_spearman(filename_X, y, num_params):
+    """Compute Spearman correlation coefficient efficiently without multiprocessing."""
+    chunk_size = get_chunk_size_spearman(num_params)
+    num_chunks = int(np.ceil(num_params / chunk_size))
+    spearman_all = np.array([])
+    for i in range(num_chunks):
+        with h5py.File(filename_X, "r") as f:
+            start = i * chunk_size
+            end = (i + 1) * chunk_size
+            X = np.array(f["dataset"][:, start:end])
+            spearman = spearman_one_chunk(X, y)
+        spearman_all = np.hstack([spearman_all, spearman])
+    return spearman_all
+
+
+def correlation_spearman_parallel_per_chunk(filename_X, y, num_params, cpus):
+    """Compute Spearman correlation coefficient efficiently with multiprocessing per one chunk.
+
+    This function creates many jobs, each taking a fixed number of columns reflected by ``OPTIMAL_CHUNK_SIZE``,
+    and distributes these jobs to workers. The number of such jobs is not equal to the number of workers,
+    so this implementation is slower than ``correlation_spearman_parallel``, because of the overhead from
+    obs allocation.
+
+    """
+
+    chunk_size = get_chunk_size_spearman(num_params)
+    num_chunks = int(np.ceil(num_params / chunk_size))
+    chunks = [j for j in range(0, num_chunks * chunk_size + 1, chunk_size)]
+    results_all = np.array([])
+    with h5py.File(filename_X, "r") as f:
+        X = np.array(f["dataset"][:])
+        with multiprocessing.Pool(processes=cpus) as pool:
+            results = pool.starmap(
+                spearman_one_chunk,
+                [(X[:, chunks[i] : chunks[i + 1]], y) for i in range(num_chunks)],
+            )
+        results_array = np.array([])
+        for res in results:
+            results_array = np.hstack([results_array, res])
+        results_all = np.hstack([results_all, results_array])
+    return results_all

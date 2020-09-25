@@ -10,8 +10,12 @@ from .sensitivity_analysis.sobol_indices import sobol_indices
 from .utils import read_hdf5_array, write_hdf5_array
 from pathlib import Path
 import pickle, json
-import plotly.graph_objects as go
 import time
+import multiprocessing
+import h5py
+
+import plotly.graph_objects as go
+
 
 # Sampler and Global Sensitivity Analysis (GSA) mapping dictionaries
 sampler_mapping = {
@@ -54,6 +58,10 @@ class Problem:
         Random seed.
     X : np.array of size [iterations, num_params]
         Custom parameter sampling matrix in standard uniform [0,1] range.
+    cpus : int
+        Number of cpus to use for parallel computations.
+    available_memory : float
+        Available RAM in GB for storing arrays in variables.
 
     Raises
     ------
@@ -62,7 +70,17 @@ class Problem:
     """
 
     def __init__(
-        self, sampler, model, interpreter, write_dir, iterations=None, seed=None, X=None
+        self,
+        sampler,
+        model,
+        interpreter,
+        write_dir,
+        iterations=None,
+        seed=None,
+        X=None,
+        cpus=None,
+        available_memory=2,
+        use_parallel=True,
     ):
         # Create necessary directories
         self.write_dir = Path(write_dir)
@@ -77,11 +95,35 @@ class Problem:
         self.sampler_str = sampler
         # Iterations
         self.iterations = self.guess_iterations(iterations)
+        # For parallel computations
+        ### 1. Chunk sizes limited by available memory
+        self.available_memory = available_memory  # GB
+        self.bytes_per_entry = 8
+        self.chunk_size_memory = min(
+            int(
+                self.available_memory
+                * 1024 ** 3
+                / self.bytes_per_entry
+                / self.num_params
+            ),
+            self.iterations,
+        )
+        self.num_chunks_memory = int(np.ceil(self.iterations / self.chunk_size_memory))
+        ### 2. Divide chunks above between available cpus to speed up computations
+        self.cpus = min(
+            cpus or multiprocessing.cpu_count(), multiprocessing.cpu_count()
+        )
+        self.use_parallel = use_parallel
+        self.num_jobs = self.cpus
+        self.chunk_size_per_worker = int(
+            np.ceil(self.chunk_size_memory / self.num_jobs)
+        )
         # Save some useful info in a GSA dictionary
         self.gsa_dict = {
             "iterations": self.iterations,
             "num_params": self.num_params,
             "write_dir": self.write_dir,
+            "cpus": self.cpus,
         }
         # Generate samples
         self.gsa_dict.update(
@@ -93,12 +135,9 @@ class Problem:
         self.gsa_dict.update({"filename_X": self.generate_samples()})
         self.gsa_dict.update({"filename_X_rescaled": self.rescale_samples()})
         # Run model
-        self.gsa_dict.update({"filename_y": self.run_locally()})
-        t0 = time.time()
+        self.gsa_dict.update({"filename_y": self.run()})
         # Compute GSA indices
-        self.gsa_dict.update({"sa_results": self.interpret()})
-        t1 = time.time()
-        self.save_time(t1 - t0)
+        self.gsa_dict.update({"filename_sa_results": self.interpret()})
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
@@ -108,7 +147,7 @@ class Problem:
             if not dir_path.exists():
                 dir_path.mkdir(parents=True, exist_ok=True)
 
-    def guess_iterations(self, iterations, CONSTANT=10):
+    def guess_iterations(self, iterations, CONSTANT=1):
         """Function that computes number of Monte Carlo iterations depending on the GSA method.
 
         Returns
@@ -119,25 +158,24 @@ class Problem:
 
         """
 
-        if self.interpreter_str == "correlation_coefficients":
-            corrcoef_constants = get_corrcoef_num_iterations()
-            computed_iterations = max(
-                corrcoef_constants["pearson"]["num_iterations"],
-                corrcoef_constants["spearman"]["num_iterations"],
-                corrcoef_constants["kendall"]["num_iterations"],
-            )
-        elif self.interpreter_str == "eFAST_indices":
+        # if self.interpreter_str == "correlation_coefficients":
+        #     corrcoef_constants = get_corrcoef_num_iterations()
+        #     computed_iterations = max(
+        #         corrcoef_constants["pearson"]["num_iterations"]*50, #TODO remove 5
+        #         corrcoef_constants["spearman"]["num_iterations"]*50,
+        #     )
+        #     return computed_iterations
+        if self.interpreter_str == "eFAST_indices":
             M = 4
             computed_iterations = (
                 4 * M ** 2 + 1
             )  # Sample size N > 4M^2 is required. M=4 by default.
-        else:
-            computed_iterations = self.num_params * CONSTANT
-
-        if iterations:
-            return max(computed_iterations, iterations)
-        else:
             return computed_iterations
+        else:
+            if iterations:
+                return iterations
+            else:
+                return self.num_params * CONSTANT
 
     def generate_samples(self, X=None):
         """Use ``self.sampler`` to generate normalized samples for this problem.
@@ -230,10 +268,44 @@ class Problem:
             write_hdf5_array(X_rescaled, self.filename_X_rescaled)
         return self.filename_X_rescaled
 
-    def run_locally(self):
-        """Obtain ``model`` outputs from the ``X_rescaled`` parameter sampling matrix.
+    def run_parallel(self):
+        """Obtain ``model`` outputs from the ``X_rescaled`` in parallel and write them to a file."""
 
-        Run Monte Carlo simulations and write results to a file.
+        results_all = np.array([])
+        for i in range(self.num_chunks_memory):
+            with h5py.File(self.filename_X_rescaled, "r") as f:
+                start = i * self.chunk_size_memory
+                end = (i + 1) * self.chunk_size_memory
+                X_rescaled = np.array(f["dataset"][start:end, :])
+                with multiprocessing.Pool(processes=self.cpus) as pool:
+                    results = pool.map(
+                        self.model,
+                        [
+                            X_rescaled[
+                                j
+                                * self.chunk_size_per_worker : (j + 1)
+                                * self.chunk_size_per_worker
+                            ]
+                            for j in range(self.num_jobs)
+                        ],
+                    )
+            results_array = np.array([])
+            for res in results:
+                results_array = np.hstack([results_array, res])
+            results_all = np.hstack([results_all, results_array])
+        write_hdf5_array(results_all, self.filename_y)
+
+    def run_sequential(self):
+        """Obtain ``model`` outputs from the ``X_rescaled`` sequentially and write them to a file."""
+
+        X_rescaled = read_hdf5_array(self.filename_X_rescaled)
+        y = self.model(X_rescaled)
+        write_hdf5_array(y, self.filename_y)
+
+    def run(self):
+        """Wrapper function to obtain ``model`` outputs from the ``X_rescaled`` parameter sampling matrix.
+
+        Run Monte Carlo simulations in parallel or sequentially, and write results to a file.
 
         Returns
         -------
@@ -246,21 +318,16 @@ class Problem:
             "y" + self.filename_X.stem[1:] + ".hdf5"
         )
         if not self.filename_y.exists():
-            X_rescaled = read_hdf5_array(self.filename_X_rescaled)
-            y = self.model(X_rescaled)
-            write_hdf5_array(y, self.filename_y)
+            t0 = time.time()
+            if self.use_parallel:
+                self.run_parallel()
+                t1 = time.time()
+                print("run_parallel time: " + str(t1 - t0) + " seconds")
+            else:
+                self.run_sequential()
+                t1 = time.time()
+                print("run_sequential time: " + str(t1 - t0) + " seconds")
         return self.filename_y
-
-    def run_remotely(self):
-        """Prepare files for remote execution.
-
-        Dispatch could be via a cloud API, dask, multiprocessing, etc.
-
-        This function needs to create evaluation batches, e.g. 100 Monte Carlo iterations. TODO
-
-        """
-
-        pass
 
     def interpret(self):
         """Computation of GSA indices.
@@ -271,18 +338,17 @@ class Problem:
             Keys are GSA indices names, values - sensitivity indices for all parameters.
 
         """
-        #         y = read_hdf5_array(self.filename_y)
-        #         X_rescaled = read_hdf5_array(self.filename_X_rescaled)
-        #         self.gsa_dict.update({'y': y.flatten()})
-        #         self.gsa_dict.update({'X': X_rescaled})
-        gsa_indices_dict = self.interpreter_fnc(self.gsa_dict)
+
         self.filename_gsa_results = (
             self.write_dir
             / "gsa_results"
             / Path(self.interpreter_str + self.filename_X.stem[1:] + ".pickle")
         )
-
         if not self.filename_gsa_results.exists():
+            t0 = time.time()
+            gsa_indices_dict = self.interpreter_fnc(self.gsa_dict)
+            t1 = time.time()
+            print("GSA time: " + str(t1 - t0) + " seconds")
             with open(self.filename_gsa_results, "wb") as f:
                 pickle.dump(gsa_indices_dict, f)
         return self.filename_gsa_results
@@ -349,3 +415,37 @@ class Problem:
 
 
 #         fig.write_image(pathname.as_posix())
+
+
+# def mysum(x):
+#     return np.sum(x)
+#
+# class RunModelParallel:
+#     """Split a Monte Carlo calculation into parallel jobs"""
+#
+#     def __init__(
+#         self,
+#         iterations=100,
+#         chunk_size=None,
+#         cpus=None,
+#     ):
+#         self.iterations = iterations
+#         self.cpus = min(cpus or multiprocessing.cpu_count(), multiprocessing.cpu_count())
+#         if chunk_size:
+#             self.chunk_size = chunk_size
+#             self.num_jobs = iterations // chunk_size
+#             if iterations % self.chunk_size:
+#                 self.num_jobs += 1
+#         else:
+#             self.num_jobs = self.cpus
+#             self.chunk_size = (iterations // self.num_jobs) + 1
+#
+#     def calculate(self, X, model=mysum):
+#         with multiprocessing.Pool(processes=self.cpus) as pool:
+#             results = pool.map(
+#                 model,
+#                 [
+#                     (X[i], ) for i in range(self.iterations)
+#                 ],
+#             )
+#         return np.array(results)

@@ -11,8 +11,26 @@ DATA_DIR = Path(__file__).parent.resolve() / "data"
 
 
 class Directions:
+    """Class that implements .
+
+    Parameters
+    ----------
+    func_unit : dict
+        Dictionary of the form {bw_demand_activity: amount}.
+    method : tuple
+        Tuple with an impact assessment method.
+    write_dir : str
+        Directory where intermediate results will be stored.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Returns LCIA scores when technosphere exchanges are sampled from their respective distributions.
+
+    """
+
     def __init__(self, filepath=None):
-        # TODO: add `directions` to __init__
+        # TODO Chris: add `directions` to __init__
         filepath = str(filepath or DATA_DIR / "directions.npy")
         self.data = np.load(filepath, mmap_mode="r")
 
