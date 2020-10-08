@@ -167,8 +167,8 @@ class Problem:
         #     return computed_iterations
         if self.interpreter_str == "eFAST_indices":
             M = 4
-            computed_iterations = (
-                4 * M ** 2 + 1
+            computed_iterations = max(
+                (4 * M ** 2 + 1) * self.num_params, iterations
             )  # Sample size N > 4M^2 is required. M=4 by default.
             return computed_iterations
         else:

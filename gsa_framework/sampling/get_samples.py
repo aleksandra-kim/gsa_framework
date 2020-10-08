@@ -1,4 +1,8 @@
 import numpy as np
+import multiprocessing
+
+OPTIMAL_CHUNK_SIZE_EFAST = 50
+get_chunk_size_eFAST = lambda num_params: min(OPTIMAL_CHUNK_SIZE_EFAST, num_params)
 
 
 def random_samples(dict_):
@@ -86,12 +90,92 @@ def get_omega_eFAST(num_params, iterations, M):
     return omega
 
 
-def eFAST_samples(dict_, M=4):
+def eFAST_samples_one_chunk(i, gsa_dict):
+    seed = gsa_dict.get("seed")
+    if seed:
+        np.random.seed(seed)
+    num_params = gsa_dict.get("num_params")
+    iterations = gsa_dict.get("iterations")
+    iterations_per_parameter = iterations // num_params
+    # Determine current chunk
+    chunk_size = get_chunk_size_eFAST(num_params)
+    num_chunks = int(np.ceil(num_params / chunk_size))
+    last_chunk = num_params % chunk_size
+
+    if i < num_chunks - 1 or last_chunk == 0:
+        num_params_curr = chunk_size
+    elif i == num_chunks - 1:
+        num_params_curr = last_chunk
+    # Minimum number of iterations is chosen based on the Nyquist criterion, ``N`` in the paper
+    M = gsa_dict.get("M", 4)
+    N = max(4 * M ** 2 + 1, iterations_per_parameter)
+    # Set of frequencies that would be assigned to each input factor
+    omega = get_omega_eFAST(num_params, N, M)
+    omega_temp = np.zeros([num_params])
+    # Discretization of the frequency space
+    s = (2 * np.pi / N) * np.arange(N)
+    # Random phase-shift
+    phi = 2 * np.pi * np.random.rand(num_params)
+
+    mask_partial = np.ones([chunk_size, chunk_size], dtype=bool)
+    np.fill_diagonal(mask_partial, False)
+
+    chunk_before = i * chunk_size
+    chunk_after = num_params - (i + 1) * chunk_size
+
+    if i < num_chunks - 1 or last_chunk == 0:
+        mask = np.hstack(
+            [
+                np.ones([chunk_size, chunk_before], dtype=bool),
+                mask_partial,
+                np.ones([chunk_size, chunk_after], dtype=bool),
+            ]
+        )
+        omega_temp = np.zeros([chunk_size, num_params])
+        omega_temp[mask] = np.tile(omega[1:], chunk_size)
+        omega_temp[~mask] = omega[0]
+    elif i == num_chunks - 1:
+        mask = np.hstack(
+            [
+                np.ones([last_chunk, chunk_before], dtype=bool),
+                mask_partial[:last_chunk, :last_chunk],
+            ]
+        )
+        omega_temp = np.zeros([last_chunk, num_params])
+        omega_temp[mask] = np.tile(omega[1:], last_chunk)
+        omega_temp[~mask] = omega[0]
+
+    start = i * chunk_size
+    end = (i + 1) * chunk_size
+
+    phi_chunk = phi[start:end]
+    phi_chunk = np.tile(phi_chunk, [num_params]).reshape(num_params, num_params_curr).T
+    phi_chunk = np.tile(phi_chunk, N).reshape(num_params_curr, num_params, N)
+    omega2_kron = np.kron(omega_temp, s).reshape(num_params_curr, num_params, N)
+    g = 0.5 + (1 / np.pi) * np.arcsin(np.sin(omega2_kron + phi_chunk))
+    current_samples = np.transpose(g, (0, 2, 1)).reshape(
+        N * num_params_curr, num_params
+    )
+    return current_samples
+
+
+def eFAST_samples_many_chunks(icpu, num_params_per_cpu, gsa_dict):
+    num_params = gsa_dict.get("num_params")
+    chunk_size = get_chunk_size_eFAST(num_params_per_cpu)
+    num_chunks = int(np.ceil(num_params_per_cpu / chunk_size))
+    samples = np.zeros(shape=(0, num_params))
+    for ichunk in range(num_chunks):
+        i = icpu * num_chunks + ichunk
+        samples = np.vstack([samples, eFAST_samples_one_chunk(i, gsa_dict)])
+    return samples
+
+
+def eFAST_samples(gsa_dict):
     """Extended FAST samples in [0,1] range.
 
     Notes
     -----
-        Code optimized from the SALib implementation, with a ~6 times speed up.
+        Code optimized from the SALib implementation, with a ~6 (??TODO) times speed up.
 
     References
     ----------
@@ -106,31 +190,29 @@ def eFAST_samples(dict_, M=4):
 
     """
 
-    iterations = dict_.get("iterations")
-    num_params = dict_.get("num_params")
-    omega = get_omega_eFAST(num_params, iterations, M)
-    #     iterations = max( 4 * M**2 + 1, iterations) # Sample size N > 4M^2 is required. M=4 by default.
+    seed = gsa_dict.get("seed")
+    if seed:
+        np.random.seed(seed)
+    num_params = gsa_dict.get("num_params")
+    cpus = gsa_dict.get("cpus")
+    chunk_size = get_chunk_size_eFAST(num_params)
+    num_jobs = int(np.ceil(np.ceil(num_params / chunk_size) / cpus))
+    params_range_per_cpu = np.hstack(
+        [np.arange(0, num_params, num_jobs * chunk_size), num_params]
+    )
+    num_params_per_cpu = params_range_per_cpu[1:] - params_range_per_cpu[:-1]
+    cpus_needed = len(num_params_per_cpu)
 
-    # Discretization of the frequency space, s
-    s = (2 * np.pi / iterations) * np.arange(iterations)
-
-    # Transformation to get points in the X space
-    idx = np.ones([num_params, num_params], dtype=bool)
-    np.fill_diagonal(idx, False)
-    omega2 = np.zeros([num_params, num_params])
-    omega2[idx] = np.tile(omega[1:], num_params)
-    np.fill_diagonal(omega2, omega[0])
-
-    np.random.seed(dict_.get("seed"))
-    phi = 2 * np.pi * np.random.rand(num_params)
-    phi = np.tile(phi, [num_params]).reshape(num_params, num_params).T
-    phi = np.tile(phi, iterations).reshape(num_params, num_params, iterations)
-
-    omega2_kron = np.kron(omega2, s).reshape(num_params, num_params, iterations)
-    g = 0.5 + (1 / np.pi) * np.arcsin(np.sin(omega2_kron + phi))
-
-    samples = np.transpose(g, (0, 2, 1)).reshape(iterations * num_params, num_params)
-    return samples
+    with multiprocessing.Pool(processes=cpus_needed) as pool:
+        samples = pool.starmap(
+            eFAST_samples_many_chunks,
+            [(icpu, num_params_per_cpu[icpu], gsa_dict) for icpu in range(cpus_needed)],
+        )
+    samples_array = np.zeros(shape=(0, num_params))
+    for res in samples:
+        samples_array = np.vstack([samples_array, res])
+    print(samples_array.shape)
+    return samples_array
 
 
 def dissimilarity_samples(dict_):

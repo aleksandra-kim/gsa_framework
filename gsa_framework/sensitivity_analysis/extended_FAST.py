@@ -1,9 +1,11 @@
 from ..sampling.get_samples import get_omega_eFAST
 import numpy as np
+from ..utils import read_hdf5_array
 
 
-def eFAST_first_order(Y, N, M, omega):
+def eFAST_first_order(Y, M, omega):
     """Sobol first order index estimator."""
+    N = Y.shape[0]
     f = np.fft.fft(Y)
     Sp = np.power(np.absolute(f[np.arange(1, int((N + 1) / 2))]) / N, 2)
     V = 2 * np.sum(Sp)
@@ -11,8 +13,9 @@ def eFAST_first_order(Y, N, M, omega):
     return D1 / V
 
 
-def eFAST_total_order(Y, N, omega):
+def eFAST_total_order(Y, omega):
     """Sobol total order index estimator."""
+    N = Y.shape[0]
     f = np.fft.fft(Y)
     Sp = np.power(np.absolute(f[np.arange(1, int((N + 1) / 2))]) / N, 2)
     V = 2 * np.sum(Sp)
@@ -20,7 +23,7 @@ def eFAST_total_order(Y, N, omega):
     return 1 - Dt / V
 
 
-def eFAST_indices(dict_):
+def eFAST_indices(gsa_dict):
     """Compute estimations of Sobol' first and total order indices.
 
     High values of the Sobol first order index signify important parameters, while low values of the  total indices
@@ -29,7 +32,7 @@ def eFAST_indices(dict_):
 
     Parameters
     ----------
-    dict_ : dict
+    gsa_dict : dict
         Dictionary that contains model outputs ``y`` obtained by running model on Saltelli samples,
         number of Monte Carlo iterations ``iterations``, and number of parameters ``num_params``.
 
@@ -51,20 +54,23 @@ def eFAST_indices(dict_):
 
     """
 
-    y = dict_.get("y")
-    iterations = dict_.get("iterations")
-    num_params = dict_.get("num_params")
+    y = read_hdf5_array(gsa_dict["filename_y"])
+    y = y.flatten()
+    iterations = gsa_dict.get("iterations")
+    num_params = gsa_dict.get("num_params")
+    iterations_per_param = iterations // num_params
+    assert iterations_per_param == iterations / num_params
+    M = gsa_dict.get("M", 4)
     # Recreate the vector omega used in the sampling
-    M = 4
-    omega = get_omega_eFAST(num_params, iterations, M)
+    omega = get_omega_eFAST(num_params, iterations_per_param, M)
     # Calculate and Output the First and Total Order Values
     first = np.zeros(num_params)
     total = np.zeros(num_params)
     first[:], total[:] = np.nan, np.nan
     for i in range(num_params):
-        l = np.arange(i * iterations, (i + 1) * iterations)
-        first[i] = eFAST_first_order(y[l], iterations, M, omega[0])
-        total[i] = eFAST_total_order(y[l], iterations, omega[0])
+        l = np.arange(i * iterations_per_param, (i + 1) * iterations_per_param)
+        first[i] = eFAST_first_order(y[l], M, omega[0])
+        total[i] = eFAST_total_order(y[l], omega[0])
     sa_dict = {
         "eFAST_first": first,
         "eFAST_total": total,
