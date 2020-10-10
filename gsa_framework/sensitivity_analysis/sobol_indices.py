@@ -1,5 +1,5 @@
 import numpy as np
-from ..utils import get_z_alpha_2
+from ..utils import get_z_alpha_2, read_hdf5_array
 
 # TODO confidence intervals
 
@@ -34,7 +34,7 @@ def confidence_interval(std, N, confidence_level=0.95):
     return z_alpha_2 * std / np.sqrt(N)
 
 
-def sobol_indices(dict_):
+def sobol_indices(gsa_dict):
     """Compute estimations of Sobol' first and total order indices.
 
     High values of the Sobol first order index signify important parameters, while low values of the  total indices
@@ -43,7 +43,7 @@ def sobol_indices(dict_):
 
     Parameters
     ----------
-    dict_ : dict
+    gsa_dict : dict
         Dictionary that contains model outputs ``y`` obtained by running model on Saltelli samples,
         and number of parameters ``num_params``.
 
@@ -63,8 +63,9 @@ def sobol_indices(dict_):
 
     """
 
-    y = dict_.get("y")
-    num_params = dict_.get("num_params")
+    y = read_hdf5_array(gsa_dict["filename_y"])
+    y = y.flatten()
+    num_params = gsa_dict.get("num_params")
     A, B, AB = separate_output_values(y, num_params)
     first = sobol_first_order(A, AB, B)
     total = sobol_total_order(A, AB, B)

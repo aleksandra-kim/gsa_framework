@@ -15,7 +15,7 @@ import multiprocessing
 import h5py
 
 import plotly.graph_objects as go
-
+from plotly.subplots import make_subplots
 
 # Sampler and Global Sensitivity Analysis (GSA) mapping dictionaries
 sampler_mapping = {
@@ -353,6 +353,29 @@ class Problem:
                 pickle.dump(gsa_indices_dict, f)
         return self.filename_gsa_results
 
+    def convergence(self, step, iterations_order):
+        y = read_hdf5_array(self.filename_y).flatten()
+        sa_convergence_dict_temp = {}
+        iterations_blocks = np.arange(step, len(y) + step, step)
+        for block_size in iterations_blocks:
+            selected_iterations = iterations_order[0:block_size]
+            t0 = time.time()
+            gsa_indices_dict = self.interpreter_fnc(self.gsa_dict, selected_iterations)
+            t1 = time.time()
+            print("{0:8d} iterations -> {1:8.3f} s".format(block_size, t1 - t0))
+            sa_convergence_dict_temp[block_size] = gsa_indices_dict
+        # Put all blocks together
+        sa_convergence_dict = {
+            key: np.zeros(shape=(0, self.num_params))
+            for key in sa_convergence_dict_temp[block_size].keys()
+        }
+        for sa_dict in sa_convergence_dict_temp.values():
+            for key, sa_array in sa_convergence_dict.items():
+                new_sa_array = np.vstack([sa_array, sa_dict[key]])
+                sa_convergence_dict.update({key: new_sa_array})
+
+        return sa_convergence_dict, iterations_blocks
+
     def save_time(self, elapsed_time):
         time_dict = {"time": str((elapsed_time) / 3600) + " hours"}
 
@@ -412,40 +435,55 @@ class Problem:
             self.write_dir / "figures" / Path(self.filename_gsa_results.stem + ".pdf")
         )
         fig.show()
+        #         fig.write_image(pathname.as_posix())
 
-
-#         fig.write_image(pathname.as_posix())
-
-
-# def mysum(x):
-#     return np.sum(x)
-#
-# class RunModelParallel:
-#     """Split a Monte Carlo calculation into parallel jobs"""
-#
-#     def __init__(
-#         self,
-#         iterations=100,
-#         chunk_size=None,
-#         cpus=None,
-#     ):
-#         self.iterations = iterations
-#         self.cpus = min(cpus or multiprocessing.cpu_count(), multiprocessing.cpu_count())
-#         if chunk_size:
-#             self.chunk_size = chunk_size
-#             self.num_jobs = iterations // chunk_size
-#             if iterations % self.chunk_size:
-#                 self.num_jobs += 1
-#         else:
-#             self.num_jobs = self.cpus
-#             self.chunk_size = (iterations // self.num_jobs) + 1
-#
-#     def calculate(self, X, model=mysum):
-#         with multiprocessing.Pool(processes=self.cpus) as pool:
-#             results = pool.map(
-#                 model,
-#                 [
-#                     (X[i], ) for i in range(self.iterations)
-#                 ],
-#             )
-#         return np.array(results)
+    def plot_convergence(
+        self, sa_convergence_dict, iterations_blocks, parameter_inds=None
+    ):
+        if parameter_inds is None:
+            parameter_inds = np.random.randint(
+                0, self.num_params, max(10, self.num_params // 10)
+            )
+        # Assign color to each parameter
+        colors = {}
+        for parameter in parameter_inds:
+            colors[parameter] = "rgb({0},{1},{2})".format(
+                np.random.randint(0, 256),
+                np.random.randint(0, 256),
+                np.random.randint(0, 256),
+            )
+        # Plot
+        fig = make_subplots(
+            rows=len(sa_convergence_dict),
+            cols=1,
+            subplot_titles=list(sa_convergence_dict.keys()),
+        )
+        for parameter in parameter_inds:
+            row = 1
+            for sa_index_name, sa_array in sa_convergence_dict.items():
+                showlegend = False
+                if row == 1:
+                    showlegend = True
+                fig.add_trace(
+                    go.Scatter(
+                        x=iterations_blocks,
+                        y=sa_array[:, parameter],
+                        mode="lines+markers",
+                        showlegend=showlegend,
+                        marker_color=colors[parameter],
+                        name="Parameter " + str(parameter),
+                        legendgroup=parameter,
+                    ),
+                    row=row,
+                    col=1,
+                )
+                row += 1
+        fig.show()
+        # Save figure
+        pathname = (
+            self.write_dir
+            / "figures"
+            / Path("convergence_" + self.filename_gsa_results.stem)
+        )
+        fig.write_image(pathname.with_suffix(".pdf").as_posix())
+        fig.write_html(pathname.with_suffix(".html").as_posix())

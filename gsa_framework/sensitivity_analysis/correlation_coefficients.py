@@ -74,7 +74,9 @@ def corrcoef_many_chunks(X, y, option):
     return corrcoef
 
 
-def corrcoef_parallel(filename_X, y, num_params, cpus, option, start=None, end=None):
+def corrcoef_parallel(
+    filename_X, y, num_params, cpus, option, selected_iterations=None
+):
     """Compute correlation coefficient efficiently in parallel, using multiprocessing with one job per worker.
 
     ``option`` can be ``pearson`` or ``spearman``.
@@ -90,17 +92,19 @@ def corrcoef_parallel(filename_X, y, num_params, cpus, option, start=None, end=N
     chunks = list(range(0, num_params + num_jobs * chunk_size, num_jobs * chunk_size))
     cpus_needed = len(chunks) - 1
     results_all = np.array([])
-    if not start:
-        start = 0
-    if not end:
-        end = len(y)
+    if selected_iterations is None:
+        selected_iterations = np.arange(len(y))
     with h5py.File(filename_X, "r") as f:
-        X = np.array(f["dataset"][start:end, :])
+        X = np.array(f["dataset"][selected_iterations, :])
         with multiprocessing.Pool(processes=cpus_needed) as pool:
             results = pool.starmap(
                 corrcoef_many_chunks,
                 [
-                    (X[start:end, chunks[i] : chunks[i + 1]], y[start:end], option)
+                    (
+                        X[selected_iterations, chunks[i] : chunks[i + 1]],
+                        y[selected_iterations],
+                        option,
+                    )
                     for i in range(cpus_needed)
                 ],
             )
@@ -111,7 +115,7 @@ def corrcoef_parallel(filename_X, y, num_params, cpus, option, start=None, end=N
     return results_all
 
 
-def correlation_coefficients(gsa_dict):
+def correlation_coefficients(gsa_dict, selected_iterations=None):
     """Compute estimations of different correlation coefficients, such as Pearson and Spearman.
 
     Parameters
@@ -132,8 +136,12 @@ def correlation_coefficients(gsa_dict):
     filename_X = gsa_dict["filename_X_rescaled"]
     cpus = gsa_dict["cpus"]
     return {
-        "pearson": corrcoef_parallel(filename_X, y, num_params, cpus, "pearson"),
-        "spearman": corrcoef_parallel(filename_X, y, num_params, cpus, "spearman"),
+        "pearson": corrcoef_parallel(
+            filename_X, y, num_params, cpus, "pearson", selected_iterations
+        ),
+        "spearman": corrcoef_parallel(
+            filename_X, y, num_params, cpus, "spearman", selected_iterations
+        ),
     }
 
 

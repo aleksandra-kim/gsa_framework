@@ -2,6 +2,7 @@ import gsa_framework as gf
 import brightway2 as bw
 from pathlib import Path
 import pickle
+import numpy as np
 
 if __name__ == "__main__":
     path_base = Path(
@@ -29,9 +30,10 @@ if __name__ == "__main__":
 
     # 3. Morris model
     write_dir_morris = path_base / "morris_model"
-    model_morris = gf.Morris(num_params=100, num_influential=20)
-    const_morris = 130
-    iterations_morris = model_morris.num_params * const_morris
+    model_morris = gf.Morris(num_params=100, num_influential=10)
+    const_morris = 500
+    # iterations_morris = model_morris.num_params * const_morris
+    iterations_morris = 5000
 
     # 3. Sobol-Levitan model
     write_dir_SL = path_base / "sobol_levitan_model"
@@ -68,10 +70,10 @@ if __name__ == "__main__":
     }
 
     gsa_methods = [
-        # "correlation_coefficients",
-        #     'sobol_indices',
-        "eFAST_indices",
-        #     'xgboost',
+        "correlation_coefficients",
+        # 'sobol_indices',
+        # "eFAST_indices",
+        # 'xgboost',
         # 'dissimilarity_measure',
     ]
 
@@ -94,7 +96,7 @@ if __name__ == "__main__":
             # if gsa_method == "eFAST_indices":
             #     iterations = 130
             if gsa_method == "correlation_coefficients":
-                iterations = None
+                iterations = iterations_morris
             else:
                 iterations = models_dict[model_name]["iterations"]
             print(
@@ -116,14 +118,22 @@ if __name__ == "__main__":
                 X=None,
             )
             model_evals.append(problem)
+            sa_convergence_dict, iterations_blocks = problem.convergence(
+                100, np.arange(iterations)
+            )
+            problem.plot_convergence(
+                sa_convergence_dict,
+                iterations_blocks,
+                [0, 1, 2, 3, 4, 20, 21, 22, 23, 24],
+            )
 
-            # Plotting
-            filename_sa_results = problem.gsa_dict["filename_sa_results"]
-            with open(filename_sa_results, "rb") as f:
-                sa_results = pickle.load(f)
-            for sa_index_name, sa_index_values in sa_results.items():
-                sa_indices = {sa_index_name: sa_index_values}
-                try:
-                    problem.plot_sa_results(sa_indices, model.influential_params)
-                except:
-                    pass
+            # # Plotting
+            # filename_sa_results = problem.gsa_dict["filename_sa_results"]
+            # with open(filename_sa_results, "rb") as f:
+            #     sa_results = pickle.load(f)
+            # for sa_index_name, sa_index_values in sa_results.items():
+            #     sa_indices = {sa_index_name: sa_index_values}
+            #     try:
+            #         problem.plot_sa_results(sa_indices, model.influential_params)
+            #     except:
+            #         pass
