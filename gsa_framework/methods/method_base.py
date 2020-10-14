@@ -24,8 +24,7 @@ sampler_mapping = {
     "eFAST": eFAST_samples,
     "random": random_samples,
     "custom": custom_samples,
-    "dissimilarity": dissimilarity_samples,
-    "latin_hypercube": latin_hypercube_samples,
+    "dissimilarity_samples": dissimilarity_samples,
 }
 interpreter_mapping = {
     "correlation_coefficients": correlation_coefficients,
@@ -36,66 +35,43 @@ interpreter_mapping = {
 }
 
 
-class Problem:
-    """Definition of a global sensitivity analysis problem.
+import numpy as np
 
-    Parameters
-    ----------
-    sampler : str
-        The correct function for generating samples of specific type is retrieved from ``sampler_mapping``.
-    model : class, subclass of ``ModelBase``
-        Models can be run locally or remotely (TODO).
-    interpreter : str
-        The correct function for GSA is retrieved from ``interpreter_mapping``.
-    write_dir : str
-        Directory where intermediate results and plots will be stored.
-    iterations : int
-        Number of Monte Carlo iterations.
-    seed : int
-        Random seed.
-    X : np.array of size [iterations, num_params]
-        Custom parameter sampling matrix in standard uniform [0,1] range.
-    cpus : int
-        Number of cpus to use for parallel computations.
-    available_memory : float
-        Available RAM in GB for storing arrays in variables.
 
-    Raises
-    ------
-        Errors?
+class SensitivityAnalysisMethod:
+    """Base class to define sensitivity analysis methods. Should be subclassed.
+
+    Sensitivity analysis methods should have the following components:
+
+    * A sampling strategy. Can be completely random, or structured, or whatever.
+    * A model execution step.
+    * An analysis function to calculate various indices.
+
+    This class provides a common interface for these components, and utility functions to save data at each step.
 
     """
-
     def __init__(
         self,
-        sampler,
-        model,
-        interpreter,
         write_dir,
         iterations=None,
         seed=None,
-        X=None,
         cpus=None,
         available_memory=2,
         use_parallel=True,
     ):
-        # Create necessary directories
         self.write_dir = Path(write_dir)
-        self.make_dirs()
-        # General
+
+        # This should be done by the Problem class
+        # self.make_dirs()
+
         self.seed = seed
-        self.model = model
         self.num_params = len(self.model)
-        # Sampling strategy and ``iterations`` depend on the interpreter
-        self.interpreter_str = interpreter
-        self.interpreter_fnc = interpreter_mapping.get(self.interpreter_str)
-        self.sampler_str = sampler
-        # Iterations
-        self.iterations = self.guess_iterations(iterations)
+        self.iterations = iterations or self.num_params
+
         # For parallel computations
         ### 1. Chunk sizes limited by available memory
         self.available_memory = available_memory  # GB
-        self.bytes_per_entry = 8
+
         self.chunk_size_memory = min(
             int(
                 self.available_memory
@@ -106,8 +82,10 @@ class Problem:
             self.iterations,
         )
         self.num_chunks_memory = int(np.ceil(self.iterations / self.chunk_size_memory))
+
         ### 2. Divide chunks above between available cpus to speed up computations
         self.cpus = min(
+            # There has to be a way to make this more elegant
             cpus or multiprocessing.cpu_count(), multiprocessing.cpu_count()
         )
         self.use_parallel = use_parallel
@@ -116,125 +94,59 @@ class Problem:
             np.ceil(self.chunk_size_memory / self.num_jobs)
         )
         # Save some useful info in a GSA dictionary
-        self.gsa_dict = {
-            "iterations": self.iterations,
-            "num_params": self.num_params,
-            "write_dir": self.write_dir,
-            "cpus": self.cpus,
-        }
-        # Generate samples
-        self.gsa_dict.update(
-            {
-                "sampler_str": self.sampler_str,
-                "X": X,
-            }
-        )
-        self.gsa_dict.update({"filename_X": self.generate_samples()})
-        self.gsa_dict.update({"filename_X_rescaled": self.rescale_samples()})
-        # Run model
-        self.gsa_dict.update({"filename_y": self.run()})
-        # Compute GSA indices
-        self.gsa_dict.update({"filename_sa_results": self.interpret()})
+        # self.gsa_dict = {
+        #     "iterations": self.iterations,
+        #     "num_params": self.num_params,
+        #     "write_dir": self.write_dir,
+        #     "cpus": self.cpus,
+        # }
+        # # Generate samples
+        # self.gsa_dict.update(
+        #     {
+        #         "sampler_str": self.sampler_str,
+        #         "X": X,
+        #     }
+        # )
+        # self.gsa_dict.update({"filename_X": self.generate_samples()})
+        # self.gsa_dict.update({"filename_X_rescaled": self.rescale_samples()})
+        # # Run model
+        # self.gsa_dict.update({"filename_y": self.run()})
+        # # Compute GSA indices
+        # self.gsa_dict.update({"filename_sa_results": self.interpret()})
 
-    def make_dirs(self):
-        """Create subdirectories where intermediate results will be stored."""
-        dirs_list = ["arrays", "gsa_results", "figures", "computation_time"]
-        for dir in dirs_list:
-            dir_path = self.write_dir / dir
-            # Can skip if exist_ok is True
-            # if not dir_path.exists():
-            dir_path.mkdir(parents=True, exist_ok=True)
+    def create_normalized_samples_filename(self):
+        return "X.{}.{}.{}.{}.hdf5".format(self.label, self.iterations, self.num_params, self.seed)
 
-    def generate_samples(self, X=None):
-        """Use ``self.sampler`` to generate normalized samples for this problem.
+    def create_rescaled_samples_filename(self):
+        # Maybe we need to be more careful here, as this will change according to the model
+        return "X.rescaled.{}.{}.{}.{}.hdf5".format(self.label, self.iterations, self.num_params, self.seed)
 
-        Returns
-        -------
-        filename_X : str
-            Path where parameter sampling matrix ``X`` for standard uniform samples is stored.
-
-        TODO Chris, this function is horrible.
-
-        """
-
-        self.base_sampler_str = "no_base"
-        if self.interpreter_str == "sobol_indices":
-            # Printing is OK, but not great on clusters. Consider using warnings and/or proper logging
-            #             print('Changing samples to saltelli, because indices convergence faster')
-
-            # 1) you don't know if this is actually a change, and
-            # 2) if this change is always happening, you could skip the warning message
-
-            self.sampler_str = "saltelli"
-            self.seed = None
-        elif self.interpreter_str == "eFAST_indices":
-            #             print('Changing samples to eFAST, because indices convergence faster')
-            self.sampler_str = "eFAST"
-        elif self.interpreter_str == "dissimilarity_measure":
-            #             print('Samples should be adapted for dissimilarity sensitivity measure')
-            self.base_sampler_str = sampler_mapping.get(self.sampler_str, "random")
-            self.base_sampler_fnc = sampler_mapping.get(self.base_sampler_str)
-            self.sampler_str = "dissimilarity"
-            self.gsa_dict.update(
-                {
-                    "base_sampler_str": self.base_sampler_str,
-                    "base_sampler_fnc": self.base_sampler_fnc,
-                }
-            )
-        else:
-            if X is not None:
-                self.sampler_str = "custom"
-                self.seed = None
-        self.sampler_fnc = sampler_mapping.get(self.sampler_str, "random")
-        self.gsa_dict.update({"sampler_fnc": self.sampler_fnc})
-        self.gsa_dict.update({"seed": self.seed})
-
-        self.filename_X = (
+    @property
+    def filepath_X(self):
+        return (
             self.write_dir
             / "arrays"
-            / Path(
-                "X_"
-                + self.sampler_str
-                + "_"
-                + self.base_sampler_str
-                + "_iterations_"
-                + str(self.iterations)
-                + "_num_params_"
-                + str(self.num_params)
-                + "_seed_"
-                + str(self.seed)
-                + ".hdf5"
-            )
+            / self.create_normalized_samples_filename()
         )
 
-        if not self.filename_X.exists():
-            X = self.sampler_fnc(self.gsa_dict)
-            write_hdf5_array(X, self.filename_X)
+    @property
+    def filepath_X_rescaled(self):
+        return (
+            self.write_dir
+            / "arrays"
+            / self.create_rescaled_samples_filename()
+        )
 
-        # I don't like this changing global state, and then returning something as well.
-        # This is a question of personal preference, but I would set global state on class instantiation, and then
-        # change it as little as possible, just pass around the variables needed for each method.
-
-        return self.filename_X
+    def generate_normalized_samples(self, X=None):
+        raise NotImplementedError
 
     def rescale_samples(self):
-        """Rescale samples from standard uniform to appropriate distributions and write ``X_rescaled`` to a file.
-
-        Returns
-        -------
-        filename_X_rescaled : str
-            Path where parameter sampling matrix ``X_rescaled`` for samples from appropriate distributions is stored.
-
-        """
-
-        self.filename_X_rescaled = self.filename_X.parent / Path(
-            "X_rescaled" + self.filename_X.stem[1:] + ".hdf5"
-        )
-        if not self.filename_X_rescaled.exists():
+        """Rescale samples from standard uniform to appropriate distributions and write ``X_rescaled`` to a file."""
+        if not self.filepath_X_rescaled.exists():
             X = read_hdf5_array(self.filename_X)
-            X_rescaled = self.model.__rescale__(X)
+            X_rescaled = self.model.rescale(X)
             write_hdf5_array(X_rescaled, self.filename_X_rescaled)
-        return self.filename_X_rescaled
+        return X_rescaled
 
     def run_parallel(self):
         """Obtain ``model`` outputs from the ``X_rescaled`` in parallel and write them to a file."""
@@ -324,7 +236,7 @@ class Problem:
     def convergence(self, step, iterations_order):
         y = read_hdf5_array(self.filename_y).flatten()
         sa_convergence_dict_temp = {}
-        iterations_blocks = np.arange(step, len(y), step)
+        iterations_blocks = np.arange(step, len(y) + step, step)
         for block_size in iterations_blocks:
             selected_iterations = iterations_order[0:block_size]
             t0 = time.time()
