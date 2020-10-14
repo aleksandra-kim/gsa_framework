@@ -23,7 +23,7 @@ def eFAST_total_order(Y, omega):
     return 1 - Dt / V
 
 
-def eFAST_indices(gsa_dict):
+def eFAST_indices(gsa_dict, selected_iterations=None):
     """Compute estimations of Sobol' first and total order indices.
 
     High values of the Sobol first order index signify important parameters, while low values of the  total indices
@@ -67,8 +67,15 @@ def eFAST_indices(gsa_dict):
     first = np.zeros(num_params)
     total = np.zeros(num_params)
     first[:], total[:] = np.nan, np.nan
+    if selected_iterations is not None:
+        iterations_per_param_current = len(y) // num_params
+        assert iterations_per_param == len(y) / num_params
+    else:
+        iterations_per_param_current = iterations_per_param
     for i in range(num_params):
-        l = np.arange(i * iterations_per_param, (i + 1) * iterations_per_param)
+        l = np.arange(i * iterations_per_param, (i + 1) * iterations_per_param)[
+            :iterations_per_param_current
+        ]
         first[i] = eFAST_first_order(y[l], M, omega[0])
         total[i] = eFAST_total_order(y[l], omega[0])
     sa_dict = {

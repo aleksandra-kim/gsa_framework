@@ -4,6 +4,8 @@ from scipy.stats import kendalltau, spearmanr
 import h5py
 import multiprocessing
 
+# import dask.array as da
+
 n0_DEFAULT = 10
 OPTIMAL_CHUNK_SIZE_PEARSON = (
     500  # somewhat optimal chunk size for numpy.corrcoef that computes Pearson coeff.

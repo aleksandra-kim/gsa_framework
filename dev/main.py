@@ -30,10 +30,9 @@ if __name__ == "__main__":
 
     # 3. Morris model
     write_dir_morris = path_base / "morris_model"
-    model_morris = gf.Morris(num_params=100, num_influential=10)
-    const_morris = 500
-    # iterations_morris = model_morris.num_params * const_morris
-    iterations_morris = 5000
+    model_morris = gf.Morris(num_params=200, num_influential=30)
+    const_morris = 100
+    iterations_morris = model_morris.num_params * const_morris
 
     # 3. Sobol-Levitan model
     write_dir_SL = path_base / "sobol_levitan_model"
@@ -70,9 +69,9 @@ if __name__ == "__main__":
     }
 
     gsa_methods = [
-        "correlation_coefficients",
+        # "correlation_coefficients",
         # 'sobol_indices',
-        # "eFAST_indices",
+        "eFAST_indices",
         # 'xgboost',
         # 'dissimilarity_measure',
     ]
@@ -109,7 +108,7 @@ if __name__ == "__main__":
                 + " iterations"
             )
             problem = problem_per_worker(
-                sampler="random",
+                sampler="latin_hypercube",
                 model=model,
                 interpreter=gsa_method,
                 write_dir=write_dir,
@@ -118,13 +117,23 @@ if __name__ == "__main__":
                 X=None,
             )
             model_evals.append(problem)
+            if gsa_method == "correlation_coefficients":
+                convergence_vector = np.arange(iterations)
+                step = 100
+            elif gsa_method == "sobol_indices":
+                convergence_vector = np.arange(iterations)
+                step = (model.num_params + 2) * 10
+            elif gsa_method == "eFAST_indices":
+                convergence_vector = np.arange(iterations).reshape(-1, model.num_params)
+                convergence_vector = convergence_vector.T.flatten()
+                step = model.num_params * 20
             sa_convergence_dict, iterations_blocks = problem.convergence(
-                100, np.arange(iterations)
+                step, convergence_vector
             )
             problem.plot_convergence(
                 sa_convergence_dict,
                 iterations_blocks,
-                [0, 1, 2, 3, 4, 20, 21, 22, 23, 24],
+                [0, 1, 25, 3, 4, 40, 41, 42, 43, 74],
             )
 
             # # Plotting

@@ -24,7 +24,8 @@ sampler_mapping = {
     "eFAST": eFAST_samples,
     "random": random_samples,
     "custom": custom_samples,
-    "dissimilarity_samples": dissimilarity_samples,
+    "dissimilarity": dissimilarity_samples,
+    "latin_hypercube": latin_hypercube_samples,
 }
 interpreter_mapping = {
     "correlation_coefficients": correlation_coefficients,
@@ -161,7 +162,7 @@ class Problem:
         # if self.interpreter_str == "correlation_coefficients":
         #     corrcoef_constants = get_corrcoef_num_iterations()
         #     computed_iterations = max(
-        #         corrcoef_constants["pearson"]["num_iterations"]*50, #TODO remove 5
+        #         corrcoef_constants["pearson"]["num_iterations"]*50, #TODO remove 50
         #         corrcoef_constants["spearman"]["num_iterations"]*50,
         #     )
         #     return computed_iterations
@@ -206,7 +207,7 @@ class Problem:
             #             print('Samples should be adapted for dissimilarity sensitivity measure')
             self.base_sampler_str = sampler_mapping.get(self.sampler_str, "random")
             self.base_sampler_fnc = sampler_mapping.get(self.base_sampler_str)
-            self.sampler_str = "dissimilarity_samples"
+            self.sampler_str = "dissimilarity"
             self.gsa_dict.update(
                 {
                     "base_sampler_str": self.base_sampler_str,
@@ -214,7 +215,7 @@ class Problem:
                 }
             )
         else:
-            if X != None:
+            if X is not None:
                 self.sampler_str = "custom"
                 self.seed = None
         self.sampler_fnc = sampler_mapping.get(self.sampler_str, "random")
@@ -356,7 +357,7 @@ class Problem:
     def convergence(self, step, iterations_order):
         y = read_hdf5_array(self.filename_y).flatten()
         sa_convergence_dict_temp = {}
-        iterations_blocks = np.arange(step, len(y) + step, step)
+        iterations_blocks = np.arange(step, len(y), step)
         for block_size in iterations_blocks:
             selected_iterations = iterations_order[0:block_size]
             t0 = time.time()

@@ -30,11 +30,12 @@ def sobol_total_order(A, AB, B):
 
 
 def confidence_interval(std, N, confidence_level=0.95):
+    """TODO change ``N`` to be consistent with the selected coefficients"""
     z_alpha_2 = get_z_alpha_2(confidence_level)
     return z_alpha_2 * std / np.sqrt(N)
 
 
-def sobol_indices(gsa_dict):
+def sobol_indices(gsa_dict, selected_iterations=None):
     """Compute estimations of Sobol' first and total order indices.
 
     High values of the Sobol first order index signify important parameters, while low values of the  total indices
@@ -65,6 +66,8 @@ def sobol_indices(gsa_dict):
 
     y = read_hdf5_array(gsa_dict["filename_y"])
     y = y.flatten()
+    if selected_iterations is not None:
+        y = y[selected_iterations]
     num_params = gsa_dict.get("num_params")
     A, B, AB = separate_output_values(y, num_params)
     first = sobol_first_order(A, AB, B)

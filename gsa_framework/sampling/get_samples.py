@@ -5,30 +5,44 @@ OPTIMAL_CHUNK_SIZE_EFAST = 50
 get_chunk_size_eFAST = lambda num_params: min(OPTIMAL_CHUNK_SIZE_EFAST, num_params)
 
 
-def random_samples(dict_):
+def random_samples(gsa_dict):
     """Random standard uniform sampling for all iterations and parameters with or without fixing random seed."""
-    np.random.seed(dict_.get("seed"))
-    return np.random.rand(dict_.get("iterations"), dict_.get("num_params"))
+    np.random.seed(gsa_dict.get("seed"))
+    return np.random.rand(gsa_dict.get("iterations"), gsa_dict.get("num_params"))
 
 
-def custom_samples(dict_):
+def custom_samples(gsa_dict):
     """Wrapper function to return custom sampling matrix if it is specified by the user, values are in [0,1] range."""
-    return dict_.get("X")
+    return gsa_dict.get("X")
 
 
-def sobol_samples(dict_):
+def latin_hypercube_samples(gsa_dict):
+    """Latin hypercube samples in [0,1] range."""
+    iterations = gsa_dict.get("iterations")
+    num_params = gsa_dict.get("num_params")
+    np.random.seed(gsa_dict.get("seed"))
+    step = 1 / iterations
+    samples = np.random.uniform(low=0, high=step, size=(num_params, iterations))
+    interval_start = np.linspace(start=0, stop=1, num=iterations, endpoint=False)
+    for sample in samples:
+        np.random.shuffle(interval_start)
+        sample += interval_start
+    return samples.T
+
+
+def sobol_samples(gsa_dict):
     """Quasi-random Sobol sequence in [0,1] range that skips first ``skip_samples`` samples to avoid boundary values."""
     from .sobol_sequence import SobolSample
 
-    iterations = dict_.get("iterations")
-    num_params = dict_.get("num_params")
-    skip_samples = dict_.get("skip_samples", 1000)
+    iterations = gsa_dict.get("iterations")
+    num_params = gsa_dict.get("num_params")
+    skip_samples = gsa_dict.get("skip_samples", 1000)
     sobol = SobolSample(iterations + skip_samples, num_params, scale=31)
     samples = sobol.generate_all_samples()
     return samples[skip_samples:]
 
 
-def saltelli_samples(dict_):
+def saltelli_samples(gsa_dict):
     """Saltelli samples in [0,1] range based on Sobol sequences and radial sampling.
 
     Notes
@@ -49,9 +63,9 @@ def saltelli_samples(dict_):
     # Use Sobol samples as base
     from .sobol_sequence import SobolSample
 
-    iterations = dict_.get("iterations")
-    num_params = dict_.get("num_params")
-    skip_samples = dict_.get("skip_samples", 1000)
+    iterations = gsa_dict.get("iterations")
+    num_params = gsa_dict.get("num_params")
+    skip_samples = gsa_dict.get("skip_samples", 1000)
     iterations_per_parameter = iterations // (num_params + 2)
     # generate base Sobol sequence samples
     sobol = SobolSample(
@@ -111,7 +125,7 @@ def eFAST_samples_one_chunk(i, gsa_dict):
     N = max(4 * M ** 2 + 1, iterations_per_parameter)
     # Set of frequencies that would be assigned to each input factor
     omega = get_omega_eFAST(num_params, N, M)
-    omega_temp = np.zeros([num_params])
+    # omega_temp = np.zeros([num_params]) TODO not needed?
     # Discretization of the frequency space
     s = (2 * np.pi / N) * np.arange(N)
     # Random phase-shift
@@ -211,11 +225,10 @@ def eFAST_samples(gsa_dict):
     samples_array = np.zeros(shape=(0, num_params))
     for res in samples:
         samples_array = np.vstack([samples_array, res])
-    print(samples_array.shape)
     return samples_array
 
 
-def dissimilarity_samples(dict_):
+def dissimilarity_samples(gsa_dict):
     """Sampling for dissimilarity measures.
 
     First base sampling is created where all parameters vary, then for each parameter base sampling is copied
@@ -223,9 +236,9 @@ def dissimilarity_samples(dict_):
 
     """
 
-    base_sampler_fnc = dict_.get("base_sampler_fnc")
-    iterations = dict_.get("iterations")
-    num_params = dict_.get("num_params")
+    base_sampler_fnc = gsa_dict.get("base_sampler_fnc")
+    iterations = gsa_dict.get("iterations")
+    num_params = gsa_dict.get("num_params")
     iterations_per_parameter = iterations // (num_params + 1)
     dict_base = {
         "iterations": iterations_per_parameter,
