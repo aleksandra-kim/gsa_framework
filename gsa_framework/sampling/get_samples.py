@@ -104,12 +104,8 @@ def get_omega_eFAST(num_params, iterations, M):
     return omega
 
 
-def eFAST_samples_one_chunk(i, gsa_dict):
-    seed = gsa_dict.get("seed")
-    if seed:
-        np.random.seed(seed)
-    num_params = gsa_dict.get("num_params")
-    iterations = gsa_dict.get("iterations")
+def eFAST_samples_one_chunk(i, num_params, iterations, M=4, seed=None):
+    np.random.seed(seed)
     iterations_per_parameter = iterations // num_params
     # Determine current chunk
     chunk_size = get_chunk_size_eFAST(num_params)
@@ -121,7 +117,6 @@ def eFAST_samples_one_chunk(i, gsa_dict):
     elif i == num_chunks - 1:
         num_params_curr = last_chunk
     # Minimum number of iterations is chosen based on the Nyquist criterion, ``N`` in the paper
-    M = gsa_dict.get("M", 4)
     N = max(4 * M ** 2 + 1, iterations_per_parameter)
     # Set of frequencies that would be assigned to each input factor
     omega = get_omega_eFAST(num_params, N, M)
@@ -173,18 +168,21 @@ def eFAST_samples_one_chunk(i, gsa_dict):
     return current_samples
 
 
-def eFAST_samples_many_chunks(icpu, num_params_per_cpu, gsa_dict):
-    num_params = gsa_dict.get("num_params")
+def eFAST_samples_many_chunks(
+    icpu, num_params, iterations, num_params_per_cpu, M=4, seed=None
+):
     chunk_size = get_chunk_size_eFAST(num_params_per_cpu)
     num_chunks = int(np.ceil(num_params_per_cpu / chunk_size))
     samples = np.zeros(shape=(0, num_params))
     for ichunk in range(num_chunks):
         i = icpu * num_chunks + ichunk
-        samples = np.vstack([samples, eFAST_samples_one_chunk(i, gsa_dict)])
+        samples = np.vstack(
+            [samples, eFAST_samples_one_chunk(i, num_params, iterations, M, seed)]
+        )
     return samples
 
 
-def eFAST_samples(gsa_dict):
+def eFAST_samples(num_params, iterations, M=4, seed=None, cpus=None):
     """Extended FAST samples in [0,1] range.
 
     Notes
@@ -204,11 +202,6 @@ def eFAST_samples(gsa_dict):
 
     """
 
-    seed = gsa_dict.get("seed")
-    if seed:
-        np.random.seed(seed)
-    num_params = gsa_dict.get("num_params")
-    cpus = gsa_dict.get("cpus")
     chunk_size = get_chunk_size_eFAST(num_params)
     num_jobs = int(np.ceil(np.ceil(num_params / chunk_size) / cpus))
     params_range_per_cpu = np.hstack(
@@ -220,7 +213,10 @@ def eFAST_samples(gsa_dict):
     with multiprocessing.Pool(processes=cpus_needed) as pool:
         samples = pool.starmap(
             eFAST_samples_many_chunks,
-            [(icpu, num_params_per_cpu[icpu], gsa_dict) for icpu in range(cpus_needed)],
+            [
+                (icpu, num_params, iterations, num_params_per_cpu[icpu], M, seed)
+                for icpu in range(cpus_needed)
+            ],
         )
     samples_array = np.zeros(shape=(0, num_params))
     for res in samples:

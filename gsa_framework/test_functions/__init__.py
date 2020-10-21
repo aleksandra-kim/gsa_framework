@@ -1,1 +1,1 @@
-from .test_functions import Morris, SobolLevitan, Moon
+from .test_functions import *

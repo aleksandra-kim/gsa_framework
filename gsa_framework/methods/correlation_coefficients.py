@@ -1,4 +1,4 @@
-from .base import SensitivityAnalysisMethod as SAM
+from .method_base import SensitivityAnalysisMethod as SAM
 
 
 class CorrelationCoefficients(SAM):

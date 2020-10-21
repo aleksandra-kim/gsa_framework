@@ -96,17 +96,12 @@ def test_output():
         samples_salib = sample_salib(problem, iterations_per_input, M=M, seed=seed)
 
         # our implementation
-        sampling_dict = {
-            "iterations": iterations,
-            "num_params": num_params,
-            "seed": seed,
-            "cpus": cpus,
-            "M": M,
-        }
-        samples_gsa = eFAST_samples(sampling_dict)
+        samples_gsa = eFAST_samples(num_params, iterations, M=M, seed=seed, cpus=cpus)
 
         assert np.allclose(samples_gsa, samples_salib)
 
+
+#
 
 # To test manually
 # from tests.test_eFAST_samples import test_output

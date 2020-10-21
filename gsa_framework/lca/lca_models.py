@@ -3,8 +3,10 @@ import numpy as np
 import os
 import pickle
 from copy import deepcopy
-
 from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
+
+# Local imports
+from ..model_base import ModelBase
 
 # ###############
 # ## Glossary ###
@@ -18,7 +20,7 @@ from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
 # #########################################
 
 
-class LCAModel:
+class LCAModel(ModelBase):
     """Class that implements basic LCA model which uses uncertainty in the background database.
 
     Parameters
@@ -55,7 +57,7 @@ class LCAModel:
             self.uncertain_tech_params_where
         ]
 
-        self.num_params = self.__num_input_params__()
+        self.num_params = self.__len__()
         self.influential_params = []
 
         self.choices = uncertainty_choices
@@ -169,14 +171,14 @@ class LCAModel:
 
         return params_yes
 
-    def __num_input_params__(self):
+    def __len__(self):
         # self.uncertain_bio_params  = self.lca.bio_params[self.lca.bio_params['uncertainty_type'] > 1]
         # self.uncertain_cf_params   = self.lca.cf_params[self.lca.cf_params['uncertainty_type'] > 1]
         return len(
             self.uncertain_tech_params
         )  # + len(self.uncertain_bio_params) + len(self.lca.cf_params)
 
-    def __rescale__(self, X):
+    def rescale(self, X):
         iterations, num_params = X.shape[0], X.shape[1]
         assert num_params == self.uncertain_tech_params.shape[0]
 

@@ -1,15 +1,16 @@
 import numpy as np
+from ..model_base import ModelBase
+from ..utils import uniform_rescale
 
-
-#######################
-# ## Utils functions ###
-# ######################
+# TODO should we keep self.num_params in each model?
+# TODO implement K-function, also called Bratley: http://www.sfu.ca/~ssurjano/bratleyetal92.html
+#      it's also in the Saltelli paper, 2009
 
 
 ######################
 # ## Test functions ###
 # #####################
-class Morris:
+class Morris(ModelBase):
     """Class that implements the Morris function.
 
     Parameters
@@ -35,15 +36,9 @@ class Morris:
 
     """
 
-    def __init__(self, num_params=None, num_influential=None):
-        if not num_params:
-            num_params = 10
-        if not num_influential:
-            num_influential = int(
-                0.1 * num_params
-            )  # if n_inf not defined, set 10% of inputs to be influential
-        assert num_influential <= num_params
+    def __init__(self, num_params=100, num_influential=5):
 
+        assert num_influential <= num_params
         self.influential_params = np.arange(
             num_influential
         )  # we already know for this function, for comparing with GSA results
@@ -56,23 +51,118 @@ class Morris:
         self.influential_params = self.influential_params
         self.alpha = alpha
         self.beta = beta
+        self.sensitivity_indices = self.get_sensitivity_indices()
 
-    def __num_input_params__(self):
+    def __len__(self):
         return self.num_params
 
-    def __rescale__(self, X):
+    def rescale(self, X):
         return X
 
     def __call__(self, X):
         y = np.zeros(X.shape[0])
-        y[:] = self.alpha * np.sum(X, axis=1)
-        for i in range(self.num_influential):
+        y[:] = self.alpha * np.sum(X[:, : self.num_influential], axis=1)
+        for i in range(self.num_influential - 1):
             for j in range(i + 1, self.num_influential):
                 y[:] += self.beta * X[:, i] * X[:, j]
         return y
 
+    def get_variance_Y(self):
+        # Let $ summand1 = \alpha \sum_{i=1}^k x_i $
+        # and $ summand2 = \beta \sum_{i=1}^{k-1} \sum_{j=i}^k x_i x_j $
+        # Then Morris function $ Y = summand1 + summand2 $
+        # 1. Expectation of $Y$:
+        E_Y_ = (
+            1 / 2 * self.alpha * self.num_influential
+            + 1 / 8 * self.beta * self.num_influential * (self.num_influential - 1)
+        )
+        # 2. Variance of $Y$:
+        # 2.1. First we compute th expectation of $Y^2$
+        E_summand1_ = (
+            1
+            / 12
+            * self.alpha ** 2
+            * self.num_influential
+            * (3 * self.num_influential + 1)
+        )
+        E_2_summand1_summand2_ = (
+            2
+            * self.alpha
+            * self.beta
+            * 1
+            / 48
+            * self.num_influential
+            * (self.num_influential - 1)
+            * (3 * self.num_influential + 2)
+        )
+        E_summand2_ = (
+            1
+            / 2 ** 6
+            / 9
+            * self.beta ** 2
+            * self.num_influential
+            * (self.num_influential - 1)
+            * (9 * self.num_influential ** 2 + 3 * self.num_influential - 10)
+        )
+        E_Y2_ = E_summand1_ + E_2_summand1_summand2_ + E_summand2_
+        # 2.2. Then the variance becomes:
+        Var_Y_ = E_Y2_ - (E_Y_) ** 2
+        return Var_Y_
 
-class Borehole:
+    def get_first_order(self, Var_Y_):
+        # Expectation of Y when Xi is fixed to some xi
+        # E[Y|Xi=xi] = summand3 + constant*xi, where
+        summand3 = 1 / 2 * self.alpha * (
+            self.num_influential - 1
+        ) + 1 / 8 * self.beta * (self.num_influential - 1) * (self.num_influential - 2)
+        constant = self.alpha + 1 / 2 * (self.num_influential - 1) * self.beta
+        # 3.2. Now we need to compute variance of this expectation wrt different xi's
+        # E_E_Y_given_xi_ = summand3 + 1 / 2 * constant
+        # E_E_Y_given_xi_2_ = summand3 ** 2 + summand3 * constant + 1 / 3 * constant ** 2
+        # Var_E_Y_given_xi_ = E_E_Y_given_xi_2_ - E_E_Y_given_xi_ ** 2
+        Var_E_Y_given_xi_ = (
+            1 / 12 * (self.alpha + 1 / 2 * self.beta * (self.num_influential - 1)) ** 2
+        )
+        S1_value = Var_E_Y_given_xi_ / Var_Y_
+        S1 = np.hstack(
+            [
+                np.ones(self.num_influential) * S1_value,
+                np.zeros(self.num_params - self.num_influential),
+            ]
+        )
+        return S1
+
+    def get_total_order(self, Var_Y_):
+        a = (
+            1 / 2 * self.alpha ** 2
+            + 1 / 12 * self.alpha * self.beta * (self.num_influential - 1)
+            + 1
+            / 144
+            * self.beta ** 2
+            * (self.num_influential - 1)
+            * (3 * self.num_influential - 2)
+        )
+        ST_value = a / Var_Y_
+        ST = np.hstack(
+            [
+                np.ones(self.num_influential) * ST_value,
+                np.zeros(self.num_params - self.num_influential),
+            ]
+        )
+        return ST
+
+    def get_sensitivity_indices(self):
+        Var_Y_ = self.get_variance_Y()
+        first = self.get_first_order(Var_Y_)
+        total = self.get_total_order(Var_Y_)
+        dict_ = {
+            "First order": first,
+            "Total order": total,
+        }
+        return dict_
+
+
+class Borehole(ModelBase):
     """Class that implements the Borehole function.
 
     Returns
@@ -112,10 +202,10 @@ class Borehole:
             [3, 5]
         )  # TODO check correcteness in the literature
 
-    def __num_input_params__(self):
+    def __len__(self):
         return self.num_params
 
-    def __rescale__(self, X):
+    def rescale(self, X):
         return uniform_rescale(X, self.params)
 
     def __call__(self, X):
@@ -141,7 +231,7 @@ class Borehole:
         return y
 
 
-class Wingweight:
+class Wingweight(ModelBase):
     """Class that implements the Wing weight function.
 
     Returns
@@ -178,10 +268,10 @@ class Wingweight:
             [0, 9]
         )  # TODO check correcteness in the literature
 
-    def __num_input_params__(self):
+    def __len__(self):
         return self.num_params
 
-    def __rescale__(self, X):
+    def rescale(self, X):
         return uniform_rescale(X, self.params)
 
     def __call__(self, X):
@@ -211,7 +301,7 @@ class Wingweight:
         return y
 
 
-class OTLcircuit:
+class OTLcircuit(ModelBase):
     """Class that implements the OTL circuit function.
 
     Returns
@@ -245,10 +335,10 @@ class OTLcircuit:
             [0, 1, 2, 3]
         )  # TODO check correcteness in the literature
 
-    def __num_input_params__(self):
+    def __len__(self):
         return self.num_params
 
-    def __rescale__(self, X):
+    def rescale(self, X):
         return uniform_rescale(X, self.params)
 
     def __call__(self, X):
@@ -271,7 +361,7 @@ class OTLcircuit:
         return y
 
 
-class Piston:
+class Piston(ModelBase):
     """Class that implements the Piston simulation function.
 
     Returns
@@ -306,10 +396,10 @@ class Piston:
             [0, 2, 4, 5, 6]
         )  # TODO check correcteness in the literature
 
-    def __num_input_params__(self):
+    def __len__(self):
         return self.num_params
 
-    def __rescale__(self, X):
+    def rescale(self, X):
         return uniform_rescale(X, self.params)
 
     def __call__(self, X):
@@ -329,7 +419,7 @@ class Piston:
         return y
 
 
-class Moon:
+class Moon(ModelBase):
     """Class that implements the Moon function.
 
     Returns
@@ -385,10 +475,10 @@ class Moon:
         )
         self.influential_params.sort()
 
-    def __num_input_params__(self):
+    def __len__(self):
         return self.num_params
 
-    def __rescale__(self, X):
+    def rescale(self, X):
         X1 = X[
             :,
             self.functions_indices["borehole"][0] : self.functions_indices["borehole"][
@@ -413,10 +503,10 @@ class Moon:
         Xdummy = X[
             :, self.functions_indices["dummy"][0] : self.functions_indices["dummy"][1]
         ]
-        X1_rescaled = self.borehole.__rescale__(X1)
-        X2_rescaled = self.wingweight.__rescale__(X2)
-        X3_rescaled = self.otlcircuit.__rescale__(X3)
-        X4_rescaled = self.piston.__rescale__(X4)
+        X1_rescaled = self.borehole.rescale(X1)
+        X2_rescaled = self.wingweight.rescale(X2)
+        X3_rescaled = self.otlcircuit.rescale(X3)
+        X4_rescaled = self.piston.rescale(X4)
         X = np.hstack([X1_rescaled, X2_rescaled, X3_rescaled, X4_rescaled, Xdummy])
         return X
 
@@ -458,12 +548,15 @@ class Moon:
 
         y = (y_ - miny) / (maxy - miny)
         y = np.sum(y, axis=1)
-        y += np.sum(Xdummy, axis=1) / self.num_dummy / 10  # TODO add dummy differently
+        if self.num_dummy > 0:
+            y += (
+                np.sum(Xdummy, axis=1) / self.num_dummy / 10
+            )  # TODO add dummy differently
 
         return y
 
 
-class SobolLevitan:
+class SobolLevitan(ModelBase):
     """Class that implements the Sobol-Levitan function.
 
     Parameters
@@ -547,10 +640,10 @@ class SobolLevitan:
         self.b = b
         self.c0 = 0
 
-    def __num_input_params__(self):
+    def __len__(self):
         return self.num_params
 
-    def __rescale__(self, X):
+    def rescale(self, X):
         return X
 
     def __call__(self, X):
@@ -558,3 +651,164 @@ class SobolLevitan:
         Id[np.isnan(Id)] = 1
         y = np.exp(np.sum(self.b * X, axis=1)) - np.prod(Id) + self.c0
         return y
+
+
+class SobolG(ModelBase):
+    """Class that implements the Sobol G function.
+
+    Parameters
+    ----------
+    num_params : int
+        Number of model inputs
+    num_influential : int
+        Number of influential inputs
+    a : np.array of size [num_params, 1]
+        Coefficients for each model input, which determine input importance. Lower ``a`` indicates higher importance.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Paper:
+        Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index.
+        Saltelli A., Annoni P., Azzini I., Campolongo F., Ratto M., Tarantola S.
+        https://doi.org/10.1016/j.cpc.2009.09.018
+
+
+    Useful link:
+        http://www.sfu.ca/~ssurjano/gfunc.html
+        https://www.gdr-mascotnum.fr/media/impec07_crestaux.pdf - default ``a`` values
+
+    """
+
+    def __init__(self, num_params=50, num_influential=5, a=None):
+
+        assert num_influential <= num_params
+        self.num_params = num_params
+        self.num_influential = num_influential
+        if a is None:
+            a = (np.arange(1, self.num_params + 1) - 2) / 2
+        self.a = a
+        assert len(self.a) == self.num_params
+        self.sensitivity_indices = self.get_sensitivity_indices()
+        self.influential_params = np.argsort(self.sensitivity_indices)[
+            -self.num_influential :
+        ]  # we already know for this function, for comparing with GSA results
+
+    def __len__(self):
+        return self.num_params
+
+    def rescale(self, X):
+        return X
+
+    def __call__(self, X):
+        y = np.prod((np.abs(4 * X - 2) + self.a) / (1 + self.a), axis=1)
+        return y
+
+    def get_sensitivity_indices(self):
+        V1 = 1 / 3 / (1 + self.a) ** 2
+        product = np.tile(np.prod(1 + V1), self.num_params)
+        VT = V1 * product / (1 + V1)
+        V = product - 1
+        first = V1 / V
+        total = VT / V
+        dict_ = {
+            "First order Sobol": first,
+            "Total order Sobol": total,
+        }
+        return dict_
+
+
+class SobolGstar(ModelBase):
+    """Class that implements the Sobol G_star function.
+
+    Setting alpha=1 and delta=0, reverts Sobol G_star into Sobol G function
+
+    Parameters
+    ----------
+    num_params : int
+        Number of model inputs
+    num_influential : int
+        Number of influential inputs
+    a : np.array of size ``num_params``
+        Coefficients for each model input, which determine input importance. Lower ``a`` indicates higher importance.
+    alpha : np.array of size ``num_params``
+        Default value is 1 for all parameters.
+    delta : np.array of size ``num_params``
+        Default value is 0 for all parameters.
+
+    Returns
+    -------
+    y : np.array of size ``iterations``
+        Model outputs.
+
+    References
+    ----------
+    Paper:
+        Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index.
+        Saltelli A., Annoni P., Azzini I., Campolongo F., Ratto M., Tarantola S.
+        https://doi.org/10.1016/j.cpc.2009.09.018
+
+
+    Useful link:
+        http://www.sfu.ca/~ssurjano/gfunc.html
+        https://www.gdr-mascotnum.fr/media/impec07_crestaux.pdf - default ``a`` values
+
+    """
+
+    def __init__(
+        self, num_params=50, num_influential=5, a=None, alpha=None, delta=None
+    ):
+
+        assert num_influential <= num_params
+        self.num_params = num_params
+        self.num_influential = num_influential
+        if a is None:
+            a = (np.arange(1, self.num_params + 1) - 2) / 2
+        self.a = a
+        if alpha is None:
+            alpha = np.ones(self.num_params)
+        self.alpha = alpha
+        if delta is None:
+            delta = np.zeros(self.num_params)
+        self.delta = delta
+        assert len(self.a) == len(self.alpha) == len(self.delta) == self.num_params
+        self.sensitivity_indices = self.get_sensitivity_indices()
+        self.influential_params = np.argsort(self.sensitivity_indices)[
+            -self.num_influential :
+        ]  # we already know for this function, for comparing with GSA results
+
+    def __len__(self):
+        return self.num_params
+
+    def rescale(self, X):
+        return X
+
+    def __call__(self, X):
+        y = np.prod(
+            (
+                (1 + self.alpha)
+                * np.abs(2 * (X + self.delta - np.floor(X + self.delta)) - 1)
+                ** self.alpha
+                + self.a
+            )
+            / (1 + self.a),
+            axis=1,
+        )
+        return y
+
+    def get_sensitivity_indices(self):
+        V1 = self.alpha ** 2 / (1 + 2 * self.alpha) / (1 + self.a) ** 2
+        product = np.tile(np.prod(1 + V1), self.num_params)
+        VT = V1 * product / (1 + V1)
+        V = product - 1
+        first = V1 / V
+        total = VT / V
+        dict_ = {
+            "First order": first,
+            "Total order": total,
+        }
+        return dict_

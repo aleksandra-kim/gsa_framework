@@ -64,6 +64,9 @@ class Problem:
     ------
         Errors?
 
+    TODO
+        make sure model is based on the class from model_base - raise error if not
+
     """
 
     def __init__(

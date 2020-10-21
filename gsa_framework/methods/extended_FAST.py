@@ -1,27 +1,36 @@
-from .base import SensitivityAnalysisMethod as SAM
+import numpy as np
+
+# Local files
+from .method_base import SensitivityAnalysisMethod as SAM
 from ..sampling.get_samples import eFAST_samples
-from ..utils import read_hdf5_array, write_hdf5_array
+from ..sensitivity_analysis.extended_FAST import eFAST_indices
 
 
 class eFAST(SAM):
-    label = "extended FAST"
+    label = "extended_FAST"
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.iterations = self.calculate_efast_iterations(self.iterations)
+    def __init__(self, M=4, **kwargs):
+        super().__init__(**kwargs)
+        self.M = M
+        self.iterations = self.calculate_efast_iterations()
 
-    def calculate_efast_iterations(self, iterations):
-        M = 4
+    def calculate_efast_iterations(self):
         return max(
-            (4 * M ** 2 + 1) * self.num_params, iterations
+            (4 * self.M ** 2 + 1) * self.num_params, self.iterations
         )  # Sample size N > 4M^2 is required. M=4 by default.
 
-    def generate_normalized_samples(self, X=None):
-        if not self.filename_X.exists():
-            X = eFAST_samples()
-            write_hdf5_array(X, self.filename_X)
-
+    def generate_unitcube_samples_based_on_method(self):
+        X = eFAST_samples(
+            self.num_params, self.iterations, M=self.M, seed=self.seed, cpus=self.cpus
+        )
         return X
 
-
-# TODO add a flag to choose whether X should be saved in a file or returned
+    def generate_gsa_indices_based_on_method(self):
+        S_dict = eFAST_indices(
+            self.filepath_Y,
+            self.iterations,
+            self.num_params,
+            M=4,
+            selected_iterations=None,
+        )
+        return S_dict
