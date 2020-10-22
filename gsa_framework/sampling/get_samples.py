@@ -16,11 +16,9 @@ def custom_samples(gsa_dict):
     return gsa_dict.get("X")
 
 
-def latin_hypercube_samples(gsa_dict):
+def latin_hypercube_samples(iterations, num_params, seed=None):
     """Latin hypercube samples in [0,1] range."""
-    iterations = gsa_dict.get("iterations")
-    num_params = gsa_dict.get("num_params")
-    np.random.seed(gsa_dict.get("seed"))
+    np.random.seed(seed)
     step = 1 / iterations
     samples = np.random.uniform(low=0, high=step, size=(num_params, iterations))
     interval_start = np.linspace(start=0, stop=1, num=iterations, endpoint=False)
@@ -30,19 +28,16 @@ def latin_hypercube_samples(gsa_dict):
     return samples.T
 
 
-def sobol_samples(gsa_dict):
+def sobol_samples(iterations, num_params, skip_samples=1000):
     """Quasi-random Sobol sequence in [0,1] range that skips first ``skip_samples`` samples to avoid boundary values."""
     from .sobol_sequence import SobolSample
 
-    iterations = gsa_dict.get("iterations")
-    num_params = gsa_dict.get("num_params")
-    skip_samples = gsa_dict.get("skip_samples", 1000)
     sobol = SobolSample(iterations + skip_samples, num_params, scale=31)
     samples = sobol.generate_all_samples()
     return samples[skip_samples:]
 
 
-def saltelli_samples(gsa_dict):
+def saltelli_samples(iterations, num_params, skip_samples=1000):
     """Saltelli samples in [0,1] range based on Sobol sequences and radial sampling.
 
     Notes
@@ -63,9 +58,6 @@ def saltelli_samples(gsa_dict):
     # Use Sobol samples as base
     from .sobol_sequence import SobolSample
 
-    iterations = gsa_dict.get("iterations")
-    num_params = gsa_dict.get("num_params")
-    skip_samples = gsa_dict.get("skip_samples", 1000)
     iterations_per_parameter = iterations // (num_params + 2)
     # generate base Sobol sequence samples
     sobol = SobolSample(

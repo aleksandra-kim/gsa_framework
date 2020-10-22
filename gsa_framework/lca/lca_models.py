@@ -39,19 +39,29 @@ class LCAModel(ModelBase):
 
     """
 
-    def __init__(self, func_unit, method, write_dir):
-        self.lca = bw.LCA(func_unit, method)
+    def __init__(
+        self,
+        func_unit,
+        method,
+        write_dir,
+        var_threshold=0,
+    ):
+        self.func_unit = func_unit
+        self.method = method
+        self.lca = bw.LCA(self.func_unit, self.method)
         self.lca.lci()
         self.lca.lcia()
 
         self.write_dir = write_dir
         self.make_dirs()
 
+        self.var_threshold = var_threshold
+
         #         self.uncertain_tech_params_where = np.where(self.lca.tech_params['uncertainty_type'] > 1)[0]
         #         self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
 
         self.uncertain_tech_params_where = self.get_LSA_params(
-            var_threshold=0
+            self.var_threshold
         )  # TODO change the threshold
         self.uncertain_tech_params = self.lca.tech_params[
             self.uncertain_tech_params_where

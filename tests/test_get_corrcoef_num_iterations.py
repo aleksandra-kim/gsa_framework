@@ -1,4 +1,4 @@
-from gsa_framework.sensitivity_analysis.correlation_coefficients import (
+from gsa_framework.sensitivity_analysis.correlations import (
     get_corrcoef_num_iterations,
 )
 

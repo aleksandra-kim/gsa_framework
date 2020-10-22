@@ -3,6 +3,7 @@ from copy import deepcopy
 from scipy.stats import spearmanr, wasserstein_distance
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from pathlib import Path
 
 COLORS_DICT = {
     "all": "#636EFA",
@@ -13,7 +14,14 @@ COLORS_DICT = {
 
 class Validation:
     def __init__(
-        self, gsa_indices, model, iterations=500, num_influential=10, default_x=None
+        self,
+        gsa_indices,
+        model,
+        iterations=500,
+        num_influential=10,
+        seed=None,
+        default_x=None,
+        write_dir=None,
     ):
         self.gsa_indices = gsa_indices
         self.model = model
@@ -22,14 +30,19 @@ class Validation:
             default_x = np.array([0.5] * self.num_params)
         self.iterations = iterations
         self.num_influential = num_influential
+        self.seed = seed
+        np.random.seed(self.seed)
         self.default_x = default_x
+        if write_dir is None:
+            self.write_dir = Path(".")
+        else:
+            self.write_dir = Path(write_dir)
         self.base_X, self.base_y = self.get_base_X_y()
         self.influential_y = self.get_influential_y(self.base_X)
 
     def get_base_X_y(self):
         X = np.random.rand(self.iterations, self.num_params)
         y = self.model(X)
-        print()
         return X, y
 
     def get_influential_y(self, X):
@@ -43,6 +56,37 @@ class Validation:
         )
         y = self.model(X_)
         return y
+
+    def create_figure_histogram_filename(self):
+        # Maybe we need to be more careful here, as this will change according to the model
+        return "validation.histogram.{}.{}.hdf5".format(self.num_influential, self.seed)
+
+    def create_figure_correlation_filename(self):
+        # Maybe we need to be more careful here, as this will change according to the model
+        return "validation.correlation.{}.{}.hdf5".format(
+            self.num_influential, self.seed
+        )
+
+    @property
+    def filepath_figure_histogram(self):
+        return self.write_dir / self.create_figure_histogram_filename()
+
+    @property
+    def filepath_figure_correlation(self):
+        return self.write_dir / self.create_figure_correlation_filename()
+
+    def generate_plots(
+        self, save_fig=False, plot_histogram=True, plot_correlation=True
+    ):
+        if plot_histogram:
+            fig_hist, _ = self.plot_histogram(self.base_y, self.influential_y)
+        if plot_correlation:
+            fig_corr, _, _ = self.plot_correlation(self.base_y, self.influential_y)
+        if save_fig:
+            if plot_histogram:
+                fig_hist.write_html(self.filepath_figure_histogram)
+            if plot_correlation:
+                fig_corr.write_html(self.filepath_figure_correlation)
 
     def plot_correlation(self, base_y, influential_y, start=0, end=50):
         pearson_correlation = np.corrcoef(base_y, influential_y)[0, 1]

@@ -3,9 +3,17 @@ import numpy as np
 import json
 import os
 import xgboost as xgb
+from ..utils import read_hdf5_array
 
 
-def xgboost_scores(dict_):
+def xgboost_scores(
+    filepath_Y,
+    filepath_X,
+    iterations,
+    num_params,  # TODO should we pass iterations and num_params, given that we can derive them?
+    train_test_ratio=0.8,
+    write_dir=None,
+):
     """Compute fscores obtained from the gradient boosting machines regression using XGBoost library.
 
     Parameters
@@ -33,12 +41,9 @@ def xgboost_scores(dict_):
     """
 
     # 1. Preparations
-    X = dict_.get("X")
-    y = dict_.get("y")
-    num_params = dict_.get("num_params")
-    iterations = dict_.get("iterations")
-    train_test_ratio = dict_.get("train_test_ratio", 0.8)
-    write_dir = dict_.get("write_dir")
+    X = read_hdf5_array(filepath_X)
+    y = read_hdf5_array(filepath_Y)
+    y = y.flatten()
 
     # 2. Read xgboost parameters
     filename = os.path.join(write_dir, "xgboost_params.json")
@@ -61,18 +66,14 @@ def xgboost_scores(dict_):
     # 5. make predictions and compute prediction score
     y_pred = model.predict(X_dtest)
     r2 = r2_score(y_test, y_pred)
-    exp_v_score = explained_variance_score(y_test, y_pred)
+    explained_variance = explained_variance_score(y_test, y_pred)
 
     # 6. Save importance scores
     fscores_inf = model.get_fscore()
     fscores_dict = {int(key[1:]): val for key, val in fscores_inf.items()}
     fscores_all = np.array([fscores_dict.get(i, 0) for i in range(num_params)])
 
-    sa_dict = {
+    S_dict = {
         "fscores": fscores_all,
-        # 'r2': r2,
-        # 'explained_variance': exp_v_score,
     }
-    # print('r2 = ' + str(r2))
-
-    return sa_dict
+    return S_dict, r2, explained_variance

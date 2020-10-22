@@ -1,12 +1,12 @@
 from .sampling.get_samples import *
-from .sensitivity_analysis.correlation_coefficients import (
+from .sensitivity_analysis.correlations import (
     correlation_coefficients,
     get_corrcoef_num_iterations,
 )
 from .sensitivity_analysis.dissimilarity_measures import dissimilarity_measure
 from .sensitivity_analysis.extended_FAST import eFAST_indices
 from .sensitivity_analysis.gradient_boosting import xgboost_scores
-from .sensitivity_analysis.sobol_indices import sobol_indices
+from .sensitivity_analysis.saltelli_sobol import sobol_indices
 from .utils import read_hdf5_array, write_hdf5_array
 from pathlib import Path
 import pickle, json

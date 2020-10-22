@@ -4,8 +4,6 @@ from scipy.stats import kendalltau, spearmanr
 import h5py
 import multiprocessing
 
-# import dask.array as da
-
 n0_DEFAULT = 10
 OPTIMAL_CHUNK_SIZE_PEARSON = (
     500  # somewhat optimal chunk size for numpy.corrcoef that computes Pearson coeff.
@@ -76,9 +74,7 @@ def corrcoef_many_chunks(X, y, option):
     return corrcoef
 
 
-def corrcoef_parallel(
-    filename_X, y, num_params, cpus, option, selected_iterations=None
-):
+def corrcoef_parallel(y, filepath_X, cpus, option, selected_iterations=None):
     """Compute correlation coefficient efficiently in parallel, using multiprocessing with one job per worker.
 
     ``option`` can be ``pearson`` or ``spearman``.
@@ -89,6 +85,10 @@ def corrcoef_parallel(
         get_chunk_size = get_chunk_size_pearson
     elif option == "spearman":
         get_chunk_size = get_chunk_size_spearman
+    with h5py.File(filepath_X, "r") as f:
+        X = np.array(f["dataset"][:1, :])
+        num_params = X.shape[1]
+    del X
     chunk_size = get_chunk_size(num_params)
     num_jobs = int(np.ceil(np.ceil(num_params / chunk_size) / cpus))
     chunks = list(range(0, num_params + num_jobs * chunk_size, num_jobs * chunk_size))
@@ -96,7 +96,7 @@ def corrcoef_parallel(
     results_all = np.array([])
     if selected_iterations is None:
         selected_iterations = np.arange(len(y))
-    with h5py.File(filename_X, "r") as f:
+    with h5py.File(filepath_X, "r") as f:
         X = np.array(f["dataset"][selected_iterations, :])
         with multiprocessing.Pool(processes=cpus_needed) as pool:
             results = pool.starmap(
@@ -117,7 +117,9 @@ def corrcoef_parallel(
     return results_all
 
 
-def correlation_coefficients(gsa_dict, selected_iterations=None):
+def correlation_coefficients(
+    filepath_Y, filepath_X_rescaled, cpus=None, selected_iterations=None
+):
     """Compute estimations of different correlation coefficients, such as Pearson and Spearman.
 
     Parameters
@@ -132,17 +134,19 @@ def correlation_coefficients(gsa_dict, selected_iterations=None):
 
     """
 
-    num_params = gsa_dict["num_params"]
-    y = read_hdf5_array(gsa_dict["filename_y"])
+    y = read_hdf5_array(filepath_Y)
     y = y.flatten()
-    filename_X = gsa_dict["filename_X_rescaled"]
-    cpus = gsa_dict["cpus"]
+    cpus = min(
+        # There has to be a way to make this more elegant, -> S: Set default cpus to inf?
+        cpus or multiprocessing.cpu_count(),
+        multiprocessing.cpu_count(),
+    )
     return {
         "pearson": corrcoef_parallel(
-            filename_X, y, num_params, cpus, "pearson", selected_iterations
+            y, filepath_X_rescaled, cpus, "pearson", selected_iterations
         ),
         "spearman": corrcoef_parallel(
-            filename_X, y, num_params, cpus, "spearman", selected_iterations
+            y, filepath_X_rescaled, cpus, "spearman", selected_iterations
         ),
     }
 
@@ -221,51 +225,5 @@ def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level
         assert val["upper_limit"] > val["lower_limit"]
         val["w0"] = val["upper_limit"] - val["lower_limit"]
         # Second stage approximation
-        val["num_iterations"] = int(max(compute_n(b, val["n0"], val["w0"]), n0_DEFAULT))
+        val["iterations"] = int(max(compute_n(b, val["n0"], val["w0"]), n0_DEFAULT))
     return corrcoeff_constants
-
-
-################
-### Not used ###
-################
-def correlation_spearman(filename_X, y, num_params):
-    """Compute Spearman correlation coefficient efficiently without multiprocessing."""
-    chunk_size = get_chunk_size_spearman(num_params)
-    num_chunks = int(np.ceil(num_params / chunk_size))
-    spearman_all = np.array([])
-    for i in range(num_chunks):
-        with h5py.File(filename_X, "r") as f:
-            start = i * chunk_size
-            end = (i + 1) * chunk_size
-            X = np.array(f["dataset"][:, start:end])
-            spearman = spearman_one_chunk(X, y)
-        spearman_all = np.hstack([spearman_all, spearman])
-    return spearman_all
-
-
-def correlation_spearman_parallel_per_chunk(filename_X, y, num_params, cpus):
-    """Compute Spearman correlation coefficient efficiently with multiprocessing per one chunk.
-
-    This function creates many jobs, each taking a fixed number of columns reflected by ``OPTIMAL_CHUNK_SIZE``,
-    and distributes these jobs to workers. The number of such jobs is not equal to the number of workers,
-    so this implementation is slower than ``correlation_spearman_parallel``, because of the overhead from
-    obs allocation.
-
-    """
-
-    chunk_size = get_chunk_size_spearman(num_params)
-    num_chunks = int(np.ceil(num_params / chunk_size))
-    chunks = [j for j in range(0, num_chunks * chunk_size + 1, chunk_size)]
-    results_all = np.array([])
-    with h5py.File(filename_X, "r") as f:
-        X = np.array(f["dataset"][:])
-        with multiprocessing.Pool(processes=cpus) as pool:
-            results = pool.starmap(
-                spearman_one_chunk,
-                [(X[:, chunks[i] : chunks[i + 1]], y) for i in range(num_chunks)],
-            )
-        results_array = np.array([])
-        for res in results:
-            results_array = np.hstack([results_array, res])
-        results_all = np.hstack([results_all, results_array])
-    return results_all

@@ -26,7 +26,8 @@ class SensitivityAnalysisMethod:
 
     """
 
-    label = "base"
+    sampling_label = "sampling_random"
+    gsa_label = "gsa_base"
 
     def __init__(
         self,
@@ -41,10 +42,12 @@ class SensitivityAnalysisMethod:
     ):
         self.model = model
         self.write_dir = Path(write_dir)
-        self.make_dirs()  # This should be done by the Problem class TODO what did Chris mean?
+        self.make_dirs()
         # self.label=label
         self.num_params = len(self.model)
-        self.iterations = iterations or self.num_params
+        self.iterations = (
+            iterations or self.num_params
+        )  # TODO this doesn't work for correlations
         self.seed = seed
         self.cpus = min(
             # There has to be a way to make this more elegant, -> S: Set default cpus to inf?
@@ -55,30 +58,9 @@ class SensitivityAnalysisMethod:
         self.bytes_per_entry = bytes_per_entry
         self.use_parallel = use_parallel
 
-        # Save some useful info in a GSA dictionary
-        # self.gsa_dict = {
-        #     "iterations": self.iterations,
-        #     "num_params": self.num_params,
-        #     "write_dir": self.write_dir,
-        #     "cpus": self.cpus,
-        # }
-        # # Generate samples
-        # self.gsa_dict.update(
-        #     {
-        #         "sampler_str": self.sampler_str,
-        #         "X": X,
-        #     }
-        # )
-        # self.gsa_dict.update({"filename_X": self.generate_samples()})
-        # self.gsa_dict.update({"filename_X_rescaled": self.rescale_samples()})
-        # # Run model
-        # self.gsa_dict.update({"filename_y": self.run()})
-        # # Compute GSA indices
-        # self.gsa_dict.update({"filename_sa_results": self.interpret()})
-
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
-        dirs_list = ["arrays", "gsa_results", "figures", "computation_time"]
+        dirs_list = ["arrays", "gsa_results", "figures"]
         for dir in dirs_list:
             dir_path = self.write_dir / dir
             dir_path.mkdir(parents=True, exist_ok=True)
@@ -106,18 +88,18 @@ class SensitivityAnalysisMethod:
 
     def create_unitcube_samples_filename(self):
         return "X.unitcube.{}.{}.{}.{}.hdf5".format(
-            self.label, self.iterations, self.num_params, self.seed
+            self.sampling_label, self.iterations, self.num_params, self.seed
         )
 
     def create_rescaled_samples_filename(self):
         # Maybe we need to be more careful here, as this will change according to the model
         return "X.rescaled.{}.{}.{}.{}.hdf5".format(
-            self.label, self.iterations, self.num_params, self.seed
+            self.sampling_label, self.iterations, self.num_params, self.seed
         )
 
     def create_model_output_dirname(self):
         dirname = "Y.{}.{}.{}.{}".format(
-            self.label, self.iterations, self.num_params, self.seed
+            self.sampling_label, self.iterations, self.num_params, self.seed
         )
         return dirname
 
@@ -130,17 +112,25 @@ class SensitivityAnalysisMethod:
 
     def create_model_output_filename(self):
         return "Y.{}.{}.{}.{}.hdf5".format(
-            self.label, self.iterations, self.num_params, self.seed
+            self.sampling_label, self.iterations, self.num_params, self.seed
         )
 
     def create_gsa_results_filename(self):
-        return "S.{}.{}.{}.{}.pickle".format(
-            self.label, self.iterations, self.num_params, self.seed
+        return "S.{}.{}.{}.{}.{}.pickle".format(
+            self.gsa_label,
+            self.sampling_label,
+            self.iterations,
+            self.num_params,
+            self.seed,
         )
 
     def create_gsa_figure_filename(self):
-        return "figure.{}.{}.{}.{}.html".format(
-            self.label, self.iterations, self.num_params, self.seed
+        return "sensitivity.{}.{}.{}.{}.{}.html".format(
+            self.gsa_label,
+            self.sampling_label,
+            self.iterations,
+            self.num_params,
+            self.seed,
         )
 
     @property
@@ -161,7 +151,7 @@ class SensitivityAnalysisMethod:
 
     @property
     def filepath_S(self):
-        return self.write_dir / "arrays" / self.create_gsa_results_filename()
+        return self.write_dir / "gsa_results" / self.create_gsa_results_filename()
 
     @property
     def filepath_gsa_figure(self):
@@ -183,7 +173,6 @@ class SensitivityAnalysisMethod:
                 return self.filepath_X_unitcube
 
     def generate_unitcube_samples_based_on_method(self):
-        print(" in base, default".format(self.iterations))
         np.random.seed(self.seed)
         X = np.random.rand(self.iterations, self.num_params)
         return X
@@ -305,7 +294,7 @@ class SensitivityAnalysisMethod:
                 )
             return Y
 
-    def generate_gsa_indices_based_on_method(self):
+    def generate_gsa_indices_based_on_method(self, selected_iterations=None):
         raise NotImplemented
 
     def generate_gsa_indices(self):
@@ -354,14 +343,7 @@ class SensitivityAnalysisMethod:
         """
         is_boolean_given = S_boolean is not None
         is_analytical_given = S_dict_analytical is not None
-
-        # index_name = list(S_dict.keys())[0]
-        # index_vals = list(S_dict.values())[0]
-        #
-        # sa_indices_influential = np.array([index_vals[f] for f in influential_params])
-
         params = np.arange(self.num_params)
-
         fig = make_subplots(
             rows=len(S_dict),
             cols=1,
@@ -385,39 +367,38 @@ class SensitivityAnalysisMethod:
                 row=row,
                 col=1,
             )
-            if not is_analytical_given and not is_boolean_given:
-                continue
-            elif is_analytical_given:
-                influential = S_dict_analytical[gsa_method]
-                params_influential = params
-                marker_symbol = "diamond-wide"
-                marker_color = "#EF553B"
-                name = "Analytical value of the index"
-            else:
-                if is_boolean_given:
-                    influential_with_zeros = S_boolean * gsa_array
-                    non_zero_ind = np.where(influential_with_zeros != 0)[0]
-                    influential = influential_with_zeros[non_zero_ind]
-                    params_influential = params[non_zero_ind]
-                    marker_symbol = "x"
-                    marker_color = "#FF6692"
-                    name = "Indices that are known to be important"
-            fig.add_trace(
-                go.Scatter(
-                    x=params_influential,
-                    y=influential,
-                    mode="markers",
-                    marker=dict(
-                        symbol=marker_symbol,
-                        color=marker_color,
+            if is_analytical_given or is_boolean_given:
+                if is_analytical_given:
+                    influential = S_dict_analytical[gsa_method]
+                    params_influential = params
+                    marker_symbol = "diamond-wide"
+                    marker_color = "#EF553B"
+                    name = "Analytical value of the index"
+                else:
+                    if is_boolean_given:
+                        influential_with_zeros = S_boolean * gsa_array
+                        non_zero_ind = np.where(influential_with_zeros != 0)[0]
+                        influential = influential_with_zeros[non_zero_ind]
+                        params_influential = params[non_zero_ind]
+                        marker_symbol = "x"
+                        marker_color = "#FF6692"
+                        name = "Indices that are known to be important"
+                fig.add_trace(
+                    go.Scatter(
+                        x=params_influential,
+                        y=influential,
+                        mode="markers",
+                        marker=dict(
+                            symbol=marker_symbol,
+                            color=marker_color,
+                        ),
+                        name=name,
+                        legendgroup="known_values",
+                        showlegend=showlegend,
                     ),
-                    name=name,
-                    legendgroup="known_values",
-                    showlegend=showlegend,
-                ),
-                row=row,
-                col=1,
-            )
+                    row=row,
+                    col=1,
+                )
             fig.update_yaxes(title_text=gsa_method, row=row, col=1)
             fig.update_xaxes(title_text="Model parameter", row=row, col=1)
             row += 1
@@ -425,15 +406,14 @@ class SensitivityAnalysisMethod:
         if save_fig:
             fig.write_html(self.filepath_gsa_figure.as_posix())
 
-    #
     # def convergence(self, step, iterations_order):
-    #     y = read_hdf5_array(self.filename_y).flatten()
+    #     y = read_hdf5_array(self.filepath_Y).flatten()
     #     sa_convergence_dict_temp = {}
     #     iterations_blocks = np.arange(step, len(y) + step, step)
     #     for block_size in iterations_blocks:
     #         selected_iterations = iterations_order[0:block_size]
     #         t0 = time.time()
-    #         gsa_indices_dict = self.interpreter_fnc(self.gsa_dict, selected_iterations)
+    #         gsa_indices_dict = self.generate_gsa_indices_based_on_method(selected_iterations)
     #         t1 = time.time()
     #         print("{0:8d} iterations -> {1:8.3f} s".format(block_size, t1 - t0))
     #         sa_convergence_dict_temp[block_size] = gsa_indices_dict
@@ -449,19 +429,19 @@ class SensitivityAnalysisMethod:
     #
     #     return sa_convergence_dict, iterations_blocks
     #
-    # def save_time(self, elapsed_time):
-    #     time_dict = {"time": str((elapsed_time) / 3600) + " hours"}
+    # # def save_time(self, elapsed_time):
+    # #     time_dict = {"time": str((elapsed_time) / 3600) + " hours"}
+    # #
+    # #     filename_time = (
+    # #         self.write_dir
+    # #         / "computation_time"
+    # #         / Path("time" + self.filename_X.stem[1:] + ".json")
+    # #     )
+    # #     if not filename_time.exists():
+    # #         with open(filename_time, "w") as f:
+    # #             json.dump(time_dict, f)
     #
-    #     filename_time = (
-    #         self.write_dir
-    #         / "computation_time"
-    #         / Path("time" + self.filename_X.stem[1:] + ".json")
-    #     )
-    #     if not filename_time.exists():
-    #         with open(filename_time, "w") as f:
-    #             json.dump(time_dict, f)
     #
-
     #
     # def plot_convergence(
     #     self, sa_convergence_dict, iterations_blocks, parameter_inds=None
@@ -511,5 +491,4 @@ class SensitivityAnalysisMethod:
     #         / "figures"
     #         / Path("convergence_" + self.filename_gsa_results.stem)
     #     )
-    #     fig.write_image(pathname.with_suffix(".pdf").as_posix())
     #     fig.write_html(pathname.with_suffix(".html").as_posix())

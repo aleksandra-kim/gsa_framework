@@ -35,7 +35,7 @@ def confidence_interval(std, N, confidence_level=0.95):
     return z_alpha_2 * std / np.sqrt(N)
 
 
-def sobol_indices(gsa_dict, selected_iterations=None):
+def sobol_indices(filepath_Y, num_params, selected_iterations=None):
     """Compute estimations of Sobol' first and total order indices.
 
     High values of the Sobol first order index signify important parameters, while low values of the  total indices
@@ -64,22 +64,15 @@ def sobol_indices(gsa_dict, selected_iterations=None):
 
     """
 
-    y = read_hdf5_array(gsa_dict["filename_y"])
+    y = read_hdf5_array(filepath_Y)
     y = y.flatten()
     if selected_iterations is not None:
         y = y[selected_iterations]
-    num_params = gsa_dict.get("num_params")
     A, B, AB = separate_output_values(y, num_params)
     first = sobol_first_order(A, AB, B)
     total = sobol_total_order(A, AB, B)
-    # mean = np.mean(np.vstack([A,AB,B]), axis=0)
-    # std  = np.std(np.vstack([A,AB,B]), axis=0)
-    # iterations_per_parameter = A.shape[0]
-    # conf_interval = confidence_interval(std, iterations_per_parameter)
     sa_dict = {
-        "saltelli_first": first,
-        "saltelli_total": total,
-        # 'first_conf_level': (mean-conf_interval, mean+conf_interval),
-        # 'total_conf_level': (mean-conf_interval, mean+conf_interval),
+        "First order": first,
+        "Total order": total,
     }
     return sa_dict

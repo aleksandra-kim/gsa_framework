@@ -51,7 +51,8 @@ class Morris(ModelBase):
         self.influential_params = self.influential_params
         self.alpha = alpha
         self.beta = beta
-        self.sensitivity_indices = self.get_sensitivity_indices()
+        self.S_dict_analytical = self.get_sensitivity_indices()
+        self.S_boolean = self.get_boolean_indices()
 
     def __len__(self):
         return self.num_params
@@ -160,6 +161,15 @@ class Morris(ModelBase):
             "Total order": total,
         }
         return dict_
+
+    def get_boolean_indices(self):
+        S_boolean = np.hstack(
+            [
+                np.ones(self.num_influential),
+                np.zeros(self.num_params - self.num_influential),
+            ]
+        )
+        return S_boolean
 
 
 class Borehole(ModelBase):
@@ -760,14 +770,22 @@ class SobolGstar(ModelBase):
     """
 
     def __init__(
-        self, num_params=50, num_influential=5, a=None, alpha=None, delta=None
+        self, num_params=50, num_influential=None, a=None, alpha=None, delta=None
     ):
 
         assert num_influential <= num_params
         self.num_params = num_params
+        if num_influential is None:
+            num_influential = int(0.1 * self.num_params)
         self.num_influential = num_influential
         if a is None:
-            a = (np.arange(1, self.num_params + 1) - 2) / 2
+            a = np.hstack(
+                [
+                    np.ones(self.num_influential) * 0.9,
+                    np.ones(self.num_params - self.num_influential) * 9,
+                ]
+            )
+            # a = (np.arange(1, self.num_params + 1) - 2) / 2
         self.a = a
         if alpha is None:
             alpha = np.ones(self.num_params)
@@ -776,10 +794,8 @@ class SobolGstar(ModelBase):
             delta = np.zeros(self.num_params)
         self.delta = delta
         assert len(self.a) == len(self.alpha) == len(self.delta) == self.num_params
-        self.sensitivity_indices = self.get_sensitivity_indices()
-        self.influential_params = np.argsort(self.sensitivity_indices)[
-            -self.num_influential :
-        ]  # we already know for this function, for comparing with GSA results
+        self.S_dict_analytical = self.get_sensitivity_indices()
+        self.S_boolean = self.get_boolean_indices()
 
     def __len__(self):
         return self.num_params
@@ -807,8 +823,17 @@ class SobolGstar(ModelBase):
         V = product - 1
         first = V1 / V
         total = VT / V
-        dict_ = {
+        S_dict = {
             "First order": first,
             "Total order": total,
         }
-        return dict_
+        return S_dict
+
+    def get_boolean_indices(self):
+        S_boolean = np.hstack(
+            [
+                np.ones(self.num_influential),
+                np.zeros(self.num_params - self.num_influential),
+            ]
+        )  # we already know for this function, for comparing with GSA results
+        return S_boolean
