@@ -57,15 +57,19 @@ class LCAModel(ModelBase):
 
         self.var_threshold = var_threshold
 
-        #         self.uncertain_tech_params_where = np.where(self.lca.tech_params['uncertainty_type'] > 1)[0]
-        #         self.uncertain_tech_params = self.lca.tech_params[self.uncertain_tech_params_where]
-
-        self.uncertain_tech_params_where = self.get_LSA_params(
-            self.var_threshold
-        )  # TODO change the threshold
+        self.uncertain_tech_params_where = np.where(
+            self.lca.tech_params["uncertainty_type"] > 1
+        )[0]
         self.uncertain_tech_params = self.lca.tech_params[
             self.uncertain_tech_params_where
         ]
+
+        # self.uncertain_tech_params_where = self.get_LSA_params(
+        #     self.var_threshold
+        # )  # TODO change the threshold
+        # self.uncertain_tech_params = self.lca.tech_params[
+        #     self.uncertain_tech_params_where
+        # ]
 
         self.num_params = self.__len__()
         self.influential_params = []

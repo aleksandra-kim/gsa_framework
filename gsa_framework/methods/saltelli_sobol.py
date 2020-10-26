@@ -23,8 +23,5 @@ class SaltelliSobol(SAM):
         return saltelli_samples(self.iterations, self.num_params)
 
     def generate_gsa_indices_based_on_method(self, selected_iterations=None):
-        S_dict = sobol_indices(
-            self.filepath_Y,
-            self.num_params,
-        )
+        S_dict = sobol_indices(self.filepath_Y, self.num_params, selected_iterations)
         return S_dict

@@ -297,7 +297,7 @@ class SensitivityAnalysisMethod:
     def generate_gsa_indices_based_on_method(self, selected_iterations=None):
         raise NotImplemented
 
-    def generate_gsa_indices(self):
+    def generate_gsa_indices(self, selected_iterations=None):
         """Computation of GSA indices.
 
         Returns
@@ -307,16 +307,19 @@ class SensitivityAnalysisMethod:
 
         """
 
-        if self.filepath_S.exists():
-            with open(self.filepath_S, "rb") as f:
-                S_dict = pickle.load(f)
+        if selected_iterations is None:
+            if self.filepath_S.exists():
+                with open(self.filepath_S, "rb") as f:
+                    S_dict = pickle.load(f)
+            else:
+                t0 = time.time()
+                S_dict = self.generate_gsa_indices_based_on_method(selected_iterations)
+                t1 = time.time()
+                print("GSA time: " + str(t1 - t0) + " seconds")
+                with open(self.filepath_S, "wb") as f:
+                    pickle.dump(S_dict, f)
         else:
-            t0 = time.time()
-            S_dict = self.generate_gsa_indices_based_on_method()
-            t1 = time.time()
-            print("GSA time: " + str(t1 - t0) + " seconds")
-            with open(self.filepath_S, "wb") as f:
-                pickle.dump(S_dict, f)
+            S_dict = self.generate_gsa_indices_based_on_method(selected_iterations)
         return S_dict
 
     def perform_gsa(self):
@@ -405,90 +408,3 @@ class SensitivityAnalysisMethod:
         fig.show()
         if save_fig:
             fig.write_html(self.filepath_gsa_figure.as_posix())
-
-    # def convergence(self, step, iterations_order):
-    #     y = read_hdf5_array(self.filepath_Y).flatten()
-    #     sa_convergence_dict_temp = {}
-    #     iterations_blocks = np.arange(step, len(y) + step, step)
-    #     for block_size in iterations_blocks:
-    #         selected_iterations = iterations_order[0:block_size]
-    #         t0 = time.time()
-    #         gsa_indices_dict = self.generate_gsa_indices_based_on_method(selected_iterations)
-    #         t1 = time.time()
-    #         print("{0:8d} iterations -> {1:8.3f} s".format(block_size, t1 - t0))
-    #         sa_convergence_dict_temp[block_size] = gsa_indices_dict
-    #     # Put all blocks together
-    #     sa_convergence_dict = {
-    #         key: np.zeros(shape=(0, self.num_params))
-    #         for key in sa_convergence_dict_temp[block_size].keys()
-    #     }
-    #     for sa_dict in sa_convergence_dict_temp.values():
-    #         for key, sa_array in sa_convergence_dict.items():
-    #             new_sa_array = np.vstack([sa_array, sa_dict[key]])
-    #             sa_convergence_dict.update({key: new_sa_array})
-    #
-    #     return sa_convergence_dict, iterations_blocks
-    #
-    # # def save_time(self, elapsed_time):
-    # #     time_dict = {"time": str((elapsed_time) / 3600) + " hours"}
-    # #
-    # #     filename_time = (
-    # #         self.write_dir
-    # #         / "computation_time"
-    # #         / Path("time" + self.filename_X.stem[1:] + ".json")
-    # #     )
-    # #     if not filename_time.exists():
-    # #         with open(filename_time, "w") as f:
-    # #             json.dump(time_dict, f)
-    #
-    #
-    #
-    # def plot_convergence(
-    #     self, sa_convergence_dict, iterations_blocks, parameter_inds=None
-    # ):
-    #     if parameter_inds is None:
-    #         parameter_inds = np.random.randint(
-    #             0, self.num_params, max(10, self.num_params // 10)
-    #         )
-    #     # Assign color to each parameter
-    #     colors = {}
-    #     for parameter in parameter_inds:
-    #         colors[parameter] = "rgb({0},{1},{2})".format(
-    #             np.random.randint(0, 256),
-    #             np.random.randint(0, 256),
-    #             np.random.randint(0, 256),
-    #         )
-    #     # Plot
-    #     fig = make_subplots(
-    #         rows=len(sa_convergence_dict),
-    #         cols=1,
-    #         subplot_titles=list(sa_convergence_dict.keys()),
-    #     )
-    #     for parameter in parameter_inds:
-    #         row = 1
-    #         for sa_index_name, sa_array in sa_convergence_dict.items():
-    #             showlegend = False
-    #             if row == 1:
-    #                 showlegend = True
-    #             fig.add_trace(
-    #                 go.Scatter(
-    #                     x=iterations_blocks,
-    #                     y=sa_array[:, parameter],
-    #                     mode="lines+markers",
-    #                     showlegend=showlegend,
-    #                     marker_color=colors[parameter],
-    #                     name="Parameter " + str(parameter),
-    #                     legendgroup=parameter,
-    #                 ),
-    #                 row=row,
-    #                 col=1,
-    #             )
-    #             row += 1
-    #     fig.show()
-    #     # Save figure
-    #     pathname = (
-    #         self.write_dir
-    #         / "figures"
-    #         / Path("convergence_" + self.filename_gsa_results.stem)
-    #     )
-    #     fig.write_html(pathname.with_suffix(".html").as_posix())

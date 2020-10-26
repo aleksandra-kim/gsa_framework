@@ -21,7 +21,7 @@ if __name__ == "__main__":
     demand = {act: 1}
     method = ("IPCC 2013", "climate change", "GTP 100a")
     write_dir = path_base / "lca_model"
-    var_threshold = 100
+    var_threshold = 1e-10
     model = LCAModel(demand, method, write_dir, var_threshold=var_threshold)
 
     # Define some variables
