@@ -37,14 +37,14 @@ class Validation:
         self.base_X_rescaled, self.base_Y = self.get_base_X_Y()
 
     def get_base_X_Y(self):
-        # Unitcube samples
-        if not self.filepath_base_X_unitcube.exists():
-            X = np.random.rand(self.iterations, self.num_params)
-            write_hdf5_array(X, self.filepath_base_X_unitcube)
-        else:
-            X = read_hdf5_array(self.filepath_base_X_unitcube)
         # Rescaled samples
         if not self.filepath_base_X_rescaled.exists():
+            # Unitcube samples
+            if not self.filepath_base_X_unitcube.exists():
+                X = np.random.rand(self.iterations, self.num_params)
+                write_hdf5_array(X, self.filepath_base_X_unitcube)
+            else:
+                X = read_hdf5_array(self.filepath_base_X_unitcube)
             X_rescaled = self.model.rescale(X)
             write_hdf5_array(X_rescaled, self.filepath_base_X_rescaled)
         else:
