@@ -7,6 +7,7 @@ from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
 
 # Local imports
 from ..model_base import ModelBase
+from ..utils import read_hdf5_array
 
 # ###############
 # ## Glossary ###
@@ -237,3 +238,86 @@ class LCAModel(ModelBase):
 #
 #     """
 #     pass
+
+
+class LCAModelSetac(ModelBase):
+    """Class that implements basic LCA model which uses uncertainty in the background database.
+
+    Parameters
+    ----------
+    func_unit : dict
+        Dictionary of the form {bw_demand_activity: amount}.
+    method : tuple
+        Tuple with an impact assessment method.
+    write_dir : str
+        Directory where intermediate results will be stored.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Returns LCIA scores when technosphere exchanges are sampled from their respective distributions.
+
+    """
+
+    def __init__(
+        self,
+        func_unit,
+        method,
+        tech_params,
+    ):
+        self.func_unit = func_unit
+        self.method = method
+        self.lca = bw.LCA(self.func_unit, self.method)
+        self.lca.lci()
+        self.lca.lcia()
+        self.tech_params = tech_params
+        self.uncertain_tech_params_where = np.where(
+            self.tech_params["uncertainty_type"] > 1
+        )[0]
+        self.uncertain_tech_params = self.tech_params[self.uncertain_tech_params_where]
+        self.num_params = self.__len__()
+        self.choices = uncertainty_choices
+        self.mc = MCRandomNumberGenerator(self.uncertain_tech_params)
+
+    def __len__(self):
+        return len(self.uncertain_tech_params)
+
+    def rescale(self, X, filepath_base_X_rescaled=None):
+        if filepath_base_X_rescaled.exists():
+            X_rescaled = read_hdf5_array(filepath_base_X_rescaled)
+        else:
+            iterations, num_params = X.shape[0], X.shape[1]
+            assert num_params == self.uncertain_tech_params.shape[0]
+
+            X_reordered = X[:, self.mc.ordering]
+            X_rescaled = np.zeros((iterations, num_params))
+            X_rescaled[:] = np.nan
+
+            offset = 0
+            for uncertainty_type in self.choices:
+                num_uncertain_params = self.mc.positions[uncertainty_type]
+                if not num_uncertain_params:
+                    continue
+                random_data = uncertainty_type.ppf(
+                    params=self.mc.params[offset : num_uncertain_params + offset],
+                    percentages=X_reordered[
+                        :, offset : num_uncertain_params + offset
+                    ].T,
+                )
+                X_rescaled[:, offset : num_uncertain_params + offset] = random_data.T
+                offset += num_uncertain_params
+
+            X_rescaled = X_rescaled[:, np.argsort(self.mc.ordering)]
+        return X_rescaled
+
+    def __call__(self, X):
+        scores = np.zeros(X.shape[0])
+        scores[:] = np.nan
+        for i, x in enumerate(X):
+            amounts = deepcopy(self.tech_params["amount"])
+            amounts[self.uncertain_tech_params_where] = x
+            self.lca.rebuild_technosphere_matrix(amounts)
+            self.lca.redo_lci()
+            self.lca.redo_lcia()
+            scores[i] = self.lca.score
+        return scores

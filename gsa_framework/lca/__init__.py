@@ -1,1 +1,1 @@
-from .lca_models import LCAModel
+from .lca_models import LCAModel, LCAModelSetac
