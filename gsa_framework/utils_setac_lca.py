@@ -6,31 +6,51 @@ import plotly.graph_objects as go
 import os, pickle
 
 
-def get_amounts_means(tech_params):
+def get_amounts_shift(tech_params, shift_median=True):
+    # 1. Lognormal
     lognormal_where = np.where(
         tech_params["uncertainty_type"] == sa.LognormalUncertainty.id
     )[0]
     lognormal = tech_params[lognormal_where]
-    lognormal_means = np.exp(lognormal["loc"] + lognormal["scale"] ** 2 / 2)
+    m = lognormal["loc"]
+    s = lognormal["scale"]
+    lognormal_mean = np.exp(m + s ** 2 / 2)
+    lognormal_median = np.exp(m)
+    # 2. Triangular
     triangular_where = np.where(
         tech_params["uncertainty_type"] == sa.TriangularUncertainty.id
     )[0]
     triangular = tech_params[triangular_where]
-    triangular_means = (
-        triangular["loc"] + triangular["minimum"] + triangular["maximum"]
-    ) / 3
+    c = triangular["loc"]
+    a = triangular["minimum"]
+    b = triangular["maximum"]
+    triangular_mean = (a + b + c) / 3
+    triangular_median = np.empty(triangular.shape[0])
+    triangular_median[:] = np.nan
+    case1 = np.where(c >= (a + b) / 2)[0]
+    triangular_median[case1] = a[case1] + np.sqrt(
+        (b[case1] - a[case1]) * (c[case1] - a[case1]) / 2
+    )
+    case2 = np.where(c < (a + b) / 2)[0]
+    triangular_median[case2] = b[case2] - np.sqrt(
+        (b[case2] - a[case2]) * (b[case2] - c[case2]) / 2
+    )
+
     amounts = deepcopy(tech_params["amount"])
-    amounts[lognormal_where] = lognormal_means
-    amounts[triangular_where] = triangular_means
-    uncertain_where = np.where(tech_params["uncertainty_type"] > 1)[0]
-    return amounts[uncertain_where], uncertain_where
+    if shift_median:
+        amounts[lognormal_where] = lognormal_median
+        amounts[triangular_where] = triangular_median
+    else:
+        amounts[lognormal_where] = lognormal_mean
+        amounts[triangular_where] = triangular_mean
+    return amounts
 
 
-def get_static_score(new_amounts, uncertain_where, lca):
+def get_score_shift(new_amounts, uncertain_where, lca):
     lca_new = deepcopy(lca)
-    all_amounts = deepcopy(lca_new.tech_params["amount"])
-    all_amounts[uncertain_where] = new_amounts
-    lca_new.rebuild_technosphere_matrix(all_amounts)
+    default_amounts = deepcopy(lca_new.tech_params["amount"])
+    default_amounts[uncertain_where] = new_amounts
+    lca_new.rebuild_technosphere_matrix(default_amounts)
     lca_new.redo_lci()
     lca_new.redo_lcia()
     return lca_new.score
@@ -165,52 +185,52 @@ def get_xgboost_params(path_model_dir, params_yes_0):
     return model, params_yes_xgboost, importance_dict
 
 
-def plot_base_narrow_Y(
-    base_y,
-    narrow_y,
-    bin_min=None,
-    bin_max=None,
-    num_bins=60,
-):
-    if bin_min is None:
-        bin_min = min(np.hstack([base_y, narrow_y]))
-    if bin_max is None:
-        bin_max = max(np.hstack([base_y, narrow_y]))
-    bins_ = np.linspace(bin_min, bin_max, num_bins, endpoint=True)
-    freq_base, bin_base = np.histogram(base_y, bins=bins_)
-    freq_inf, bin_inf = np.histogram(narrow_y, bins=bins_)
-    opacity_ = 0.65
-
-    fig = go.Figure()
-
-    fig.add_trace(
-        go.Bar(
-            x=bin_base,
-            y=freq_base,
-            name="All parameters vary",
-            opacity=opacity_,
-            marker=dict(color=COLORS_DICT["all"]),
-            showlegend=True,
-        ),
-    )
-    fig.add_trace(
-        go.Bar(
-            x=bin_inf,
-            y=freq_inf,
-            name="Only influential vary",
-            opacity=opacity_,
-            marker=dict(color=COLORS_DICT["influential"]),
-        ),
-    )
-
-    fig.update_layout(
-        barmode="overlay",
-        width=500,
-        height=300,
-        margin=dict(l=20, r=20, t=20, b=20),
-        legend=dict(x=0.55, y=0.9),
-    )
-    fig.update_yaxes(title_text="Frequency")
-    fig.update_xaxes(title_text="LCIA scores, [kg CO2-eq]")
-    fig.show()
-    return fig
+# def plot_base_narrow_Y(
+#     base_y,
+#     narrow_y,
+#     bin_min=None,
+#     bin_max=None,
+#     num_bins=60,
+# ):
+#     if bin_min is None:
+#         bin_min = min(np.hstack([base_y, narrow_y]))
+#     if bin_max is None:
+#         bin_max = max(np.hstack([base_y, narrow_y]))
+#     bins_ = np.linspace(bin_min, bin_max, num_bins, endpoint=True)
+#     freq_base, bin_base = np.histogram(base_y, bins=bins_)
+#     freq_inf, bin_inf = np.histogram(narrow_y, bins=bins_)
+#     opacity_ = 0.65
+#
+#     fig = go.Figure()
+#
+#     fig.add_trace(
+#         go.Bar(
+#             x=bin_base,
+#             y=freq_base,
+#             name="All parameters vary",
+#             opacity=opacity_,
+#             marker=dict(color=COLORS_DICT["all"]),
+#             showlegend=True,
+#         ),
+#     )
+#     fig.add_trace(
+#         go.Bar(
+#             x=bin_inf,
+#             y=freq_inf,
+#             name="Only influential vary",
+#             opacity=opacity_,
+#             marker=dict(color=COLORS_DICT["influential"]),
+#         ),
+#     )
+#
+#     fig.update_layout(
+#         barmode="overlay",
+#         width=500,
+#         height=300,
+#         margin=dict(l=20, r=20, t=20, b=20),
+#         legend=dict(x=0.55, y=0.9),
+#     )
+#     fig.update_yaxes(title_text="Frequency")
+#     fig.update_xaxes(title_text="LCIA scores, [kg CO2-eq]")
+#     fig.show()
+#     return fig

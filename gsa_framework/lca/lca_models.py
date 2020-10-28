@@ -8,6 +8,7 @@ from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
 # Local imports
 from ..model_base import ModelBase
 from ..utils import read_hdf5_array
+from ..utils_setac_lca import get_amounts_shift, get_score_shift
 
 # ###############
 # ## Glossary ###
@@ -52,18 +53,23 @@ class LCAModel(ModelBase):
         self.lca = bw.LCA(self.func_unit, self.method)
         self.lca.lci()
         self.lca.lcia()
-
         self.write_dir = write_dir
         self.make_dirs()
-
         self.var_threshold = var_threshold
-
         self.uncertain_tech_params_where = np.where(
             self.lca.tech_params["uncertainty_type"] > 1
         )[0]
         self.uncertain_tech_params = self.lca.tech_params[
             self.uncertain_tech_params_where
         ]
+        self.default_uncertain_amounts = get_amounts_shift(
+            self.uncertain_tech_params, shift_median=False
+        )
+        self.static_output = get_score_shift(
+            self.default_uncertain_amounts, self.uncertain_tech_params_where, self.lca
+        )
+        method_unit = bw.Method(self.method).metadata["unit"]
+        self.output_name = "LCIA scores, [{}]".format(method_unit)
 
         # self.uncertain_tech_params_where = self.get_LSA_params(
         #     self.var_threshold
