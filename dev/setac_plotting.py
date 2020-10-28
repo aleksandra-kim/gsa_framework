@@ -10,8 +10,11 @@ import numpy as np
 # TODO choose these parameters
 save_fig = True
 plot_narrow = False
+scaling_factor = 8
 num_params = 12
 rows = 3
+model_seed = 3333
+iterations = 2000
 act_plotting_dict = {
     "cheese production, soft, from cow milk": "cheese production, soft",
     "operation, housing system, pig, fully-slatted floor": "operation, housing, pig",
@@ -33,7 +36,7 @@ COLORS_DICT = {
 path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files/paper_gsa")
 path_setac = path_base / "setac_gsa"
 path_merlin = path_setac / "merlin"
-path_model_dir = path_setac / "78997_model"
+path_model_dir = path_setac / "regression" / "{}_model".format(model_seed)
 filepath_row_acts_names = path_model_dir / "row_acts_names.pickle"
 filepath_col_acts_names = path_model_dir / "col_acts_names.pickle"
 filepath_tech_params = path_model_dir / "tech_params.pickle"
@@ -44,9 +47,8 @@ with open(filepath_col_acts_names, "rb") as f:
 with open(filepath_tech_params, "rb") as f:
     tech_params = pickle.load(f)
 
-iterations = 1000
-tech_params_narrow = deepcopy(tech_params)
-tech_params_narrow["scale"] = tech_params_narrow["scale"] / 2
+tech_params_narrow = deepcopy(tech_params)  # TODO understand this!
+tech_params_narrow["scale"] = tech_params_narrow["scale"] / scaling_factor
 mc = MCRandomNumberGenerator(tech_params, maximum_iterations=iterations)
 mc_narrow = MCRandomNumberGenerator(tech_params_narrow, maximum_iterations=iterations)
 X = np.array([list(next(mc)) for _ in range(iterations)])
@@ -192,12 +194,12 @@ fig.update_yaxes(
     col=1,
 )
 
-fig.show()
+# fig.show()
 
 if save_fig:
     if plot_narrow:
-        filename = "parameters_histograms_narrowed_distr.pdf"
+        filename = "parameters_histograms_narrowed_{}_distr.pdf".format(scaling_factor)
     else:
-        filename = "parameters_histograms_standard_distr.pdf"
+        filename = "parameters_histograms_standard_{}_distr.pdf".format(scaling_factor)
     filepath = path_setac / "figures" / filename
     fig.write_image(str(filepath))

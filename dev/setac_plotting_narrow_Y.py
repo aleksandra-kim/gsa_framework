@@ -41,9 +41,11 @@ else:
     filepath_params_yes_0 = path_merlin / "params_yes_0.pickle"
     with open(filepath_params_yes_0, "rb") as f:
         params_yes_0 = pickle.load(f)
-    model_seed = 78997
+    model_seed = 3333
     path_model_dir = path_setac / "regression" / "{}_model".format(model_seed)
-    model, params_yes_xgboost = get_xgboost_params(path_model_dir, params_yes_0)
+    model, params_yes_xgboost, importance_dict = get_xgboost_params(
+        path_model_dir, params_yes_0
+    )
     params_yes = params_yes_xgboost[:num_params_narrow]
     tech_params_narrow[params_yes]["scale"] = (
         tech_params_narrow[params_yes]["scale"] / 2
