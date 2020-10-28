@@ -159,11 +159,10 @@ def get_xgboost_params(path_model_dir, params_yes_0):
     n_inf = len(fscore)
     params_yes_where_inf = params_yes_where[features_inf]
 
-    # importance_dict = {params_yes_where_inf[i]: importance_inf[i] for i in range(n_inf)}
-
     params_yes_xgboost = params_yes_0[params_yes_where_inf]
+    importance_dict = {params_yes_xgboost[i]: importance_inf[i] for i in range(n_inf)}
 
-    return model, params_yes_xgboost
+    return model, params_yes_xgboost, importance_dict
 
 
 def plot_base_narrow_Y(
