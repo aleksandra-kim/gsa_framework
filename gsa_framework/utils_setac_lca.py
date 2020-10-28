@@ -1,6 +1,7 @@
 import numpy as np
 from copy import deepcopy
 import stats_arrays as sa
+import os, pickle
 
 
 def get_amounts_means(tech_params):
@@ -24,12 +25,13 @@ def get_amounts_means(tech_params):
 
 
 def get_static_score(new_amounts, uncertain_where, lca):
-    all_amounts = deepcopy(lca.tech_params["amount"])
+    lca_new = deepcopy(lca)
+    all_amounts = deepcopy(lca_new.tech_params["amount"])
     all_amounts[uncertain_where] = new_amounts
-    lca.rebuild_technosphere_matrix(all_amounts)
-    lca.redo_lci()
-    lca.redo_lcia()
-    return lca.score
+    lca_new.rebuild_technosphere_matrix(all_amounts)
+    lca_new.redo_lci()
+    lca_new.redo_lcia()
+    return lca_new.score
 
 
 # From GSA ecoinvent
