@@ -1,6 +1,8 @@
 import numpy as np
 from copy import deepcopy
 import stats_arrays as sa
+from gsa_framework.validation import COLORS_DICT
+import plotly.graph_objects as go
 import os, pickle
 
 
@@ -133,3 +135,83 @@ def get_where_tech_nonzero(path_curr, path_prev, lca, th=1e-24):
 
     where_tech = np.setdiff1d(all_where_tech, computed_where_tech)
     return where_tech
+
+
+def get_xgboost_params(path_model_dir, params_yes_0):
+    path_model = path_model_dir / "model"
+    path_params_yes_where = path_model_dir / "params_yes_where.pickle"
+
+    with open(path_model, "rb") as f:
+        model = pickle.load(f)
+    with open(path_params_yes_where, "rb") as f:
+        params_yes_where = pickle.load(f)
+
+    fscore = model.get_score()
+    fscore_max = max(fscore.values())
+    for feature, fscore_val in fscore.items():
+        fscore[feature] = fscore_val / fscore_max
+    fscore_sorted = {
+        k: v for k, v in sorted(fscore.items(), key=lambda item: item[1], reverse=True)
+    }
+
+    features_inf = np.array([int(i.replace("f", "")) for i in fscore_sorted.keys()])
+    importance_inf = np.array(list(fscore_sorted.values()))
+    n_inf = len(fscore)
+    params_yes_where_inf = params_yes_where[features_inf]
+
+    # importance_dict = {params_yes_where_inf[i]: importance_inf[i] for i in range(n_inf)}
+
+    params_yes_xgboost = params_yes_0[params_yes_where_inf]
+
+    return model, params_yes_xgboost
+
+
+def plot_base_narrow_Y(
+    base_y,
+    narrow_y,
+    bin_min=None,
+    bin_max=None,
+    num_bins=60,
+):
+    if bin_min is None:
+        bin_min = min(np.hstack([base_y, narrow_y]))
+    if bin_max is None:
+        bin_max = max(np.hstack([base_y, narrow_y]))
+    bins_ = np.linspace(bin_min, bin_max, num_bins, endpoint=True)
+    freq_base, bin_base = np.histogram(base_y, bins=bins_)
+    freq_inf, bin_inf = np.histogram(narrow_y, bins=bins_)
+    opacity_ = 0.65
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            x=bin_base,
+            y=freq_base,
+            name="All parameters vary",
+            opacity=opacity_,
+            marker=dict(color=COLORS_DICT["all"]),
+            showlegend=True,
+        ),
+    )
+    fig.add_trace(
+        go.Bar(
+            x=bin_inf,
+            y=freq_inf,
+            name="Only influential vary",
+            opacity=opacity_,
+            marker=dict(color=COLORS_DICT["influential"]),
+        ),
+    )
+
+    fig.update_layout(
+        barmode="overlay",
+        width=500,
+        height=300,
+        margin=dict(l=20, r=20, t=20, b=20),
+        legend=dict(x=0.55, y=0.9),
+    )
+    fig.update_yaxes(title_text="Frequency")
+    fig.update_xaxes(title_text="LCIA scores, [kg CO2-eq]")
+    fig.show()
+    return fig

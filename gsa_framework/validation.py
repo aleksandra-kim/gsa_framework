@@ -70,9 +70,9 @@ class Validation:
         Y = self.model(X_rescaled)
         return Y
 
-    def get_influential_Y_from_parameter_choice(self, parameter_choice):
+    def get_influential_Y_from_parameter_choice(self, influential_inds):
         """Variable ``parameter_choice`` is the indices of influential parameters."""
-        num_influential = len(parameter_choice)
+        num_influential = len(influential_inds)
         filepath = self.create_influential_model_output_filepath(num_influential)
         if filepath.exists():
             print("File ``{}`` already exists".format(filepath.name))
@@ -82,7 +82,7 @@ class Validation:
                 self.filepath_base_X_rescaled
             )  # read from file instead of using self.X
             non_influential_inds = np.setdiff1d(
-                np.arange(self.num_params), parameter_choice
+                np.arange(self.num_params), influential_inds
             )
             non_influential_inds.sort()
             X_rescaled[:, non_influential_inds] = np.tile(
@@ -114,6 +114,13 @@ class Validation:
         filepath = self.write_dir / "arrays" / filename
         return filepath
 
+    def create_figure_base_Y_influential_Y_histogram_filepath(self, num_influential):
+        filename = "validation.base.influential.Y.{}.{}.{}.pdf".format(
+            self.iterations, num_influential, self.seed
+        )
+        filepath = self.write_dir / "figures" / filename
+        return filepath
+
     def create_figure_base_Y_histogram_filename(self):
         # Maybe we need to be more careful here, as this will change according to the model
         return "validation.histogram.base_Y.{}.{}.{}.pdf".format(
@@ -126,11 +133,15 @@ class Validation:
             self.iterations, num_influential, self.seed
         )
 
-    def create_figure_correlation_filename(self, num_influential):
-        # Maybe we need to be more careful here, as this will change according to the model
-        return "validation.correlation.{}.{}.{}.html".format(
+    def create_figure_correlation_filepath(self, num_influential):
+        filename = "validation.correlation.{}.{}.{}.pdf".format(
             self.iterations, num_influential, self.seed
         )
+        filepath = self.write_dir / "figures" / filename
+        return filepath
+
+        # Maybe we need to be more careful here, as this will change according to the model
+        return
 
     @property
     def filepath_base_X_unitcube(self):
@@ -156,7 +167,7 @@ class Validation:
 
     @property
     def filepath_figure_correlation(self):
-        return self.write_dir / "figures" / self.create_figure_correlation_filename()
+        return self.write_dir / "figures" / self.create_figure_correlation_filepath()
 
     def generate_plots(
         self, save_fig=False, plot_histogram=True, plot_correlation=True
@@ -230,14 +241,76 @@ class Validation:
             fig.write_image(str(self.filepath_figure_base_Y_histogram))
         return fig
 
-    def plot_correlation(self, base_y, influential_y, start=0, end=50):
+    def plot_base_influential_Y(
+        self,
+        base_y,
+        influential_y,
+        num_influential,
+        bin_min=None,
+        bin_max=None,
+        num_bins=60,
+        save_fig=False,
+    ):
+
+        if bin_min is None:
+            bin_min = min(np.hstack([base_y, influential_y]))
+        if bin_max is None:
+            bin_max = max(np.hstack([base_y, influential_y]))
+        bins_ = np.linspace(bin_min, bin_max, num_bins, endpoint=True)
+        freq_base, bin_base = np.histogram(base_y, bins=bins_)
+        freq_inf, bin_inf = np.histogram(influential_y, bins=bins_)
+        opacity_ = 0.65
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Bar(
+                x=bin_base,
+                y=freq_base,
+                name="All parameters vary",
+                opacity=opacity_,
+                marker=dict(color=COLORS_DICT["all"]),
+                showlegend=True,
+            ),
+        )
+        fig.add_trace(
+            go.Bar(
+                x=bin_inf,
+                y=freq_inf,
+                name="Only influential vary",
+                opacity=opacity_,
+                marker=dict(color=COLORS_DICT["influential"]),
+            ),
+        )
+
+        fig.update_layout(
+            barmode="overlay",
+            width=500,
+            height=300,
+            margin=dict(l=20, r=20, t=20, b=20),
+            legend=dict(x=0.55, y=0.9),
+        )
+        fig.update_yaxes(title_text="Frequency")
+        fig.update_xaxes(title_text="LCIA scores, [kg CO2-eq]")
+        fig.show()
+        if save_fig:
+            # fig.write_html(self.filepath_figure_base_Y_histogram)
+            filepath = self.create_figure_base_Y_influential_Y_histogram_filepath(
+                num_influential
+            )
+            fig.write_image(str(filepath))
+        return fig
+
+    def plot_correlation(
+        self, base_y, influential_y, num_influential, start=0, end=50, save_fig=False
+    ):
         pearson_correlation = np.corrcoef(base_y, influential_y)[0, 1]
         spearman_correlation, _ = spearmanr(base_y, influential_y)
 
         x = np.arange(start, end)
         fig = make_subplots(
-            rows=2,
-            cols=1,
+            rows=1,
+            cols=2,
             shared_xaxes=False,
         )
         fig.add_trace(
@@ -266,71 +339,84 @@ class Validation:
             go.Scatter(
                 x=base_y,
                 y=influential_y,
-                name="Scatter plot between ``base_y`` and ``influential_y``",
+                name="Scatter plot",
                 mode="markers",
                 marker=dict(color=COLORS_DICT["scatter"]),
+                showlegend=False,
             ),
-            row=2,
-            col=1,
+            row=1,
+            col=2,
         )
         # Add annotation on the values of pearson and spearman correlation coefficients
         annotations = [
-            dict(
-                x=1.1,
-                y=0.89,
-                xref="paper",
-                yref="paper",
-                text="Pearson correlation coefficient is {:4.3f}".format(
-                    pearson_correlation
-                ),
-                xanchor="left",
-                yanchor="middle",
-                showarrow=False,
-            ),
-            dict(
-                x=1.1,
-                y=0.865,
-                xref="paper",
-                yref="paper",
-                text="Spearman correlation coefficient is {:4.3f}".format(
-                    spearman_correlation
-                ),
-                xanchor="left",
-                yanchor="middle",
-                showarrow=False,
-            ),
+            # dict(
+            #     x=1.1,
+            #     y=0.89,
+            #     xref="paper",
+            #     yref="paper",
+            #     text="Pearson correlation coefficient is {:4.3f}".format(
+            #         pearson_correlation
+            #     ),
+            #     xanchor="left",
+            #     yanchor="middle",
+            #     showarrow=False,
+            # ),
+            # dict(
+            #     x=1.1,
+            #     y=0.865,
+            #     xref="paper",
+            #     yref="paper",
+            #     text="Spearman correlation coefficient is {:4.3f}".format(
+            #         spearman_correlation
+            #     ),
+            #     xanchor="left",
+            #     yanchor="middle",
+            #     showarrow=False,
+            # ),
         ]
         fig.update_layout(
-            width=1200,
-            height=1000,
+            width=1000,
+            height=390,
             annotations=annotations,
-            legend=dict(x=1.1, y=1),  # on top
-            yaxis1=dict(domain=[0.8, 1]),
-            yaxis2=dict(domain=[0.0, 0.7]),
+            legend=dict(x=0.03, y=0.95),  # on top
+            xaxis1=dict(domain=[0.0, 0.55]),
+            xaxis2=dict(domain=[0.65, 1.0]),
+            margin=dict(l=20, r=20, t=20, b=20),
         )
         fig.update_xaxes(
-            title_text="Subset of model outputs, {0}/{1} datapoints".format(
+            title_text="Subset of LCIA scores, {0}/{1} datapoints".format(
                 end - start, base_y.shape[0]
             ),
             row=1,
             col=1,
         )
-        fig.update_yaxes(title_text="Model outputs", row=1, col=1)
+        Ymin = min(np.hstack([base_y, influential_y]))
+        Ymax = max(np.hstack([base_y, influential_y]))
+        fig.update_yaxes(
+            range=[Ymin, Ymax], title_text="LCIA scores, [kg CO2-eq]", row=1, col=1
+        )
+
         fig.update_xaxes(
-            title_text="Model outputs when all parameters vary",
-            row=2,
-            col=1,
+            range=[Ymin, Ymax],
+            title_text="Scores when all parameters vary",
+            row=1,
+            col=2,
         )
         fig.update_yaxes(
-            title_text="Model outputs when only influential parameters vary",
-            row=2,
-            col=1,
+            range=[Ymin, Ymax],
+            title_text="Scores when only influential vary",
+            row=1,
+            col=2,
         )
         fig.show()
+        if save_fig:
+            # fig.write_html(self.filepath_figure_base_Y_histogram)
+            filepath = self.create_figure_correlation_filepath(num_influential)
+            fig.write_image(str(filepath))
         return fig, pearson_correlation, spearman_correlation
 
     def plot_histogram(
-        self, base_y, influential_y, bin_min=None, bin_max=None, num_bins=100
+        self, base_y, influential_y, bin_min=None, bin_max=None, num_bins=60
     ):
         wasserstein_dist = wasserstein_distance(base_y, influential_y)
 
