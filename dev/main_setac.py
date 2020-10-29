@@ -21,19 +21,19 @@ if __name__ == "__main__":
     method = ("IPCC 2013", "climate change", "GTP 100a")
     write_dir = path_base / "setac_gsa"
     # var_threshold = 100
-    model = LCAModel(demand, method, write_dir)
-
+    lca_model = LCAModel(demand, method, write_dir)
+    aa = set(lca_model.lca.tech_params["uncertainty_type"])
     # Define some variables
     seed = 923458
-    num_params = len(model)
+    num_params = len(lca_model)
     iterations_validation = 2000
     bin_min, bin_max = 2300, 3300
 
     validation = Validation(
-        model,
+        lca_model,
         iterations=iterations_validation,
         seed=seed,
-        default_x_rescaled=model.default_uncertain_amounts,
+        default_x_rescaled=lca_model.default_uncertain_amounts,
         write_dir=write_dir,
     )
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     # validation.plot_histogram_base_Y(bin_min=bin_min, bin_max=bin_max, save_fig=True)
     # validation.get_influential_Y_from_parameter_choice(parameter_choice=parameter_choice, tag=tag)
 
-    # 2. Influential_Y after LSA_3
+    # 2. Influential_Y after LSA_3 and regression
     # --> When running the following code, num_influential is not the same due to numerics
     # path_lsa_3 = write_dir / "LSA_scores" / "3"
     # scores_dict = get_LSA_3_with_base_score(path_lsa_3, lca_init)
@@ -53,29 +53,14 @@ if __name__ == "__main__":
         write_dir / "arrays" / validation.create_influential_model_output_filepath(tag)
     )
     influential_Y = read_hdf5_array(filepath_influential_Y).flatten()
+
     validation.plot_histogram_base_Y_influential_Y(
         influential_Y, tag=tag, save_fig=True, bin_min=bin_min, bin_max=bin_max
     )
+    validation.plot_correlation_base_Y_influential_Y(
+        influential_Y, tag=tag, save_fig=True
+    )
 
-    #
-    # # 3. Validation with GSA indices
-    # num_influential_lsa_3 = 5474
-    # base_Y = read_hdf5_array(validation.filepath_base_Y).flatten()
-    # filepath_influential_Y = (
-    #     write_dir
-    #     / "arrays"
-    #     / validation.create_influential_model_output_filepath(num_influential_lsa_3)
-    # )
-    # influential_Y = read_hdf5_array(filepath_influential_Y).flatten()
-    # validation.plot_correlation(
-    #     base_Y,
-    #     influential_Y,
-    #     num_influential=num_influential_lsa_3,
-    #     start=0,
-    #     end=50,
-    #     save_fig=True,
-    # )
-    #
-    # # TODO in the LCAModel: change uncertain_tech_params definition back to the one with threshold
-    # # TODO in the validation, uncomment last line in the init, regarding influential_y
-    # # TODO uncomment GSA indices
+    # TODO in the LCAModel: change uncertain_tech_params definition back to the one with threshold
+    # TODO in the validation, uncomment last line in the init, regarding influential_y
+    # TODO uncomment GSA indices

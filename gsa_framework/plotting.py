@@ -209,8 +209,8 @@ def correlation_Y1_Y2(
         margin=dict(l=20, r=20, t=20, b=20),
     )
     if xaxes1_title_text is None:
-        xaxes1_title_text = (
-            "Subset of {0}/{1} datapoints".format(end - start, Y1.shape[0]),
+        xaxes1_title_text = "Subset of {0}/{1} datapoints".format(
+            end - start, Y1.shape[0]
         )
     fig.update_xaxes(
         title_text=xaxes1_title_text,
