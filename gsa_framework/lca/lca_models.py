@@ -284,36 +284,35 @@ class LCAModelSetac(ModelBase):
         self.num_params = self.__len__()
         self.choices = uncertainty_choices
         self.mc = MCRandomNumberGenerator(self.uncertain_tech_params)
+        method_unit = bw.Method(self.method).metadata["unit"]
+        self.output_name = "LCIA scores, [{}]".format(method_unit)
 
     def __len__(self):
         return len(self.uncertain_tech_params)
 
-    def rescale(self, X, filepath_base_X_rescaled=None):
-        if filepath_base_X_rescaled.exists():
-            X_rescaled = read_hdf5_array(filepath_base_X_rescaled)
-        else:
-            iterations, num_params = X.shape[0], X.shape[1]
-            assert num_params == self.uncertain_tech_params.shape[0]
+    def rescale(self, X):
+        iterations, num_params = X.shape[0], X.shape[1]
+        assert num_params == self.uncertain_tech_params.shape[0]
 
-            X_reordered = X[:, self.mc.ordering]
-            X_rescaled = np.zeros((iterations, num_params))
-            X_rescaled[:] = np.nan
+        X_reordered = X[:, self.mc.ordering]
+        X_rescaled = np.zeros((iterations, num_params))
+        X_rescaled[:] = np.nan
 
-            offset = 0
-            for uncertainty_type in self.choices:
-                num_uncertain_params = self.mc.positions[uncertainty_type]
-                if not num_uncertain_params:
-                    continue
-                random_data = uncertainty_type.ppf(
-                    params=self.mc.params[offset : num_uncertain_params + offset],
-                    percentages=X_reordered[
-                        :, offset : num_uncertain_params + offset
-                    ].T,
-                )
-                X_rescaled[:, offset : num_uncertain_params + offset] = random_data.T
-                offset += num_uncertain_params
+        offset = 0
+        for uncertainty_type in self.choices:
+            num_uncertain_params = self.mc.positions[uncertainty_type]
+            if not num_uncertain_params:
+                continue
+            random_data = uncertainty_type.ppf(
+                params=self.mc.params[offset : num_uncertain_params + offset],
+                percentages=X_reordered[
+                    :, offset : num_uncertain_params + offset
+                ].T,
+            )
+            X_rescaled[:, offset : num_uncertain_params + offset] = random_data.T
+            offset += num_uncertain_params
 
-            X_rescaled = X_rescaled[:, np.argsort(self.mc.ordering)]
+        X_rescaled = X_rescaled[:, np.argsort(self.mc.ordering)]
         return X_rescaled
 
     def __call__(self, X):
