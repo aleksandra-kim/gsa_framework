@@ -80,5 +80,3 @@ filename_base_Y = "validation.base.Y.{}.{}.{}.hdf5".format(iterations, num_param
 filepath_base_Y = path_setac / "arrays" / filename_base_Y
 base_Y = read_hdf5_array(filepath_base_Y).flatten()
 plot_base_narrow_Y(narrow_Y, narrow_Y)
-
-print("asdfasd")

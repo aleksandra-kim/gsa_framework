@@ -2,12 +2,6 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-COLORS_DICT = {
-    "all": "#636EFA",
-    "influential": "#EF553B",
-    "scatter": "#00CC96",
-}
-
 
 def histogram_Y(
     Y,
@@ -58,12 +52,12 @@ def histogram_Y(
             ),
         )
     fig.update_layout(
-        width=500,
-        height=300,
+        width=410,
+        height=220,
         margin=dict(l=20, r=20, t=20, b=20),
-        legend=dict(x=0.55, y=0.9),
+        legend=dict(x=0.43, y=0.96),
     )
-    fig.update_yaxes(title_text="Frequency")
+    fig.update_yaxes(title_text="Frequency", range=[-10, 420])
     fig.update_xaxes(title_text=xaxes_title_text)
     fig.show()
     return fig
@@ -133,12 +127,12 @@ def histogram_Y1_Y2(
 
     fig.update_layout(
         barmode="overlay",
-        width=500,
-        height=300,
+        width=400,
+        height=220,
         margin=dict(l=20, r=20, t=20, b=20),
-        legend=dict(x=0.55, y=0.9),
+        legend=dict(x=0.43, y=0.96),
     )
-    fig.update_yaxes(title_text="Frequency")
+    fig.update_yaxes(title_text="Frequency", range=[0, 420])
     fig.update_xaxes(title_text=xaxes_title_text)
     fig.show()
     return fig
@@ -154,7 +148,7 @@ def correlation_Y1_Y2(
     trace_name3="Scatter plot",
     color1="#636EFA",
     color2="#EF553B",
-    color3="#00CC96",
+    color3="#A95C9A",
     xaxes1_title_text=None,
     yaxes1_title_text="Values",
     xaxes2_title_text="Values",
@@ -194,18 +188,25 @@ def correlation_Y1_Y2(
             y=Y2,
             name=trace_name3,
             mode="markers",
-            marker=dict(color=color3),
+            marker=dict(
+                color=color3,
+                line=dict(
+                    width=1,
+                    color="#782e69",
+                ),
+            ),
             showlegend=False,
+            opacity=0.65,
         ),
         row=1,
         col=2,
     )
     fig.update_layout(
-        width=1000,
-        height=390,
-        legend=dict(x=0.03, y=0.95),  # on top
-        xaxis1=dict(domain=[0.0, 0.55]),
-        xaxis2=dict(domain=[0.65, 1.0]),
+        width=800,
+        height=220,
+        legend=dict(x=0.03, y=1.0),  # on top
+        xaxis1=dict(domain=[0.0, 0.63]),
+        xaxis2=dict(domain=[0.78, 1.0]),
         margin=dict(l=20, r=20, t=20, b=20),
     )
     if xaxes1_title_text is None:
@@ -224,12 +225,14 @@ def correlation_Y1_Y2(
     fig.update_xaxes(
         range=[Ymin, Ymax],
         title_text=xaxes2_title_text,
+        color=color1,
         row=1,
         col=2,
     )
     fig.update_yaxes(
         range=[Ymin, Ymax],
         title_text=yaxes2_title_text,
+        color=color2,
         row=1,
         col=2,
     )

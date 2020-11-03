@@ -274,9 +274,6 @@ class LCAModelSetac(ModelBase):
     ):
         self.func_unit = func_unit
         self.method = method
-        self.lca = bw.LCA(self.func_unit, self.method)
-        self.lca.lci()
-        self.lca.lcia()
         self.tech_params = tech_params
         self.uncertain_tech_params_where = np.where(
             self.tech_params["uncertainty_type"] > 1
@@ -318,13 +315,16 @@ class LCAModelSetac(ModelBase):
         return X_rescaled
 
     def __call__(self, X):
+        lca = bw.LCA(self.func_unit, self.method)
+        lca.lci()
+        lca.lcia()
         scores = np.zeros(X.shape[0])
         scores[:] = np.nan
         for i, x in enumerate(X):
             amounts = deepcopy(self.tech_params["amount"])
             amounts[self.uncertain_tech_params_where] = x
-            self.lca.rebuild_technosphere_matrix(amounts)
-            self.lca.redo_lci()
-            self.lca.redo_lcia()
-            scores[i] = self.lca.score
+            lca.rebuild_technosphere_matrix(amounts)
+            lca.redo_lci()
+            lca.redo_lcia()
+            scores[i] = lca.score
         return scores

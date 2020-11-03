@@ -55,6 +55,8 @@ def get_amounts_shift(tech_params, shift_median=True):
     triangular_median[case2] = b[case2] - np.sqrt(
         (b[case2] - a[case2]) * (b[case2] - c[case2]) / 2
     )
+    triangular_mean = triangular_mean
+    triangular_median = triangular_median
 
     amounts = deepcopy(tech_params["amount"])
     if shift_median:
@@ -67,6 +69,8 @@ def get_amounts_shift(tech_params, shift_median=True):
         amounts[normal_where] = normal_mean
         amounts[uniform_where] = uniform_mean
         amounts[triangular_where] = triangular_mean
+    amounts = np.sign(tech_params["amount"]) * amounts
+    assert np.all(np.sign(tech_params["amount"]) == np.sign(amounts))
     return amounts
 
 

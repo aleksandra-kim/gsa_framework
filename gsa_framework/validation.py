@@ -133,6 +133,13 @@ class Validation:
         filepath = self.write_dir / "figures" / filename
         return filepath
 
+    def create_histogram_base_Y_narrow_Y_filepath(self, tag):
+        filename = "validation.histogram.base.narrow.Y.{}.{}.{}.pdf".format(
+            self.iterations, tag, self.seed
+        )
+        filepath = self.write_dir / "figures" / filename
+        return filepath
+
     def create_correlation_base_Y_influential_Y_filepath(self, tag):
         filename = "validation.correlation.base.influential.Y.{}.{}.{}.pdf".format(
             self.iterations, tag, self.seed
@@ -180,11 +187,11 @@ class Validation:
         )
 
     def plot_histogram_base_Y(
-        self, bin_min=None, bin_max=None, num_bins=60, save_fig=False
+        self, default_Y, bin_min=None, bin_max=None, num_bins=60, save_fig=False
     ):
         fig = histogram_Y(
             Y=self.base_Y,
-            default_Y=self.model.static_output,
+            default_Y=default_Y,
             bin_min=bin_min,
             bin_max=bin_max,
             num_bins=num_bins,
@@ -226,14 +233,43 @@ class Validation:
             fig.write_image(str(filepath))
         return fig
 
+    def plot_histogram_base_Y_narrow_Y(
+        self,
+        narrow_Y,
+        tag=None,
+        save_fig=False,
+        bin_min=None,
+        bin_max=None,
+        num_bins=60,
+    ):
+        fig = histogram_Y1_Y2(
+            self.base_Y,
+            narrow_Y,
+            default_Y=None,
+            bin_min=bin_min,
+            bin_max=bin_max,
+            num_bins=num_bins,
+            trace_name1="All parameters vary",
+            trace_name2="Narrowed distributions",
+            color1="#636EFA",
+            color2="#FECB52",
+            color_default_Y="red",
+            opacity=0.75,
+            xaxes_title_text=self.model.output_name,
+        )
+        if save_fig:
+            filepath = self.create_histogram_base_Y_narrow_Y_filepath(tag)
+            fig.write_image(str(filepath))
+        return fig
+
     def plot_correlation_base_Y_influential_Y(
         self, influential_Y, tag=None, save_fig=False
     ):
         fig = correlation_Y1_Y2(
             Y1=self.base_Y,
             Y2=influential_Y,
-            start=200,
-            end=260,
+            start=0,
+            end=80,
             trace_name1="All parameters vary",
             trace_name2="Only influential vary",
             yaxes1_title_text=self.model.output_name,
