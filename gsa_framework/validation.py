@@ -26,11 +26,12 @@ class Validation:
         self.model = model
         self.num_params = len(model)
         if default_x_rescaled is None:
-            default_x_rescaled = np.array([0.5] * self.num_params)
+            default_x_rescaled = model.default_uncertain_amounts
+        self.default_x_rescaled = default_x_rescaled
         self.iterations = iterations
         self.seed = seed
         np.random.seed(self.seed)
-        self.default_x_rescaled = default_x_rescaled
+
         if write_dir is None:
             write_dir = "."
         self.write_dir = Path(write_dir)
@@ -231,8 +232,8 @@ class Validation:
         fig = correlation_Y1_Y2(
             Y1=self.base_Y,
             Y2=influential_Y,
-            start=0,
-            end=50,
+            start=200,
+            end=260,
             trace_name1="All parameters vary",
             trace_name2="Only influential vary",
             yaxes1_title_text=self.model.output_name,

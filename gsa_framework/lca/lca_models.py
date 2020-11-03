@@ -68,6 +68,7 @@ class LCAModel(ModelBase):
         self.static_output = get_score_shift(
             self.default_uncertain_amounts, self.uncertain_tech_params_where, self.lca
         )
+        self.adjusted_score = self.static_output - self.lca.score
         method_unit = bw.Method(self.method).metadata["unit"]
         self.output_name = "LCIA scores, [{}]".format(method_unit)
 
