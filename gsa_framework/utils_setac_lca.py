@@ -16,7 +16,27 @@ def get_amounts_shift(tech_params, shift_median=True):
     s = lognormal["scale"]
     lognormal_mean = np.exp(m + s ** 2 / 2)
     lognormal_median = np.exp(m)
-    # 2. Triangular
+
+    # 2. Normal
+    normal_where = np.where(tech_params["uncertainty_type"] == sa.NormalUncertainty.id)[
+        0
+    ]
+    normal = tech_params[normal_where]
+    m = normal["loc"]
+    normal_mean = m
+    normal_median = normal_mean
+
+    # 2. Normal
+    uniform_where = np.where(
+        tech_params["uncertainty_type"] == sa.UniformUncertainty.id
+    )[0]
+    uniform = tech_params[uniform_where]
+    a = uniform["minimum"]
+    b = uniform["maximum"]
+    uniform_mean = (a + b) / 2
+    uniform_median = uniform_mean
+
+    # 4. Triangular
     triangular_where = np.where(
         tech_params["uncertainty_type"] == sa.TriangularUncertainty.id
     )[0]
@@ -35,14 +55,22 @@ def get_amounts_shift(tech_params, shift_median=True):
     triangular_median[case2] = b[case2] - np.sqrt(
         (b[case2] - a[case2]) * (b[case2] - c[case2]) / 2
     )
+    triangular_mean = triangular_mean
+    triangular_median = triangular_median
 
     amounts = deepcopy(tech_params["amount"])
     if shift_median:
         amounts[lognormal_where] = lognormal_median
+        amounts[normal_where] = normal_median
+        amounts[uniform_where] = uniform_median
         amounts[triangular_where] = triangular_median
     else:
         amounts[lognormal_where] = lognormal_mean
+        amounts[normal_where] = normal_mean
+        amounts[uniform_where] = uniform_mean
         amounts[triangular_where] = triangular_mean
+    amounts = np.sign(tech_params["amount"]) * amounts
+    assert np.all(np.sign(tech_params["amount"])==np.sign(amounts))
     return amounts
 
 
