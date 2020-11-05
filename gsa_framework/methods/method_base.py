@@ -124,14 +124,17 @@ class SensitivityAnalysisMethod:
             self.seed,
         )
 
-    def create_gsa_figure_filename(self):
-        return "sensitivity.{}.{}.{}.{}.{}.html".format(
+    def create_gsa_figure_filepath(self, fig_format):
+        filename = "sensitivity.{}.{}.{}.{}.{}.{}".format(
             self.gsa_label,
             self.sampling_label,
             self.iterations,
             self.num_params,
             self.seed,
+            fig_format,
         )
+        filepath = self.write_dir / "figures" / filename
+        return filepath
 
     @property
     def filepath_X_unitcube(self):
@@ -153,10 +156,6 @@ class SensitivityAnalysisMethod:
     def filepath_S(self):
         return self.write_dir / "gsa_results" / self.create_gsa_results_filename()
 
-    @property
-    def filepath_gsa_figure(self):
-        return self.write_dir / "figures" / self.create_gsa_figure_filename()
-
     def generate_unitcube_samples(self, return_X=True):
         if self.filepath_X_unitcube.exists():
             if return_X:
@@ -165,16 +164,16 @@ class SensitivityAnalysisMethod:
             else:
                 return self.filepath_X_unitcube
         else:
-            X = self.generate_unitcube_samples_based_on_method()
+            X = self.generate_unitcube_samples_based_on_method(self.iterations)
             write_hdf5_array(X, self.filepath_X_unitcube)
             if return_X:
                 return X
             else:
                 return self.filepath_X_unitcube
 
-    def generate_unitcube_samples_based_on_method(self):
+    def generate_unitcube_samples_based_on_method(self, iterations):
         np.random.seed(self.seed)
-        X = np.random.rand(self.iterations, self.num_params)
+        X = np.random.rand(iterations, self.num_params)
         return X
 
     def generate_rescaled_samples(self, return_X=True):
@@ -294,10 +293,10 @@ class SensitivityAnalysisMethod:
                 )
             return Y
 
-    def generate_gsa_indices_based_on_method(self, selected_iterations=None):
+    def generate_gsa_indices_based_on_method(self, **kwargs):
         raise NotImplemented
 
-    def generate_gsa_indices(self, selected_iterations=None):
+    def generate_gsa_indices(self, **kwargs):
         """Computation of GSA indices.
 
         Returns
@@ -306,20 +305,20 @@ class SensitivityAnalysisMethod:
             Keys are GSA indices names, values - sensitivity indices for all parameters.
 
         """
-
-        if selected_iterations is None:
+        flag_convergence = kwargs.get("flag_convergence", False)
+        if not flag_convergence:
             if self.filepath_S.exists():
                 with open(self.filepath_S, "rb") as f:
                     S_dict = pickle.load(f)
             else:
                 t0 = time.time()
-                S_dict = self.generate_gsa_indices_based_on_method(selected_iterations)
+                S_dict = self.generate_gsa_indices_based_on_method(**kwargs)
                 t1 = time.time()
                 print("GSA time: " + str(t1 - t0) + " seconds")
                 with open(self.filepath_S, "wb") as f:
                     pickle.dump(S_dict, f)
         else:
-            S_dict = self.generate_gsa_indices_based_on_method(selected_iterations)
+            S_dict = self.generate_gsa_indices_based_on_method(**kwargs)
         return S_dict
 
     def perform_gsa(self):
@@ -330,7 +329,11 @@ class SensitivityAnalysisMethod:
         return S_dict
 
     def plot_sa_results(
-        self, S_dict, S_boolean=None, S_dict_analytical=None, save_fig=False
+        self,
+        S_dict,
+        S_boolean=None,
+        S_dict_analytical=None,
+        fig_format=[],
     ):
         """Simplistic plotting of GSA results of GSA indices vs parameters. Figure is saved in the ``write_dir``.
 
@@ -406,5 +409,7 @@ class SensitivityAnalysisMethod:
             fig.update_xaxes(title_text="Model parameter", row=row, col=1)
             row += 1
         fig.show()
-        if save_fig:
-            fig.write_html(self.filepath_gsa_figure.as_posix())
+        if "pdf" in fig_format:
+            fig.write_image(self.create_gsa_figure_filepath("pdf").as_posix())
+        if "html" in fig_format:
+            fig.write_html(self.create_gsa_figure_filepath("html").as_posix())

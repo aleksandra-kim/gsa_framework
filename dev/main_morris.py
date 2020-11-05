@@ -15,70 +15,136 @@ if __name__ == "__main__":
     # path_base = Path('/data/user/kim_a/paper_gsa/gsa_framework_files')
 
     # 1. Models
-    seed = 3403
-    iterations = 200000
-    num_params = 2000
-    num_influential = 250
+    gsa_seed = 3407
+    validation_seed = 7043
+    num_params = 5000
+    iterations_validation = 2000
+    num_influential = num_params // 100
     write_dir = path_base / "morris_model"
     model = Morris(num_params=num_params, num_influential=num_influential)
+    fig_format = "html"  # can be "pdf", "html", "pdf and html"
 
-    parameter_inds = [0, 1, 2, 3, 4, 5, 310, 320, 330, 340, 350]
+    num_params_corr_plot = 10
+    parameter_inds = list(range(num_params_corr_plot)) + list(
+        range(num_influential, num_influential + num_params_corr_plot)
+    )
 
     # TODO Choose which GSA to perform
     flag_correlation = 0
-    flag_eFAST = 0
-    flag_sobol = 1
+    flag_sobol = 0
+    flag_eFAST = 1
     flag_xgboost = 0
 
-    if flag_correlation:
-        gsa = CorrelationCoefficients(
-            iterations=iterations, model=model, write_dir=write_dir, seed=seed
-        )
-        S_dict = gsa.perform_gsa()
-        pearson = S_dict["pearson"]
-        spearman = S_dict["spearman"]
-        gsa.plot_sa_results(S_dict, S_boolean=model.S_boolean)
-        val = Validation(spearman, model, num_influential=model.num_influential)
-        val.generate_plots(plot_histogram=True, plot_correlation=True)
-        # conv = Convergence(
-        #     gsa.filepath_Y,
-        #     gsa.num_params,
-        #     gsa.generate_gsa_indices,
-        #     gsa.gsa_label,
-        #     write_dir / "figures",
-        #     num_steps=100,
-        # )
-        # conv.run_convergence()
-
     if flag_sobol:
+        iterations = 50 * num_params
         gsa = SaltelliSobol(iterations=iterations, model=model, write_dir=write_dir)
         S_dict = gsa.perform_gsa()
         first = S_dict["First order"]
         total = S_dict["Total order"]
-        gsa.plot_sa_results(S_dict, S_dict_analytical=model.S_dict_analytical)
-        val = Validation(total, model, num_influential=model.num_influential - 50)
-        val.generate_plots()
+        gsa.plot_sa_results(
+            S_dict,
+            S_dict_analytical=model.S_dict_analytical,
+            fig_format=fig_format,
+        )
+        val = Validation(
+            model=model,
+            iterations=iterations_validation,
+            seed=validation_seed,
+            default_x_rescaled=None,
+            write_dir=write_dir,
+        )
+        tag = "SaltelliTotal"
+        influential_Y = val.get_influential_Y_from_gsa(total, num_influential, tag=tag)
+        val.plot_histogram_base_Y_influential_Y(
+            influential_Y, fig_format=fig_format, tag=tag
+        )
         conv = Convergence(
             gsa.filepath_Y,
             gsa.num_params,
             gsa.generate_gsa_indices,
             gsa.gsa_label,
-            write_dir / "figures",
+            write_dir,
             num_steps=100,
-            step_multiplier=2,
         )
-        conv.run_convergence(parameter_inds)
+        conv.run_convergence(
+            parameter_inds=parameter_inds, tag=tag, fig_format=fig_format
+        )
+
+    if flag_correlation:
+        iterations = 2 * num_params
+        gsa = CorrelationCoefficients(
+            iterations=iterations,
+            model=model,
+            write_dir=write_dir,
+            seed=gsa_seed,
+        )
+        S_dict = gsa.perform_gsa()
+        gsa.plot_sa_results(S_dict, S_boolean=model.S_boolean, fig_format=fig_format)
+        pearson = S_dict["pearson"]
+        spearman = S_dict["spearman"]
+        val = Validation(
+            model=model,
+            iterations=iterations_validation,
+            seed=validation_seed,
+            default_x_rescaled=None,
+            write_dir=write_dir,
+        )
+        tag = "Spearman"
+        influential_Y = val.get_influential_Y_from_gsa(
+            spearman, num_influential, tag=tag
+        )
+        val.plot_histogram_base_Y_influential_Y(
+            influential_Y, fig_format=fig_format, tag=tag
+        )
+        conv = Convergence(
+            gsa.filepath_Y,
+            gsa.num_params,
+            gsa.generate_gsa_indices,
+            gsa.gsa_label,
+            write_dir,
+            num_steps=100,
+        )
+        conv.run_convergence(
+            parameter_inds=parameter_inds, tag=tag, fig_format=fig_format
+        )
 
     if flag_eFAST:
+        iterations = 60 * num_params
+        M = 2
         gsa = eFAST(
-            M=4, iterations=iterations, model=model, write_dir=write_dir, seed=seed
+            M=M, iterations=iterations, model=model, write_dir=write_dir, seed=gsa_seed
         )
         S_dict = gsa.perform_gsa()
         first = S_dict["First order"]
         total = S_dict["Total order"]
-        gsa.plot_sa_results(S_dict, S_dict_analytical=model.S_dict_analytical)
-        val = Validation(total, model, num_influential=model.num_influential)
-        val.generate_plots()
+        gsa.plot_sa_results(
+            S_dict,
+            S_dict_analytical=model.S_dict_analytical,
+            fig_format=fig_format,
+        )
+        val = Validation(
+            model=model,
+            iterations=iterations_validation,
+            seed=validation_seed,
+            default_x_rescaled=None,
+            write_dir=write_dir,
+        )
+        tag = "eFastTotal.M{}".format(M)
+        influential_Y = val.get_influential_Y_from_gsa(total, num_influential, tag=tag)
+        val.plot_histogram_base_Y_influential_Y(
+            influential_Y, fig_format=fig_format, tag=tag
+        )
+        conv = Convergence(
+            gsa.filepath_Y,
+            gsa.num_params,
+            gsa.generate_gsa_indices,
+            gsa.gsa_label,
+            write_dir,
+            num_steps=10,
+        )
+        conv.run_convergence(
+            parameter_inds=parameter_inds, tag=tag, fig_format=fig_format
+        )
 
     if flag_xgboost:
         gsa = GradientBoosting(iterations=iterations, model=model, write_dir=write_dir)

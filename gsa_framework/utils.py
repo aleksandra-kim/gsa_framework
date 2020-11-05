@@ -1,12 +1,12 @@
 import numpy as np
-import h5py
+import h5py, pickle
 from scipy.stats import norm
 
 get_z_alpha_2 = lambda confidence_level: norm.ppf(0.5 + confidence_level / 2)
 
 
 def write_hdf5_array(array, filename):
-    """Write ``array`` to a file with an .hdf5 extension"""
+    """Write ``array`` to a file with .hdf5 extension"""
     try:
         n_rows, n_cols = array.shape[0], array.shape[1]
     except IndexError:
@@ -20,10 +20,23 @@ def write_hdf5_array(array, filename):
 
 
 def read_hdf5_array(filename):
-    """Read ``array`` from a file with an .hdf5 extension"""
+    """Read ``array`` from a file with .hdf5 extension"""
     with h5py.File(filename, "r") as f:
         array = np.array(f["dataset"][:])
     return array
+
+
+def write_pickle(data, filename):
+    """Write ``data`` to a file with .pickle extension"""
+    with open(filename, "wb") as f:
+        pickle.dump(data, f)
+
+
+def read_pickle(filename):
+    """Read ``data`` from a file with .pickle extension"""
+    with open(filename, "rb") as f:
+        data = pickle.load(f)
+    return data
 
 
 def uniform_rescale(X, inputs):

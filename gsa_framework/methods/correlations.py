@@ -20,7 +20,8 @@ class CorrelationCoefficients(SAM):
         )
         return max(iterations, self.iterations)
 
-    def generate_gsa_indices_based_on_method(self, selected_iterations=None):
+    def generate_gsa_indices_based_on_method(self, **kwargs):
+        selected_iterations = kwargs.get("selected_iterations")
         S_dict = correlation_coefficients(
             self.filepath_Y, self.filepath_X_rescaled, self.cpus, selected_iterations
         )

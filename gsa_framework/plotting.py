@@ -127,12 +127,12 @@ def histogram_Y1_Y2(
 
     fig.update_layout(
         barmode="overlay",
-        width=400,
-        height=220,
+        width=600,
+        height=300,
         margin=dict(l=20, r=20, t=20, b=20),
-        legend=dict(x=0.43, y=0.96),
+        legend=dict(x=1.0, y=1),
     )
-    fig.update_yaxes(title_text="Frequency", range=[0, 420])
+    fig.update_yaxes(title_text="Frequency")
     fig.update_xaxes(title_text=xaxes_title_text)
     fig.show()
     return fig

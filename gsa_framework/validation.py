@@ -1,8 +1,5 @@
-import numpy as np
-from copy import deepcopy
-from scipy.stats import spearmanr, wasserstein_distance
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+# TODO change all save_figs to fig_format
+
 from pathlib import Path
 from .utils import read_hdf5_array, write_hdf5_array
 from gsa_framework.plotting import *
@@ -26,7 +23,10 @@ class Validation:
         self.model = model
         self.num_params = len(model)
         if default_x_rescaled is None:
-            default_x_rescaled = model.default_uncertain_amounts
+            try:
+                default_x_rescaled = model.default_uncertain_amounts
+            except:
+                default_x_rescaled = model.rescale(0.5 * np.ones(self.num_params))
         self.default_x_rescaled = default_x_rescaled
         self.iterations = iterations
         self.seed = seed
@@ -36,6 +36,11 @@ class Validation:
             write_dir = "."
         self.write_dir = Path(write_dir)
         self.base_X_rescaled, self.base_Y = self.get_base_X_Y()
+
+        try:
+            self.model_output_name = self.model.output_name
+        except AttributeError:
+            self.model_output_name = "Model output"
 
     def get_base_X_Y(self):
         # Rescaled samples
@@ -120,29 +125,22 @@ class Validation:
         )
 
     def create_influential_model_output_filepath(self, tag):
-        filename = "validation.influential.Y.{}.{}.{}.hdf5".format(
-            self.iterations, tag, self.seed
+        filename = "validation.influential.Y.{}.{}.{}.{}.hdf5".format(
+            self.iterations, self.num_params, self.seed, tag
         )
         filepath = self.write_dir / "arrays" / filename
         return filepath
 
-    def create_histogram_base_Y_influential_Y_filepath(self, tag):
-        filename = "validation.histogram.base.influential.Y.{}.{}.{}.pdf".format(
-            self.iterations, tag, self.seed
+    def create_histogram_base_Y_influential_Y_filepath(self, tag, fig_format):
+        filename = "validation.histogram.base.influential.Y.{}.{}.{}.{}.{}".format(
+            self.iterations, self.num_params, self.seed, tag, fig_format
         )
         filepath = self.write_dir / "figures" / filename
         return filepath
 
-    def create_histogram_base_Y_narrow_Y_filepath(self, tag):
-        filename = "validation.histogram.base.narrow.Y.{}.{}.{}.pdf".format(
-            self.iterations, tag, self.seed
-        )
-        filepath = self.write_dir / "figures" / filename
-        return filepath
-
-    def create_correlation_base_Y_influential_Y_filepath(self, tag):
-        filename = "validation.correlation.base.influential.Y.{}.{}.{}.pdf".format(
-            self.iterations, tag, self.seed
+    def create_correlation_base_Y_influential_Y_filepath(self, tag, fig_format):
+        filename = "validation.correlation.base.influential.Y.{}.{}.{}.{}.{}".format(
+            self.iterations, self.num_params, self.seed, tag, fig_format
         )
         filepath = self.write_dir / "figures" / filename
         return filepath
@@ -152,21 +150,6 @@ class Validation:
         return "validation.histogram.base_Y.{}.{}.{}.pdf".format(
             self.iterations, self.num_params, self.seed
         )
-
-    def create_figure_histogram_filename(self, num_influential):
-        # Maybe we need to be more careful here, as this will change according to the model
-        return "validation.histogram.{}.{}.{}.html".format(
-            self.iterations, num_influential, self.seed
-        )
-
-    def create_figure_correlation_filepath(self, num_influential):
-        filename = "validation.correlation.{}.{}.{}.pdf".format(
-            self.iterations, num_influential, self.seed
-        )
-        filepath = self.write_dir / "figures" / filename
-        return filepath
-
-        # Maybe we need to be more careful here, as this will change according to the model
 
     @property
     def filepath_base_X_unitcube(self):
@@ -196,7 +179,7 @@ class Validation:
             bin_max=bin_max,
             num_bins=num_bins,
             color=COLORS_DICT["all"],
-            xaxes_title_text=self.model.output_name,
+            xaxes_title_text=self.model_output_name,
             trace_name="All parameters vary",
             trace_name_default="Static score",
         )
@@ -208,7 +191,7 @@ class Validation:
         self,
         influential_Y,
         tag=None,
-        save_fig=False,
+        fig_format=None,
         bin_min=None,
         bin_max=None,
         num_bins=60,
@@ -226,44 +209,27 @@ class Validation:
             color2="#EF553B",
             color_default_Y="red",
             opacity=0.65,
-            xaxes_title_text=self.model.output_name,
+            xaxes_title_text=self.model_output_name,
         )
-        if save_fig:
-            filepath = self.create_histogram_base_Y_influential_Y_filepath(tag)
-            fig.write_image(str(filepath))
-        return fig
-
-    def plot_histogram_base_Y_narrow_Y(
-        self,
-        narrow_Y,
-        tag=None,
-        save_fig=False,
-        bin_min=None,
-        bin_max=None,
-        num_bins=60,
-    ):
-        fig = histogram_Y1_Y2(
-            self.base_Y,
-            narrow_Y,
-            default_Y=None,
-            bin_min=bin_min,
-            bin_max=bin_max,
-            num_bins=num_bins,
-            trace_name1="All parameters vary",
-            trace_name2="Narrowed distributions",
-            color1="#636EFA",
-            color2="#FECB52",
-            color_default_Y="red",
-            opacity=0.75,
-            xaxes_title_text=self.model.output_name,
-        )
-        if save_fig:
-            filepath = self.create_histogram_base_Y_narrow_Y_filepath(tag)
-            fig.write_image(str(filepath))
+        if "pdf" in fig_format:
+            fig.write_image(
+                self.create_histogram_base_Y_influential_Y_filepath(
+                    tag, "pdf"
+                ).as_posix()
+            )
+        if "html" in fig_format:
+            fig.write_html(
+                self.create_histogram_base_Y_influential_Y_filepath(
+                    tag, "html"
+                ).as_posix()
+            )
         return fig
 
     def plot_correlation_base_Y_influential_Y(
-        self, influential_Y, tag=None, save_fig=False
+        self,
+        influential_Y,
+        tag=None,
+        fig_format=None,
     ):
         fig = correlation_Y1_Y2(
             Y1=self.base_Y,
@@ -276,96 +242,16 @@ class Validation:
             xaxes2_title_text=self.model.output_name,
             yaxes2_title_text=self.model.output_name,
         )
-        if save_fig:
-            filepath = self.create_correlation_base_Y_influential_Y_filepath(tag)
-            fig.write_image(str(filepath))
+        if "pdf" in fig_format:
+            fig.write_image(
+                self.create_correlation_base_Y_influential_Y_filepath(
+                    tag, "pdf"
+                ).as_posix()
+            )
+        if "html" in fig_format:
+            fig.write_html(
+                self.create_correlation_base_Y_influential_Y_filepath(
+                    tag, "html"
+                ).as_posix()
+            )
         return fig
-
-    # def plot_histogram(
-    #     self, base_y, influential_y, bin_min=None, bin_max=None, num_bins=60
-    # ):
-    #     wasserstein_dist = wasserstein_distance(base_y, influential_y)
-    #
-    #     if bin_min is None:
-    #         bin_min = min(np.hstack([base_y, influential_y]))
-    #     if bin_max is None:
-    #         bin_max = max(np.hstack([base_y, influential_y]))
-    #     bins_ = np.linspace(bin_min, bin_max, num_bins, endpoint=True)
-    #     freq_base, bin_base = np.histogram(base_y, bins=bins_)
-    #     freq_inf, bin_inf = np.histogram(influential_y, bins=bins_)
-    #     opacity_ = 0.65
-    #
-    #     fig = make_subplots(
-    #         rows=2,
-    #         cols=1,
-    #         shared_xaxes=True,
-    #         vertical_spacing=0.05,
-    #     )
-    #
-    #     fig.add_trace(
-    #         go.Bar(
-    #             x=bin_base,
-    #             y=freq_base,
-    #             name="All parameters vary",
-    #             opacity=opacity_,
-    #             marker=dict(color=COLORS_DICT["all"]),
-    #         ),
-    #         row=1,
-    #         col=1,
-    #     )
-    #     fig.add_trace(
-    #         go.Bar(
-    #             x=bin_inf,
-    #             y=freq_inf,
-    #             name="Only influential parameters vary",
-    #             opacity=opacity_,
-    #             marker=dict(color=COLORS_DICT["influential"]),
-    #         ),
-    #         row=1,
-    #         col=1,
-    #     )
-    #     fig.add_trace(
-    #         go.Box(
-    #             x=influential_y,
-    #             marker=dict(color=COLORS_DICT["influential"]),
-    #             showlegend=False,
-    #         ),
-    #         row=2,
-    #         col=1,
-    #     )
-    #     fig.add_trace(
-    #         go.Box(
-    #             x=base_y,
-    #             marker=dict(color=COLORS_DICT["all"]),
-    #             showlegend=False,
-    #         ),
-    #         row=2,
-    #         col=1,
-    #     )
-    #     annotations = [
-    #         dict(
-    #             x=1.02,
-    #             y=0.87,
-    #             xref="paper",
-    #             yref="paper",
-    #             text="Wasserstein distance is {:6.3f}".format(wasserstein_dist),
-    #             xanchor="left",
-    #             yanchor="top",
-    #             showarrow=False,
-    #         ),
-    #     ]
-    #     # Overlay both histograms
-    #     fig.update_layout(
-    #         barmode="overlay",
-    #         width=1000,
-    #         height=600,
-    #         annotations=annotations,
-    #         margin=dict(l=20, r=100, t=60, b=20),
-    #         legend=dict(x=1, y=1),
-    #     )
-    #     fig.update_yaxes(title_text="Frequency", row=1, col=1)
-    #     fig.update_xaxes(title_text="Model outputs", row=2, col=1)
-    #     fig.layout["yaxis2"].update(showticklabels=False)
-    #     fig.show()
-    #
-    #     return fig, wasserstein_dist
