@@ -5,8 +5,8 @@ from ..sensitivity_analysis.delta_moment import delta_moment
 
 
 class eFAST(SAM):
-    sampling_label = "sampling_latin"
-    gsa_label = "gsa_delta"
+    sampling_label = "latinSampling"
+    gsa_label = "deltaGsa"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

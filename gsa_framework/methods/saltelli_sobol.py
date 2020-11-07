@@ -5,8 +5,8 @@ from ..sensitivity_analysis.saltelli_sobol import sobol_indices
 
 
 class SaltelliSobol(SAM):
-    sampling_label = "sampling_saltelli"
-    gsa_label = "gsa_saltelli"
+    sampling_label = "saltelliSampling"
+    gsa_label = "saltelliGsa"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -19,9 +19,10 @@ class SaltelliSobol(SAM):
             iterations_per_param = self.num_params
         return iterations_per_param * (self.num_params + 2)
 
-    def generate_unitcube_samples_based_on_method(self):
-        return saltelli_samples(self.iterations, self.num_params)
+    def generate_unitcube_samples_based_on_method(self, iterations):
+        return saltelli_samples(iterations, self.num_params)
 
-    def generate_gsa_indices_based_on_method(self, selected_iterations=None):
+    def generate_gsa_indices_based_on_method(self, **kwargs):
+        selected_iterations = kwargs.get("selected_iterations")
         S_dict = sobol_indices(self.filepath_Y, self.num_params, selected_iterations)
         return S_dict

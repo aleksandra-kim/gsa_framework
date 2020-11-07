@@ -14,82 +14,110 @@ class Convergence:
         gsa_func,
         gsa_label,
         write_dir,
-        num_steps=10,  # how many gsa indices to compute
+        num_steps=10,
+        **kwargs,
     ):
         self.filepath_Y = filepath_Y
-        self.Y = read_hdf5_array(
-            filepath_Y
-        ).flatten()  # assume Y does not occupy too much memory
+        self.Y = read_hdf5_array(filepath_Y).flatten()
         self.iterations = self.Y.shape[0]
         self.num_params = num_params
         self.gsa_func = gsa_func
         self.gsa_label = gsa_label
         self.write_dir = write_dir
+        self.make_dirs()
         self.num_steps = num_steps
-        # Compute parameters for convergence
-        self.min_block_size = self.generate_min_block_size(
-            self.gsa_label
-        )  # depends on gsa method
-        self.block_factor = max(
-            self.iterations // self.min_block_size // self.num_steps, 1
-        )
-        self.block_size = self.block_factor * self.min_block_size
         self.iterations_order = self.generate_iterations_order()
-        self.iterations_blocks = np.arange(
-            self.block_size, len(self.Y) + self.block_size, self.block_size
-        )
-        # self.sampling_label = str(self.filepath_Y).split(".")[
-        #     -5
-        # ]  # TODO there must be a better way
+        (
+            self.iterations_min,
+            self.iterations_least_common_multiple,
+        ) = self.generate_iterations_min_and_least_common_multiple(
+            self.gsa_label, **kwargs
+        )  # depends on gsa method
+        (
+            self.iterations_step,
+            self.iterations_for_convergence,
+        ) = self.generate_iterations_for_convergence()
+        self.sampling_label = str(self.filepath_Y).split(".")[
+            1
+        ]  # TODO there must be a better way
         self.seed = str(self.filepath_Y).split(".")[-2]
 
-    def generate_min_block_size(self, gsa_label):
-        if gsa_label in ["gsa_correlations", "gsa_delta"]:  # TODO change for delta
-            min_block_size = 1
-        elif gsa_label == "gsa_saltelli":
-            min_block_size = self.num_params + 2
-        else:
-            min_block_size = 1
-        return min_block_size
+    def make_dirs(self):
+        """Create subdirectories where intermediate results will be stored."""
+        dirs_list = ["arrays", "figures"]
+        for dir in dirs_list:
+            dir_path = self.write_dir / dir
+            dir_path.mkdir(parents=True, exist_ok=True)
 
     def generate_iterations_order(self):
-        return np.arange(self.iterations)  # for somr gsa methods can be shuffled
+        return np.arange(self.iterations)  # for some gsa methods can be shuffled
 
-    def create_convergence_dict_filepath(self, tag):
-        filename = "convergence.block{}.{}.{}.{}.{}.pickle".format(
-            self.block_size,
+    def generate_iterations_min_and_least_common_multiple(
+        self, gsa_label, **kwargs
+    ):  # TODO should be in methods?
+        if gsa_label in ["correlationsGsa", "deltaGsa"]:  # TODO change for delta
+            iterations_least_common_multiple = 1
+            iterations_min = 10
+        elif "saltelliGsa" in gsa_label:
+            iterations_least_common_multiple = self.num_params + 2
+            iterations_min = self.num_params + 2
+        elif "eFastGsa" in gsa_label:
+            M = kwargs.get("M", 4)
+            iterations_least_common_multiple = 4 * M ** 2 + 1
+            iterations_min = iterations_least_common_multiple * self.num_params
+        else:
+            iterations_least_common_multiple = 1
+            iterations_min = 10
+        return iterations_min, iterations_least_common_multiple
+
+    def generate_iterations_for_convergence(self):
+        factor = max(
+            (self.iterations - self.iterations_min)
+            // (self.num_steps - 1)
+            // self.iterations_least_common_multiple,
+            1,
+        )
+        iterations_step = factor * self.iterations_least_common_multiple
+        iterations_for_convergence = np.arange(
+            self.iterations_min, self.iterations, iterations_step
+        )
+        return iterations_step, iterations_for_convergence
+
+    def create_convergence_dict_filepath(self):
+        filename = "convergence.S.{}.{}.{}Step{}.{}.pickle".format(
+            self.gsa_label,
+            self.sampling_label,
             self.iterations,
-            self.num_params,
+            self.iterations_step,
             self.seed,
-            tag,
         )  # TODO add sampling_label and seed that are not dependent on the filepath_Y, to make class more general
         filepath = self.write_dir / "arrays" / filename
         return filepath
 
-    def create_convergence_figure_filepath(self, tag, fig_format):
-        filename = "convergence.block{}.{}.{}.{}.{}.{}".format(
-            self.block_size,
+    def create_figure_convergence_filepath(self, extension):
+        filename = "C.{}.{}.{}Step{}.{}.{}".format(
+            self.gsa_label,
+            self.sampling_label,
             self.iterations,
-            self.num_params,
+            self.iterations_step,
             self.seed,
-            tag,
-            fig_format,
+            extension,
         )  # TODO add sampling_label and seed that are not dependent on the filepath_Y, to make class more general
         filepath = self.write_dir / "figures" / filename
         return filepath
 
-    def run_convergence(self, parameter_inds=None, tag=None, fig_format=[]):
-        if tag is None:
-            tag = self.gsa_label
-        filepath_convergence_dict = self.create_convergence_dict_filepath(tag)
+    def run_convergence(self, parameter_inds=None, fig_format=()):
+        t0 = time.time()
+        filepath_convergence_dict = self.create_convergence_dict_filepath()
         if filepath_convergence_dict.exists():
+            print("{} already exists".format(filepath_convergence_dict.name))
             sa_convergence_dict = read_pickle(filepath_convergence_dict)
         else:
             sa_convergence_dict = self.generate_converging_gsa_indices()
             write_pickle(sa_convergence_dict, filepath_convergence_dict)
-        fig = self.plot_convergence(
-            sa_convergence_dict, parameter_inds, tag, fig_format
-        )
+        t1 = time.time()
+        print("Total convergence time -> {:8.3f} s".format(t1 - t0))
+        fig = self.plot_convergence(sa_convergence_dict, parameter_inds, fig_format)
         return fig
 
     def generate_converging_gsa_indices(self):
@@ -98,24 +126,27 @@ class Convergence:
             Corresponds to generate_gsa_indices_based_on_method from the class SensitivityAnalysisMethod.
             Needs to accept an argument ``selected_iterations``
         """
+
         sa_convergence_dict_temp = {}
-        for block_size in self.iterations_blocks:
-            selected_iterations = self.iterations_order[0:block_size]
+        for iterations_current in self.iterations_for_convergence:
+            selected_iterations = self.iterations_order[0:iterations_current]
             parameters_convergence_dict = {
-                "iterations": block_size,
-                "iterations_step": self.block_size,
+                "iterations": iterations_current,
+                "iterations_step": self.iterations_step,
                 "selected_iterations": selected_iterations,
                 "flag_convergence": True,
             }
             t0 = time.time()
             gsa_indices_dict = self.gsa_func(**parameters_convergence_dict)
             t1 = time.time()
-            print("{0:8d} iterations -> {1:8.3f} s".format(block_size, t1 - t0))
-            sa_convergence_dict_temp[block_size] = gsa_indices_dict
+            print("{0:8d} iterations -> {1:8.3f} s".format(iterations_current, t1 - t0))
+            sa_convergence_dict_temp[iterations_current] = gsa_indices_dict
         # Put all blocks together
         sa_convergence_dict = {
             key: np.zeros(shape=(0, self.num_params))
-            for key in sa_convergence_dict_temp[self.iterations_blocks[0]].keys()
+            for key in sa_convergence_dict_temp[
+                self.iterations_for_convergence[0]
+            ].keys()
         }
         for sa_dict in sa_convergence_dict_temp.values():
             for key, sa_array in sa_convergence_dict.items():
@@ -127,8 +158,7 @@ class Convergence:
         self,
         sa_convergence_dict,
         parameter_inds=None,
-        tag=None,
-        fig_format=None,
+        fig_format=[],
     ):
         if parameter_inds is None:
             parameter_inds = np.random.randint(
@@ -156,7 +186,7 @@ class Convergence:
                     showlegend = True
                 fig.add_trace(
                     go.Scatter(
-                        x=self.iterations_blocks,
+                        x=self.iterations_for_convergence,
                         y=sa_array[:, parameter],
                         mode="lines+markers",
                         showlegend=showlegend,
@@ -170,11 +200,10 @@ class Convergence:
                 row += 1
         fig.show()
         if "pdf" in fig_format:
-            fig.write_image(
-                self.create_convergence_figure_filepath(tag, "pdf").as_posix()
-            )
+            fig.write_image(self.create_figure_convergence_filepath("pdf").as_posix())
         if "html" in fig_format:
-            fig.write_html(
-                self.create_convergence_figure_filepath(tag, "html").as_posix()
-            )
+            fig.write_html(self.create_figure_convergence_filepath("html").as_posix())
+        if "pickle" in fig_format:
+            filepath = self.create_figure_convergence_filepath("pickle").as_posix()
+            write_pickle(fig, filepath)
         return fig

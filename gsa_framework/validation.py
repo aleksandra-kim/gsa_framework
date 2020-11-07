@@ -1,8 +1,9 @@
 # TODO change all save_figs to fig_format
 
 from pathlib import Path
-from .utils import read_hdf5_array, write_hdf5_array
+from .utils import read_hdf5_array, write_hdf5_array, write_pickle
 from gsa_framework.plotting import *
+from copy import deepcopy
 
 COLORS_DICT = {
     "all": "#636EFA",
@@ -15,73 +16,68 @@ class Validation:
     def __init__(
         self,
         model,
+        write_dir,
         iterations=500,
         seed=None,
         default_x_rescaled=None,
-        write_dir=None,
+        model_output_name="Model output",
     ):
         self.model = model
         self.num_params = len(model)
+        self.write_dir = Path(write_dir)
+        self.make_dirs()
+        self.iterations = iterations
+        self.seed = seed
         if default_x_rescaled is None:
             try:
                 default_x_rescaled = model.default_uncertain_amounts
             except:
                 default_x_rescaled = model.rescale(0.5 * np.ones(self.num_params))
         self.default_x_rescaled = default_x_rescaled
-        self.iterations = iterations
-        self.seed = seed
-        np.random.seed(self.seed)
+        self.model_output_name = model_output_name
+        self.X_rescaled, self.Y_all = self.generate_X_rescaled_Y_all_parameters_vary()
 
-        if write_dir is None:
-            write_dir = "."
-        self.write_dir = Path(write_dir)
-        self.base_X_rescaled, self.base_Y = self.get_base_X_Y()
+    def make_dirs(self):
+        """Create subdirectories where intermediate results will be stored."""
+        dirs_list = ["arrays", "figures"]
+        for dir in dirs_list:
+            dir_path = self.write_dir / dir
+            dir_path.mkdir(parents=True, exist_ok=True)
 
-        try:
-            self.model_output_name = self.model.output_name
-        except AttributeError:
-            self.model_output_name = "Model output"
-
-    def get_base_X_Y(self):
+    def generate_X_rescaled_Y_all_parameters_vary(self):
         # Rescaled samples
-        if not self.filepath_base_X_rescaled.exists():
+        if not self.filepath_X_rescaled_all.exists():
             # Unitcube samples
-            if not self.filepath_base_X_unitcube.exists():
-                X = np.random.rand(self.iterations, self.num_params)
-                write_hdf5_array(X, self.filepath_base_X_unitcube)
-            else:
-                X = read_hdf5_array(self.filepath_base_X_unitcube)
+            np.random.seed(self.seed)
+            X = np.random.rand(self.iterations, self.num_params)
             X_rescaled = self.model.rescale(X)
-            write_hdf5_array(X_rescaled, self.filepath_base_X_rescaled)
+            write_hdf5_array(X_rescaled, self.filepath_X_rescaled_all)
         else:
-            X_rescaled = read_hdf5_array(self.filepath_base_X_rescaled)
+            X_rescaled = read_hdf5_array(self.filepath_X_rescaled_all)
         # Model output
-        if not self.filepath_base_Y.exists():
+        if not self.filepath_Y_all.exists():
             Y = self.model(X_rescaled)
-            write_hdf5_array(Y, self.filepath_base_Y)
+            write_hdf5_array(Y, self.filepath_Y_all)
         else:
-            Y = read_hdf5_array(self.filepath_base_Y)
-            Y = Y.flatten()
+            print("{} already exists".format(self.filepath_Y_all.name))
+            Y = read_hdf5_array(self.filepath_Y_all).flatten()
         return X_rescaled, Y
 
     def get_influential_Y_from_gsa(self, gsa_indices, num_influential, tag=None):
         assert num_influential <= self.num_params
         assert len(gsa_indices) == self.num_params
-        if tag is None:
-            tag = num_influential
-        filepath = self.create_influential_model_output_filepath(tag)
+        filepath = self.create_model_output_inf_filepath(num_influential, tag)
         if filepath.exists():
+            print("{} already exists".format(filepath.name))
             influential_Y = read_hdf5_array(filepath).flatten()
         else:
-            X_rescaled = read_hdf5_array(
-                self.filepath_base_X_rescaled
-            )  # read from file instead of using self.X
             non_influential_inds = np.argsort(gsa_indices)[::-1][num_influential:]
             non_influential_inds.sort()
-            X_rescaled[:, non_influential_inds] = np.tile(
+            X_rescaled_inf = deepcopy(self.X_rescaled)
+            X_rescaled_inf[:, non_influential_inds] = np.tile(
                 self.default_x_rescaled[non_influential_inds], (self.iterations, 1)
             )
-            influential_Y = self.model(X_rescaled)
+            influential_Y = self.model(X_rescaled_inf)
             write_hdf5_array(influential_Y, filepath)
         return influential_Y
 
@@ -89,91 +85,92 @@ class Validation:
         """Variable ``parameter_choice`` is the indices of influential parameters."""
         num_influential = len(parameter_choice)
         assert num_influential <= self.num_params
-        if tag is None:
-            tag = num_influential
-        filepath = self.create_influential_model_output_filepath(tag)
+        filepath = self.create_model_output_inf_filepath(num_influential, tag)
         if filepath.exists():
+            print("{} already exists".format(filepath.name))
             influential_Y = read_hdf5_array(filepath).flatten()
         else:
-            X_rescaled = read_hdf5_array(
-                self.filepath_base_X_rescaled
-            )  # read from file instead of using self.X
             non_influential_inds = np.setdiff1d(
                 np.arange(self.num_params), parameter_choice
             )
             non_influential_inds.sort()
-            X_rescaled[:, non_influential_inds] = np.tile(
+            X_rescaled_inf = deepcopy(self.X_rescaled)
+            X_rescaled_inf[:, non_influential_inds] = np.tile(
                 self.default_x_rescaled[non_influential_inds], (self.iterations, 1)
             )
-            influential_Y = self.model(X_rescaled)
+            influential_Y = self.model(X_rescaled_inf)
             write_hdf5_array(influential_Y, filepath)
         return influential_Y
 
-    def create_base_unitcube_samples_filename(self):
-        return "validation.base.X.unitcube.{}.{}.{}.hdf5".format(
-            self.iterations, self.num_params, self.seed
-        )
+    def create_rescaled_samples_all_filename(self):
+        # Maybe we need to be more careful here, as this will change according to the model
+        return "validation.X.rescaled.all.{}.{}.hdf5".format(self.iterations, self.seed)
 
-    def create_base_rescaled_samples_filename(self):
-        return "validation.base.X.rescaled.{}.{}.{}.hdf5".format(
-            self.iterations, self.num_params, self.seed
-        )
+    def create_model_output_all_filename(self):
+        return "validation.Y.all.{}.{}.hdf5".format(self.iterations, self.seed)
 
-    def create_base_model_output_filename(self):
-        return "validation.base.Y.{}.{}.{}.hdf5".format(
-            self.iterations, self.num_params, self.seed
-        )
-
-    def create_influential_model_output_filepath(self, tag):
-        filename = "validation.influential.Y.{}.{}.{}.{}.hdf5".format(
-            self.iterations, self.num_params, self.seed, tag
+    def create_rescaled_samples_inf_filename(self, num_influential, tag):
+        # Maybe we need to be more careful here, as this will change according to the model
+        filename = "validation.X.rescaled.{}inf.{}.{}.{}.hdf5".format(
+            num_influential, self.iterations, self.seed, tag
         )
         filepath = self.write_dir / "arrays" / filename
         return filepath
 
-    def create_histogram_base_Y_influential_Y_filepath(self, tag, fig_format):
-        filename = "validation.histogram.base.influential.Y.{}.{}.{}.{}.{}".format(
-            self.iterations, self.num_params, self.seed, tag, fig_format
+    def create_model_output_inf_filepath(self, num_influential, tag):
+        filename = "validation.Y.{}inf.{}.{}.{}.hdf5".format(
+            num_influential,
+            self.iterations,
+            self.seed,
+            tag,
         )
-        filepath = self.write_dir / "figures" / filename
+        filepath = self.write_dir / "arrays" / filename
         return filepath
 
-    def create_correlation_base_Y_influential_Y_filepath(self, tag, fig_format):
-        filename = "validation.correlation.base.influential.Y.{}.{}.{}.{}.{}".format(
-            self.iterations, self.num_params, self.seed, tag, fig_format
-        )
-        filepath = self.write_dir / "figures" / filename
-        return filepath
-
-    def create_figure_base_Y_histogram_filename(self):
+    def create_figure_Y_all_histogram_filepath(self, extension):
         # Maybe we need to be more careful here, as this will change according to the model
-        return "validation.histogram.base_Y.{}.{}.{}.pdf".format(
-            self.iterations, self.num_params, self.seed
+        filename = "V.histogram.Y.all.{}.{}.{}".format(
+            self.iterations, self.seed, extension
         )
+        filepath = self.write_dir / "figures" / filename
+        return filepath
 
-    @property
-    def filepath_base_X_unitcube(self):
-        return self.write_dir / "arrays" / self.create_base_unitcube_samples_filename()
-
-    @property
-    def filepath_base_X_rescaled(self):
-        return self.write_dir / "arrays" / self.create_base_rescaled_samples_filename()
-
-    @property
-    def filepath_base_Y(self):
-        return self.write_dir / "arrays" / self.create_base_model_output_filename()
-
-    @property
-    def filepath_figure_base_Y_histogram(self):
-        return (
-            self.write_dir / "figures" / self.create_figure_base_Y_histogram_filename()
+    def create_figure_Y_all_Y_inf_histogram_filepath(
+        self, num_influential, tag, extension
+    ):
+        filename = "V.histogram.Y.all.Y.{}inf.{}.{}.{}.{}".format(
+            num_influential, self.iterations, self.seed, tag, extension
         )
+        filepath = self.write_dir / "figures" / filename
+        return filepath
 
-    def plot_histogram_base_Y(
-        self, default_Y, bin_min=None, bin_max=None, num_bins=60, save_fig=False
+    def create_figure_Y_all_Y_inf_correlation_filepath(
+        self, num_influential, tag, extension
+    ):
+        filename = "V.correlation.Y.all.Y.{}inf.{}.{}.{}.{}".format(
+            num_influential, self.iterations, self.seed, tag, extension
+        )
+        filepath = self.write_dir / "figures" / filename
+        return filepath
+
+    @property
+    def filepath_X_rescaled_all(self):
+        return self.write_dir / "arrays" / self.create_rescaled_samples_all_filename()
+
+    @property
+    def filepath_Y_all(self):
+        return self.write_dir / "arrays" / self.create_model_output_all_filename()
+
+    def plot_histogram_Y_all(
+        self,
+        default_Y,
+        bin_min=None,
+        bin_max=None,
+        num_bins=60,
+        fig_format=(),
     ):
         fig = histogram_Y(
-            Y=self.base_Y,
+            Y=self.Y_all,
             default_Y=default_Y,
             bin_min=bin_min,
             bin_max=bin_max,
@@ -181,23 +178,32 @@ class Validation:
             color=COLORS_DICT["all"],
             xaxes_title_text=self.model_output_name,
             trace_name="All parameters vary",
-            trace_name_default="Static score",
         )
-        if save_fig:
-            fig.write_image(str(self.filepath_figure_base_Y_histogram))
+        if "pdf" in fig_format:
+            fig.write_image(
+                self.create_figure_Y_all_histogram_filepath("pdf").as_posix()
+            )
+        if "html" in fig_format:
+            fig.write_html(
+                self.create_figure_Y_all_histogram_filepath("html").as_posix()
+            )
+        if "pickle" in fig_format:
+            filepath = self.create_figure_Y_all_histogram_filepath("pickle").as_posix()
+            write_pickle(fig, filepath)
         return fig
 
-    def plot_histogram_base_Y_influential_Y(
+    def plot_histogram_Y_all_Y_inf(
         self,
         influential_Y,
+        num_influential,
         tag=None,
-        fig_format=None,
+        fig_format=(),
         bin_min=None,
         bin_max=None,
         num_bins=60,
     ):
         fig = histogram_Y1_Y2(
-            self.base_Y,
+            self.Y_all,
             influential_Y,
             default_Y=None,
             bin_min=bin_min,
@@ -213,26 +219,32 @@ class Validation:
         )
         if "pdf" in fig_format:
             fig.write_image(
-                self.create_histogram_base_Y_influential_Y_filepath(
-                    tag, "pdf"
+                self.create_figure_Y_all_Y_inf_histogram_filepath(
+                    num_influential, tag, "pdf"
                 ).as_posix()
             )
         if "html" in fig_format:
             fig.write_html(
-                self.create_histogram_base_Y_influential_Y_filepath(
-                    tag, "html"
+                self.create_figure_Y_all_Y_inf_histogram_filepath(
+                    num_influential, tag, "html"
                 ).as_posix()
             )
+        if "pickle" in fig_format:
+            filepath = self.create_figure_Y_all_Y_inf_histogram_filepath(
+                num_influential, tag, "pickle"
+            ).as_posix()
+            write_pickle(fig, filepath)
         return fig
 
-    def plot_correlation_base_Y_influential_Y(
+    def plot_correlation_Y_all_Y_inf(
         self,
         influential_Y,
+        num_influential,
         tag=None,
-        fig_format=None,
+        fig_format=(),
     ):
         fig = correlation_Y1_Y2(
-            Y1=self.base_Y,
+            Y1=self.Y_all,
             Y2=influential_Y,
             start=0,
             end=80,
@@ -244,14 +256,19 @@ class Validation:
         )
         if "pdf" in fig_format:
             fig.write_image(
-                self.create_correlation_base_Y_influential_Y_filepath(
-                    tag, "pdf"
+                self.create_figure_Y_all_Y_inf_correlation_filepath(
+                    num_influential, tag, "pdf"
                 ).as_posix()
             )
         if "html" in fig_format:
             fig.write_html(
-                self.create_correlation_base_Y_influential_Y_filepath(
-                    tag, "html"
+                self.create_figure_Y_all_Y_inf_correlation_filepath(
+                    num_influential, tag, "html"
                 ).as_posix()
             )
+        if "pickle" in fig_format:
+            filepath = self.create_figure_Y_all_Y_inf_correlation_filepath(
+                num_influential, tag, "pickle"
+            ).as_posix()
+            write_pickle(fig, filepath)
         return fig

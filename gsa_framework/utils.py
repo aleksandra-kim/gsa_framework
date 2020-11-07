@@ -5,36 +5,36 @@ from scipy.stats import norm
 get_z_alpha_2 = lambda confidence_level: norm.ppf(0.5 + confidence_level / 2)
 
 
-def write_hdf5_array(array, filename):
+def write_hdf5_array(array, filepath):
     """Write ``array`` to a file with .hdf5 extension"""
     try:
         n_rows, n_cols = array.shape[0], array.shape[1]
     except IndexError:
         n_rows, n_cols = 1, array.shape[0]
 
-    with h5py.File(filename, "w") as f:
+    with h5py.File(filepath, "w") as f:
         d = f.create_dataset(
             "dataset", (n_rows, n_cols), maxshape=(n_rows, n_cols), dtype=array.dtype
         )
         d[:] = array
 
 
-def read_hdf5_array(filename):
+def read_hdf5_array(filepath):
     """Read ``array`` from a file with .hdf5 extension"""
-    with h5py.File(filename, "r") as f:
+    with h5py.File(filepath, "r") as f:
         array = np.array(f["dataset"][:])
     return array
 
 
-def write_pickle(data, filename):
+def write_pickle(data, filepath):
     """Write ``data`` to a file with .pickle extension"""
-    with open(filename, "wb") as f:
+    with open(filepath, "wb") as f:
         pickle.dump(data, f)
 
 
-def read_pickle(filename):
+def read_pickle(filepath):
     """Read ``data`` from a file with .pickle extension"""
-    with open(filename, "rb") as f:
+    with open(filepath, "rb") as f:
         data = pickle.load(f)
     return data
 

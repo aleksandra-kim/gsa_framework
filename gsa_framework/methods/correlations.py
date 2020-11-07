@@ -6,7 +6,7 @@ from ..sensitivity_analysis.correlations import *
 
 
 class CorrelationCoefficients(SAM):
-    gsa_label = "gsa_correlations"
+    gsa_label = "correlationsGsa"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -4,11 +4,12 @@ import pickle
 import time
 import multiprocessing
 import h5py
+import shutil
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from ..utils import read_hdf5_array, write_hdf5_array
+from ..utils import read_hdf5_array, write_hdf5_array, write_pickle
 
 
 class SensitivityAnalysisMethod:
@@ -22,12 +23,10 @@ class SensitivityAnalysisMethod:
 
     This class provides a common interface for these components, and utility functions to save data at each step.
 
-    TODO should filenames have the correct number of iterations or the rounded one?
-
     """
 
-    sampling_label = "sampling_random"
-    gsa_label = "gsa_base"
+    sampling_label = "randomSampling"
+    gsa_label = "noGsa"
 
     def __init__(
         self,
@@ -36,14 +35,13 @@ class SensitivityAnalysisMethod:
         iterations=None,
         seed=None,
         cpus=None,
-        available_memory=2,
-        bytes_per_entry=8,
+        available_memory=2,  # GB
+        bytes_per_entry=8,  # TODO should be able to change numpy array precision!
         use_parallel=True,
     ):
         self.model = model
         self.write_dir = Path(write_dir)
         self.make_dirs()
-        # self.label=label
         self.num_params = len(self.model)
         self.iterations = (
             iterations or self.num_params
@@ -54,13 +52,13 @@ class SensitivityAnalysisMethod:
             cpus or multiprocessing.cpu_count(),
             multiprocessing.cpu_count(),
         )
-        self.available_memory = available_memory  # GB
+        self.available_memory = available_memory
         self.bytes_per_entry = bytes_per_entry
         self.use_parallel = use_parallel
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
-        dirs_list = ["arrays", "gsa_results", "figures"]
+        dirs_list = ["arrays", "figures"]  # TODO maybe add loggin later on
         for dir in dirs_list:
             dir_path = self.write_dir / dir
             dir_path.mkdir(parents=True, exist_ok=True)
@@ -87,20 +85,18 @@ class SensitivityAnalysisMethod:
         return chunk_size, num_chunks, chunk_size_per_worker
 
     def create_unitcube_samples_filename(self):
-        return "X.unitcube.{}.{}.{}.{}.hdf5".format(
-            self.sampling_label, self.iterations, self.num_params, self.seed
+        return "X.unitcube.{}.{}.{}.hdf5".format(
+            self.sampling_label, self.iterations, self.seed
         )
 
     def create_rescaled_samples_filename(self):
         # Maybe we need to be more careful here, as this will change according to the model
-        return "X.rescaled.{}.{}.{}.{}.hdf5".format(
-            self.sampling_label, self.iterations, self.num_params, self.seed
+        return "X.rescaled.{}.{}.{}.hdf5".format(
+            self.sampling_label, self.iterations, self.seed
         )
 
     def create_model_output_dirname(self):
-        dirname = "Y.{}.{}.{}.{}".format(
-            self.sampling_label, self.iterations, self.num_params, self.seed
-        )
+        dirname = "Y.{}.{}.{}".format(self.sampling_label, self.iterations, self.seed)
         return dirname
 
     def create_model_output_dir(self):
@@ -111,27 +107,23 @@ class SensitivityAnalysisMethod:
         return "{}.{}.{}.hdf5".format(i, start, end)
 
     def create_model_output_filename(self):
-        return "Y.{}.{}.{}.{}.hdf5".format(
-            self.sampling_label, self.iterations, self.num_params, self.seed
-        )
+        return "Y.{}.{}.{}.hdf5".format(self.sampling_label, self.iterations, self.seed)
 
     def create_gsa_results_filename(self):
-        return "S.{}.{}.{}.{}.{}.pickle".format(
+        return "S.{}.{}.{}.{}.pickle".format(
             self.gsa_label,
             self.sampling_label,
             self.iterations,
-            self.num_params,
             self.seed,
         )
 
-    def create_gsa_figure_filepath(self, fig_format):
-        filename = "sensitivity.{}.{}.{}.{}.{}.{}".format(
+    def create_gsa_figure_filepath(self, extension):
+        filename = "S.{}.{}.{}.{}.{}".format(
             self.gsa_label,
             self.sampling_label,
             self.iterations,
-            self.num_params,
             self.seed,
-            fig_format,
+            extension,
         )
         filepath = self.write_dir / "figures" / filename
         return filepath
@@ -154,7 +146,7 @@ class SensitivityAnalysisMethod:
 
     @property
     def filepath_S(self):
-        return self.write_dir / "gsa_results" / self.create_gsa_results_filename()
+        return self.write_dir / "arrays" / self.create_gsa_results_filename()
 
     def generate_unitcube_samples(self, return_X=True):
         if self.filepath_X_unitcube.exists():
@@ -243,6 +235,7 @@ class SensitivityAnalysisMethod:
             write_hdf5_array(Y_array, self.dirpath_Y / filepath_Y_chunk)
         Y = self.generate_model_output_from_chunks()
         write_hdf5_array(Y, self.filepath_Y)
+        shutil.rmtree(self.dirpath_Y)  # delete directory with chunks
         if return_Y:
             return Y
         else:
@@ -276,21 +269,10 @@ class SensitivityAnalysisMethod:
             else:
                 return self.filepath_Y
         else:
-            t0 = time.time()
             if self.use_parallel:
                 Y = self.generate_model_output_parallel()
-                t1 = time.time()
-                print(
-                    "generate_model_output_parallel time: " + str(t1 - t0) + " seconds"
-                )
             else:
                 Y = self.generate_model_output_sequential()
-                t1 = time.time()
-                print(
-                    "generate_model_output_sequential time: "
-                    + str(t1 - t0)
-                    + " seconds"
-                )
             return Y
 
     def generate_gsa_indices_based_on_method(self, **kwargs):
@@ -311,10 +293,7 @@ class SensitivityAnalysisMethod:
                 with open(self.filepath_S, "rb") as f:
                     S_dict = pickle.load(f)
             else:
-                t0 = time.time()
                 S_dict = self.generate_gsa_indices_based_on_method(**kwargs)
-                t1 = time.time()
-                print("GSA time: " + str(t1 - t0) + " seconds")
                 with open(self.filepath_S, "wb") as f:
                     pickle.dump(S_dict, f)
         else:
@@ -322,10 +301,20 @@ class SensitivityAnalysisMethod:
         return S_dict
 
     def perform_gsa(self):
+        t0 = time.time()
         self.generate_unitcube_samples(return_X=False)
+        t1 = time.time()
+        print("Unitcube samples -> {:8.3f} s".format(t1 - t0))
         self.generate_rescaled_samples(return_X=False)
+        t2 = time.time()
+        print("Rescaled samples -> {:8.3f} s".format(t2 - t1))
         self.generate_model_output(return_Y=False)
+        t3 = time.time()
+        print("Model outputs    -> {:8.3f} s".format(t3 - t2))
         S_dict = self.generate_gsa_indices()
+        t4 = time.time()
+        print("GSA indices      -> {:8.3f} s".format(t4 - t3))
+        print("Total GSA time   -> {:8.3f} s \n".format(t4 - t0))
         return S_dict
 
     def plot_sa_results(
@@ -333,7 +322,7 @@ class SensitivityAnalysisMethod:
         S_dict,
         S_boolean=None,
         S_dict_analytical=None,
-        fig_format=[],
+        fig_format=(),
     ):
         """Simplistic plotting of GSA results of GSA indices vs parameters. Figure is saved in the ``write_dir``.
 
@@ -389,6 +378,13 @@ class SensitivityAnalysisMethod:
                         marker_symbol = "x"
                         marker_color = "#FF6692"
                         name = "Indices that are known to be important"
+                    else:
+                        params_influential = ([],)
+                        influential = ([],)
+                        marker_symbol = ("",)
+                        marker_color = ("black",)
+                        name = ("",)
+
                 fig.add_trace(
                     go.Scatter(
                         x=params_influential,
@@ -413,3 +409,7 @@ class SensitivityAnalysisMethod:
             fig.write_image(self.create_gsa_figure_filepath("pdf").as_posix())
         if "html" in fig_format:
             fig.write_html(self.create_gsa_figure_filepath("html").as_posix())
+        if "pickle" in fig_format:
+            filepath = self.create_gsa_figure_filepath("pickle").as_posix()
+            write_pickle(fig, filepath)
+        return fig

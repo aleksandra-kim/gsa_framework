@@ -4,12 +4,12 @@ from ..sensitivity_analysis.gradient_boosting import xgboost_scores
 
 
 class GradientBoosting(SAM):
-    gsa_label = "gsa_xgboost"
+    gsa_label = "xgboostGsa"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def generate_gsa_indices_based_on_method(self, selected_iterations=None):
+    def generate_gsa_indices_based_on_method(self, **kwargs):
         S_dict, r2, explained_var = xgboost_scores(
             self.filepath_Y,
             self.filepath_X_rescaled,

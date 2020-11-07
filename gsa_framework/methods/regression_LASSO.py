@@ -4,7 +4,7 @@ from ..sensitivity_analysis.regression_LASSO import regression_lasso
 
 
 class RegressionLASSO(SAM):
-    gsa_label = "gsa_lasso"
+    gsa_label = "lassoGsa"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
