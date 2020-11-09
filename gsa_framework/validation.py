@@ -250,9 +250,6 @@ class Validation:
             end=80,
             trace_name1="All parameters vary",
             trace_name2="Only influential vary",
-            yaxes1_title_text=self.model.output_name,
-            xaxes2_title_text=self.model.output_name,
-            yaxes2_title_text=self.model.output_name,
         )
         if "pdf" in fig_format:
             fig.write_image(

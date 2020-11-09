@@ -19,9 +19,7 @@ def separate_output_values(y, num_params):
 def sobol_first_order(A, AB, B):
     """First order estimator normalized by sample variance."""
     return np.mean(B * (AB - A), axis=0) / np.var(np.r_[A, B], axis=0)
-
-
-#     return np.mean(B * (AB - A), axis=0) # in the paper and in SALib
+    # return np.mean(B * (AB - A), axis=0) # in the paper and in SALib
 
 
 def sobol_total_order(A, AB, B):

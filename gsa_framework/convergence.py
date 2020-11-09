@@ -3,7 +3,7 @@ import time
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
-from .utils import read_hdf5_array, write_hdf5_array, read_pickle, write_pickle
+from .utils import read_hdf5_array, read_pickle, write_pickle
 
 
 class Convergence:
@@ -128,7 +128,7 @@ class Convergence:
         """
 
         sa_convergence_dict_temp = {}
-        for iterations_current in self.iterations_for_convergence:
+        for i, iterations_current in enumerate(self.iterations_for_convergence):
             selected_iterations = self.iterations_order[0:iterations_current]
             parameters_convergence_dict = {
                 "iterations": iterations_current,
@@ -139,7 +139,11 @@ class Convergence:
             t0 = time.time()
             gsa_indices_dict = self.gsa_func(**parameters_convergence_dict)
             t1 = time.time()
-            print("{0:8d} iterations -> {1:8.3f} s".format(iterations_current, t1 - t0))
+            print(
+                "{0:4d}. {1:8d} iterations -> {2:8.3f} s".format(
+                    i, iterations_current, t1 - t0
+                )
+            )
             sa_convergence_dict_temp[iterations_current] = gsa_indices_dict
         # Put all blocks together
         sa_convergence_dict = {
@@ -152,6 +156,7 @@ class Convergence:
             for key, sa_array in sa_convergence_dict.items():
                 new_sa_array = np.vstack([sa_array, sa_dict[key]])
                 sa_convergence_dict.update({key: new_sa_array})
+        # TODO remove intermediate files for sensitivities, eg in correlations
         return sa_convergence_dict
 
     def plot_convergence(
