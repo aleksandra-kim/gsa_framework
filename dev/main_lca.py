@@ -4,8 +4,13 @@ from gsa_framework.methods.extended_FAST import eFAST
 from gsa_framework.methods.saltelli_sobol import SaltelliSobol
 from gsa_framework.methods.gradient_boosting import GradientBoosting
 from gsa_framework.validation import Validation
+from gsa_framework.convergence import Convergence
 from pathlib import Path
 import brightway2 as bw
+import time
+import numpy as np
+from gsa_framework.plotting import histogram_Y1_Y2
+from gsa_framework.utils import read_hdf5_array
 
 if __name__ == "__main__":
 
@@ -17,71 +22,165 @@ if __name__ == "__main__":
     # LCA model
     bw.projects.set_current("GSA for paper")
     co = bw.Database("CH consumption 1.0")
-    act = co.search("average consumption")[0]
+    act = [act for act in co if "Food" in act["name"]][0]
     demand = {act: 1}
     method = ("IPCC 2013", "climate change", "GTP 100a")
-    write_dir = path_base / "lca_model"
-    var_threshold = 1e-10
-    model = LCAModel(demand, method, write_dir, var_threshold=var_threshold)
 
     # Define some variables
-    seed = 3403
-    iterations = 1000
-    num_params = len(model)
-    num_influential = 100
+    num_params = 10000
+    num_influential = num_params // 100
     iterations_validation = 500
+    write_dir = path_base / "lca_model_{}".format(num_params)
+    model = LCAModel(demand, method, write_dir, num_params=num_params)
+    print(len(model))
+    gsa_seed = 3403
+    validation_seed = 7043
+    fig_format = ["html", "pickle"]
+
+    parameter_inds_convergence_plot = [0, 1, 2]  # TODO choose for convergence
+
+    # # Make sure  that the chosen num_params in LCA are appropriate
+    # val = Validation(
+    #     model=model,
+    #     iterations=2000,
+    #     seed=4444,
+    #     default_x_rescaled=model.default_uncertain_amounts,
+    #     write_dir=write_dir,
+    # )
+    # path_Y_all = write_dir / "arrays" / "validation.Y.{}inf.2000.4444.numParams10000.hdf5".format(num_params)
+    # Y_all = read_hdf5_array(path_Y_all).flatten()
+    # histogram_Y1_Y2(Y_all, val.Y_all)
 
     # TODO Choose which GSA to perform
-    flag_correlation = 0
+    flag_correlation = 1
     flag_eFAST = 0
-    flag_sobol = 1
+    flag_sobol = 0
     flag_xgboost = 0
 
     if flag_correlation:
+        iterations = 2 * num_params
+        # iterations = 200
         gsa = CorrelationCoefficients(
-            iterations=iterations, model=model, write_dir=write_dir, seed=seed
+            iterations=iterations,
+            model=model,
+            write_dir=write_dir,
+            seed=gsa_seed,
         )
         S_dict = gsa.perform_gsa()
-        S_pearson = S_dict["pearson"]
-        S_spearman = S_dict["spearman"]
-        gsa.plot_sa_results(S_dict)
-        validation = Validation(
-            S_spearman,
-            model,
-            iterations=iterations_validation,
-            num_influential=num_influential,
-        )
-        validation.generate_plots(plot_histogram=True, plot_correlation=True)
+        pearson = S_dict["pearson"]
+        spearman = S_dict["spearman"]
+        gsa.plot_sa_results(S_dict, fig_format=fig_format)
 
-    if flag_eFAST:
-        gsa = eFAST(
-            M=4, iterations=iterations, model=model, write_dir=write_dir, seed=seed
-        )
-        S_dict = gsa.perform_gsa()
-        first = S_dict["First order"]
-        total = S_dict["Total order"]
-        gsa.plot_sa_results(S_dict)
-        validation = Validation(
-            total,
-            model,
+        t0 = time.time()
+        val = Validation(
+            model=model,
             iterations=iterations_validation,
-            num_influential=num_influential,
+            seed=validation_seed,
+            default_x_rescaled=None,
+            write_dir=write_dir,
         )
-        validation.generate_plots(plot_histogram=True, plot_correlation=True)
+        tag = "SpearmanIndex"
+        influential_Y = val.get_influential_Y_from_gsa(
+            spearman, num_influential, tag=tag
+        )
+        t1 = time.time()
+        print("Total validation time  -> {:8.3f} s \n".format(t1 - t0))
+        val.plot_histogram_Y_all_Y_inf(
+            influential_Y, num_influential, tag=tag, fig_format=fig_format
+        )
+
+        conv = Convergence(
+            gsa.filepath_Y,
+            gsa.num_params,
+            gsa.generate_gsa_indices,
+            gsa.gsa_label,
+            write_dir,
+            num_steps=100,
+        )
+        conv.run_convergence(
+            parameter_inds=parameter_inds_convergence_plot,
+            fig_format=fig_format,
+        )
 
     if flag_sobol:
+        iterations = 100 * num_params
         gsa = SaltelliSobol(iterations=iterations, model=model, write_dir=write_dir)
-        S_dict = gsa.perform_gsa()
+        S_dict = gsa.perform_gsa()  # generate_gsa_indices
         first = S_dict["First order"]
         total = S_dict["Total order"]
-        gsa.plot_sa_results(S_dict)
-        validation = Validation(total, model, num_influential=num_influential)
-        validation.generate_plots(plot_histogram=True, plot_correlation=True)
+        gsa.plot_sa_results(
+            S_dict,
+            fig_format=fig_format,
+        )
+        t0 = time.time()
+        val = Validation(
+            model=model,
+            iterations=iterations_validation,
+            seed=validation_seed,
+            default_x_rescaled=None,
+            write_dir=write_dir,
+        )
+        tag = "SaltelliTotalIndex"
+        influential_Y = val.get_influential_Y_from_gsa(total, num_influential, tag=tag)
+        t1 = time.time()
+        print("Total validation time  -> {:8.3f} s \n".format(t1 - t0))
+        val.plot_histogram_Y_all_Y_inf(
+            influential_Y, num_influential, tag=tag, fig_format=fig_format
+        )
 
-    if flag_xgboost:
-        gsa = GradientBoosting(iterations=iterations, model=model, write_dir=write_dir)
+        conv = Convergence(
+            gsa.filepath_Y,
+            gsa.num_params,
+            gsa.generate_gsa_indices,
+            gsa.gsa_label,
+            write_dir,
+            num_steps=100,
+        )
+        conv.run_convergence(
+            parameter_inds=parameter_inds_convergence_plot, fig_format=fig_format
+        )
+
+    if flag_eFAST:
+        iterations = 200 * num_params
+        M = 4
+        gsa = eFAST(
+            M=M, iterations=iterations, model=model, write_dir=write_dir, seed=gsa_seed
+        )
         S_dict = gsa.perform_gsa()
-        fscores = S_dict["fscores"]
-        gsa.plot_sa_results(S_dict)
-        validation = Validation(fscores, model, num_influential=num_influential)
-        validation.generate_plots(plot_histogram=True, plot_correlation=True)
+        # S_dict = gsa.generate_gsa_indices()
+        first = S_dict["First order"]
+        total = S_dict["Total order"]
+        gsa.plot_sa_results(
+            S_dict,
+            fig_format=fig_format,
+        )
+
+        t0 = time.time()
+        val = Validation(
+            model=model,
+            iterations=iterations_validation,
+            seed=validation_seed,
+            default_x_rescaled=None,
+            write_dir=write_dir,
+        )
+        tag = "eFastTotalIndex"
+        influential_Y = val.get_influential_Y_from_gsa(total, num_influential, tag=tag)
+        t1 = time.time()
+        print("Total validation time  -> {:8.3f} s \n".format(t1 - t0))
+        val.plot_histogram_Y_all_Y_inf(
+            influential_Y, num_influential, tag=tag, fig_format=fig_format
+        )
+
+        conv = Convergence(
+            gsa.filepath_Y,
+            gsa.num_params,
+            gsa.generate_gsa_indices,
+            gsa.gsa_label,
+            write_dir,
+            num_steps=100,
+            M=M,
+        )
+        conv.run_convergence(
+            parameter_inds=parameter_inds_convergence_plot,
+            fig_format=fig_format,
+        )

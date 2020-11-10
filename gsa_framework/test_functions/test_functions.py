@@ -48,7 +48,6 @@ class Morris(ModelBase):
 
         self.num_params = num_params
         self.num_influential = num_influential
-        self.influential_params = self.influential_params
         self.alpha = alpha
         self.beta = beta
         self.S_dict_analytical = self.get_sensitivity_indices()
@@ -778,6 +777,7 @@ class SobolGstar(ModelBase):
         if num_influential is None:
             num_influential = int(0.1 * self.num_params)
         self.num_influential = num_influential
+        self.influential_params = np.arange(self.num_influential)
         if a is None:
             a = np.hstack(
                 [

@@ -16,7 +16,7 @@ if __name__ == "__main__":
     # path_base = Path('/data/user/kim_a/paper_gsa/gsa_framework_files')
 
     # 1. Models
-    num_params = 30000
+    num_params = 10000
     num_influential = num_params // 100
     iterations_validation = 2000
     write_dir = path_base / "morris_model_{}".format(num_params)
@@ -32,15 +32,15 @@ if __name__ == "__main__":
     )
 
     # TODO Choose which GSA to perform
-    flag_sobol = 0
-    flag_correlation = 1
+    flag_sobol = 1
+    flag_correlation = 0
     flag_eFAST = 0
     flag_xgboost = 0
 
     if flag_sobol:
-        iterations = 50 * num_params
+        iterations = 100 * num_params
         gsa = SaltelliSobol(iterations=iterations, model=model, write_dir=write_dir)
-        S_dict = gsa.perform_gsa()
+        S_dict = gsa.generate_gsa_indices()
         first = S_dict["First order"]
         total = S_dict["Total order"]
         gsa.plot_sa_results(

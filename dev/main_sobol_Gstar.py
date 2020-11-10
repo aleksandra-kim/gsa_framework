@@ -17,7 +17,7 @@ if __name__ == "__main__":
     # path_base = Path('/data/user/kim_a/paper_gsa/gsa_framework_files')
 
     # 1. Models
-    num_params = 1000
+    num_params = 10000
     num_influential = num_params // 100
     iterations_validation = 2000
     write_dir = path_base / "sobol_Gstar_model_{}".format(num_params)
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     )
     fig_format = ["html", "pickle"]  # can have elements "pdf", "html", "pickle"
 
-    num_params_corr_plot = 10
+    num_params_corr_plot = 20
     parameter_inds = list(range(num_params_corr_plot)) + list(
         range(num_influential, num_influential + num_params_corr_plot)
     )
@@ -58,9 +58,9 @@ if __name__ == "__main__":
     flag_xgboost = 0
 
     if flag_sobol:
-        iterations = 1500 * num_params
+        iterations = 100 * num_params
         gsa = SaltelliSobol(iterations=iterations, model=model, write_dir=write_dir)
-        S_dict = gsa.perform_gsa()
+        S_dict = gsa.generate_gsa_indices()
         first = S_dict["First order"]
         total = S_dict["Total order"]
         gsa.plot_sa_results(
@@ -69,7 +69,6 @@ if __name__ == "__main__":
             fig_format=fig_format,
         )
 
-        t0 = time.time()
         val = Validation(
             model=model,
             iterations=iterations_validation,
@@ -77,26 +76,32 @@ if __name__ == "__main__":
             default_x_rescaled=None,
             write_dir=write_dir,
         )
-        tag = "SaltelliTotalIndex"
-        influential_Y = val.get_influential_Y_from_gsa(total, num_influential, tag=tag)
-        t1 = time.time()
-        print("Total validation time  -> {:8.3f} s \n".format(t1 - t0))
-        # val.plot_correlation_Y_all_Y_inf(
-        #     influential_Y, num_influential, tag=tag, fig_format=fig_format
-        # )
-        val.plot_histogram_Y_all_Y_inf(
-            influential_Y, num_influential, tag=tag, fig_format=fig_format
+        frac_inf_total, frac_non_inf_total = val.get_fraction_identified_correctly(
+            total, model.influential_params
+        )
+        frac_inf_first, frac_non_inf_first = val.get_fraction_identified_correctly(
+            first, model.influential_params
+        )
+        print(
+            "Fraction of     INFLUENTIAL identified correctly -> total: {0:4.3f}, first: {1:4.3f}".format(
+                frac_inf_total, frac_inf_first
+            )
+        )
+        print(
+            "Fraction of NON-INFLUENTIAL identified correctly -> total: {0:4.3f}, first: {1:4.3f}".format(
+                frac_non_inf_total, frac_non_inf_first
+            )
         )
 
-        conv = Convergence(
-            gsa.filepath_Y,
-            gsa.num_params,
-            gsa.generate_gsa_indices,
-            gsa.gsa_label,
-            write_dir,
-            num_steps=100,
-        )
-        conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
+        # conv = Convergence(
+        #     gsa.filepath_Y,
+        #     gsa.num_params,
+        #     gsa.generate_gsa_indices,
+        #     gsa.gsa_label,
+        #     write_dir,
+        #     num_steps=100,
+        # )
+        # conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
 
     if flag_correlation:
         iterations = 200 * num_params
@@ -139,7 +144,7 @@ if __name__ == "__main__":
         conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
 
     if flag_eFAST:
-        iterations = 600 * num_params
+        iterations = 6000 * num_params
         M = 4
         gsa = eFAST(
             M=M, iterations=iterations, model=model, write_dir=write_dir, seed=gsa_seed
@@ -169,18 +174,16 @@ if __name__ == "__main__":
         #     influential_Y, num_influential, tag=tag, fig_format=fig_format
         # )
         #
-        # conv = Convergence(
-        #     gsa.filepath_Y,
-        #     gsa.num_params,
-        #     gsa.generate_gsa_indices,
-        #     gsa.gsa_label,
-        #     write_dir,
-        #     num_steps=100,
-        #     M=M,
-        # )
-        # conv.run_convergence(
-        #     parameter_inds=parameter_inds, fig_format=fig_format
-        # )
+        conv = Convergence(
+            gsa.filepath_Y,
+            gsa.num_params,
+            gsa.generate_gsa_indices,
+            gsa.gsa_label,
+            write_dir,
+            num_steps=100,
+            M=M,
+        )
+        conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
 
     if flag_xgboost:
         gsa = GradientBoosting(iterations=iterations, model=model, write_dir=write_dir)

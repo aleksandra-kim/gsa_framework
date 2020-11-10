@@ -1,13 +1,14 @@
 import brightway2 as bw
 import numpy as np
 import os
+from pathlib import Path
 import pickle
 from copy import deepcopy
 from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
 
 # Local imports
 from ..model_base import ModelBase
-from ..utils import read_hdf5_array
+from ..utils import read_pickle, write_pickle
 from ..utils_setac_lca import get_amounts_shift, get_score_shift
 
 # ###############
@@ -46,22 +47,36 @@ class LCAModel(ModelBase):
         func_unit,
         method,
         write_dir,
-        var_threshold=0,
+        # var_threshold=0, #TODO should be either var_threshold or num_params
+        num_params=None,
     ):
         self.func_unit = func_unit
         self.method = method
         self.lca = bw.LCA(self.func_unit, self.method)
         self.lca.lci()
         self.lca.lcia()
-        self.write_dir = write_dir
+        self.write_dir = Path(write_dir)
         self.make_dirs()
-        self.var_threshold = var_threshold
-        self.uncertain_tech_params_where = np.where(
-            self.lca.tech_params["uncertainty_type"] > 1
-        )[0]
-        self.uncertain_tech_params = self.lca.tech_params[
-            self.uncertain_tech_params_where
-        ]
+        if num_params is None:
+            self.uncertain_tech_params_where = np.where(
+                self.lca.tech_params["uncertainty_type"] > 1
+            )[0]
+            self.uncertain_tech_params = self.lca.tech_params[
+                self.uncertain_tech_params_where
+            ]
+            self.num_params = len(self.uncertain_tech_params)
+        else:
+            self.num_params = num_params
+            self.scores_dict = self.get_lsa_scores_pickle(self.write_dir / "LSA_scores")
+            (
+                self.uncertain_tech_params_where,
+                _,
+            ) = self.get_nonzero_params_from_num_params(
+                self.scores_dict, self.num_params
+            )
+            self.uncertain_tech_params = self.lca.tech_params[
+                self.uncertain_tech_params_where
+            ]
         self.default_uncertain_amounts = get_amounts_shift(
             self.uncertain_tech_params, shift_median=False
         )
@@ -71,27 +86,20 @@ class LCAModel(ModelBase):
         self.adjusted_score = self.static_output - self.lca.score
         method_unit = bw.Method(self.method).metadata["unit"]
         self.output_name = "LCIA scores, [{}]".format(method_unit)
-
-        # self.uncertain_tech_params_where = self.get_LSA_params(
-        #     self.var_threshold
-        # )  # TODO change the threshold
-        # self.uncertain_tech_params = self.lca.tech_params[
-        #     self.uncertain_tech_params_where
-        # ]
-
-        self.num_params = self.__len__()
         self.influential_params = []
-
         self.choices = uncertainty_choices
         self.mc = MCRandomNumberGenerator(self.uncertain_tech_params)
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
-        directories = {"LSA_scores": os.path.join(self.write_dir, "LSA_scores")}
-        for dir in directories.values():
-            if not os.path.exists(dir):
-                os.makedirs(dir)
-        self.directories = directories
+        dirs_list = [
+            "arrays",
+            "figures",
+            "LSA_scores",
+        ]  # TODO maybe add logging later on
+        for dir in dirs_list:
+            dir_path = self.write_dir / dir
+            dir_path.mkdir(parents=True, exist_ok=True)
 
     def get_lsa_scores_pickle(self, path):
         """Get LCIA scores stored in the ``path``, where each parameter was sampled only few (eg 3-10) times.
@@ -111,31 +119,68 @@ class LCAModel(ModelBase):
             Keys are indices of the exchanges as they appear in the lca.tech_params, values are LCIA scores.
 
         """
-        filepath_all = os.path.join(path, "LSA_scores.pickle")
-        if os.path.isfile(filepath_all):
-            with open(filepath_all, "rb") as f:
-                scores_ = pickle.load(f)
-            scores = {int(k): v for k, v in scores_.items()}
+        path = Path(path)
+        filepath_scores_dict = self.write_dir / "scores_dict.pickle"
+        if filepath_scores_dict.exists():
+            scores_dict = read_pickle(filepath_scores_dict)
         else:
             files = [
-                f
-                for f in os.listdir(path)
-                if os.path.isfile(os.path.join(path, f)) and "LSA_scores_" in f
+                filepath.name
+                for filepath in path.iterdir()
+                if "LSA_scores_" in filepath.name and filepath.is_file()
             ]
-            starts = [int(f.split("_")[2]) for f in files]
+            starts = [int(filepath.split("_")[2]) for filepath in files]
             ind_sort = np.argsort(starts)
             files_sorted = [files[i] for i in ind_sort]
 
-            scores = {}
+            scores, inputs, outputs = [], [], []
             for file in files_sorted:
-                filepath = os.path.join(path, file)
-                with open(filepath, "rb") as f:
-                    temp = pickle.load(f)
-                temp_int = {int(k): v["scores"] for k, v in temp.items()}
-                scores.update(temp_int)
-        return scores
+                filepath = path / file
+                temp = read_pickle(filepath)
+                inputs += [vals["input"] for vals in temp.values()]
+                outputs += [vals["output"] for vals in temp.values()]
+                scores += [vals["scores"] for vals in temp.values()]
+            num_exchanges = len(inputs)
 
-    def get_nonzero_params(self, scores_dict, var_threshold):
+            input_row_dict = {}
+            for input_ in list(set(inputs)):
+                input_row_dict[input_] = self.lca.activity_dict[input_]
+            output_col_dict = {}
+            for output_ in list(set(outputs)):
+                output_col_dict[output_] = self.lca.activity_dict[output_]
+
+            scores_dict = {}
+            for i in range(num_exchanges):
+                row = input_row_dict[inputs[i]]
+                col = output_col_dict[outputs[i]]
+                where_temp = np.where(
+                    np.logical_and(
+                        np.logical_and(
+                            self.lca.tech_params["row"] == row,
+                            self.lca.tech_params["col"] == col,
+                        ),
+                        self.lca.tech_params["uncertainty_type"] > 1,
+                    )
+                )[0]
+                assert len(where_temp) == 1
+                scores_dict[where_temp[0]] = scores[i]
+            write_pickle(scores_dict, filepath_scores_dict)
+        return scores_dict
+
+    def get_nonzero_params_from_num_params(self, scores_dict, num_params):
+        keys = np.array(list(scores_dict.keys()))
+        vals = np.array(list(scores_dict.values()))
+        vals = np.hstack([vals, np.tile(self.lca.score, (len(vals), 1))])
+        # Variance of LSA scores for each input / parameter
+        var = np.var(vals, axis=1)
+        where_high_var = np.argsort(var)[::-1][:num_params]
+        assert np.all(var[where_high_var] > 0)
+        params_yes = keys[where_high_var]
+        params_no = np.setdiff1d(keys, params_yes)
+        params_yes.sort(), params_no.sort()
+        return params_yes, params_no
+
+    def get_nonzero_params_from_var_threshold(self, scores_dict, var_threshold):
         """Given a dictionary of LSA scores, finds parameters that have variance below and above the threshold.
 
         Variance of the LSA scores that is smaller than eg 1e-20 is due to numerical imprecision. That means,
@@ -167,7 +212,7 @@ class LCAModel(ModelBase):
         params_no = np.setdiff1d(keys, params_yes)
         params_yes.sort(), params_no.sort()
 
-        return params_no, params_yes
+        return params_yes, params_no  # TODO changed order here!!
 
     def get_LSA_params(self, var_threshold):
         """Get ``params_yes`` with a specific threshold.
@@ -176,13 +221,12 @@ class LCAModel(ModelBase):
         ``get_nonzero_params`` and saved to the LSA_scores directory, otherwise it is loaded which saves time.
 
         """
-        params_yes_filename = os.path.join(
-            self.directories["LSA_scores"],
-            "params_yes_" + str(var_threshold) + ".pickle",
+        params_yes_filename = (
+            self.write_dir / "LSA_scores" / "params_yes_{}.pickle".format(var_threshold)
         )
-        if not os.path.exists(params_yes_filename):
-            scores_dict = self.get_lsa_scores_pickle(self.directories["LSA_scores"])
-            _, params_yes = self.get_nonzero_params(
+        if not params_yes_filename.exists():
+            scores_dict = self.get_lsa_scores_pickle(self.write_dir / "LSA_scores")
+            params_yes, _ = self.get_nonzero_params_from_var_threshold(
                 scores_dict, var_threshold=var_threshold
             )
             with open(params_yes_filename, "wb") as f:

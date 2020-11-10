@@ -63,6 +63,25 @@ class Validation:
             Y = read_hdf5_array(self.filepath_Y_all).flatten()
         return X_rescaled, Y
 
+    def get_fraction_identified_correctly(self, gsa_indices, influential_params_true):
+        num_influential = len(influential_params_true)
+        influential_params_gsa = np.argsort(gsa_indices)[::-1][:num_influential]
+        influential_params_true.sort(), influential_params_gsa.sort()
+        non_influential_params_gsa = np.argsort(gsa_indices)[::-1][num_influential:]
+        non_influential_params_gsa.sort()
+        non_influential_params_true = np.setdiff1d(
+            np.arange(self.num_params), influential_params_true
+        )
+        non_influential_params_true.sort()
+        frac_inf = (
+            len(np.intersect1d(influential_params_gsa, influential_params_true))
+            / num_influential
+        )
+        frac_non_inf = len(
+            np.intersect1d(non_influential_params_gsa, non_influential_params_true)
+        ) / len(non_influential_params_true)
+        return frac_inf, frac_non_inf
+
     def get_influential_Y_from_gsa(self, gsa_indices, num_influential, tag=None):
         assert num_influential <= self.num_params
         assert len(gsa_indices) == self.num_params
