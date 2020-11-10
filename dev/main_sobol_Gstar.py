@@ -11,17 +11,17 @@ import time
 
 if __name__ == "__main__":
 
-    path_base = Path(
-        "/Users/akim/PycharmProjects/gsa_framework/dev/write_files/paper_gsa/"
-    )
-    # path_base = Path('/data/user/kim_a/paper_gsa/gsa_framework_files')
+    #     path_base = Path(
+    #         "/Users/akim/PycharmProjects/gsa_framework/dev/write_files/paper_gsa/"
+    #     )
+    path_base = Path("/data/user/kim_a/paper_gsa/gsa_framework_files")
 
     # 1. Models
-    num_params = 10000
+    num_params = 5000
     num_influential = num_params // 100
     iterations_validation = 2000
     write_dir = path_base / "sobol_Gstar_model_{}".format(num_params)
-    gsa_seed = 3407
+    gsa_seed = 9883
     sobol_g_star_seed = 345897
     validation_seed = 7043
     if num_influential == 10:
