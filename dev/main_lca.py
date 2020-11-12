@@ -32,24 +32,11 @@ if __name__ == "__main__":
     iterations_validation = 500
     write_dir = path_base / "lca_model_{}".format(num_params)
     model = LCAModel(demand, method, write_dir, num_params=num_params)
-    print(len(model))
     gsa_seed = 3403
     validation_seed = 7043
     fig_format = ["html", "pickle"]
 
-    parameter_inds_convergence_plot = [0, 1, 2]  # TODO choose for convergence
-
-    # # Make sure  that the chosen num_params in LCA are appropriate
-    # val = Validation(
-    #     model=model,
-    #     iterations=2000,
-    #     seed=4444,
-    #     default_x_rescaled=model.default_uncertain_amounts,
-    #     write_dir=write_dir,
-    # )
-    # path_Y_all = write_dir / "arrays" / "validation.Y.{}inf.2000.4444.numParams10000.hdf5".format(num_params)
-    # Y_all = read_hdf5_array(path_Y_all).flatten()
-    # histogram_Y1_Y2(Y_all, val.Y_all)
+    parameter_inds_convergence_plot = [1, 2, 3]  # TODO choose for convergence
 
     # TODO Choose which GSA to perform
     flag_correlation = 1
@@ -59,17 +46,17 @@ if __name__ == "__main__":
 
     if flag_correlation:
         iterations = 2 * num_params
-        # iterations = 200
         gsa = CorrelationCoefficients(
             iterations=iterations,
             model=model,
             write_dir=write_dir,
             seed=gsa_seed,
         )
-        S_dict = gsa.perform_gsa()
+        # S_dict = gsa.perform_gsa()
+        S_dict = gsa.generate_gsa_indices()
         pearson = S_dict["pearson"]
         spearman = S_dict["spearman"]
-        gsa.plot_sa_results(S_dict, fig_format=fig_format)
+        # gsa.plot_sa_results(S_dict, fig_format=fig_format)
 
         t0 = time.time()
         val = Validation(
@@ -89,18 +76,24 @@ if __name__ == "__main__":
             influential_Y, num_influential, tag=tag, fig_format=fig_format
         )
 
-        conv = Convergence(
-            gsa.filepath_Y,
-            gsa.num_params,
-            gsa.generate_gsa_indices,
-            gsa.gsa_label,
-            write_dir,
-            num_steps=100,
-        )
-        conv.run_convergence(
-            parameter_inds=parameter_inds_convergence_plot,
-            fig_format=fig_format,
-        )
+        # num_convergence_plot = 10
+        # parameter_inds_convergence_plot = np.hstack([
+        #     np.argsort(spearman)[::-1][:num_convergence_plot],
+        #     np.argsort(spearman)[::-1][-num_convergence_plot:]
+        # ])
+        #
+        # conv = Convergence(
+        #     gsa.filepath_Y,
+        #     gsa.num_params,
+        #     gsa.generate_gsa_indices,
+        #     gsa.gsa_label,
+        #     write_dir,
+        #     num_steps=100,
+        # )
+        # conv.run_convergence(
+        #     parameter_inds=parameter_inds_convergence_plot,
+        #     fig_format=fig_format,
+        # )
 
     if flag_sobol:
         iterations = 100 * num_params
@@ -108,26 +101,27 @@ if __name__ == "__main__":
         S_dict = gsa.perform_gsa()  # generate_gsa_indices
         first = S_dict["First order"]
         total = S_dict["Total order"]
-        gsa.plot_sa_results(
-            S_dict,
-            fig_format=fig_format,
-        )
-        t0 = time.time()
-        val = Validation(
-            model=model,
-            iterations=iterations_validation,
-            seed=validation_seed,
-            default_x_rescaled=None,
-            write_dir=write_dir,
-        )
-        tag = "SaltelliTotalIndex"
-        influential_Y = val.get_influential_Y_from_gsa(total, num_influential, tag=tag)
-        t1 = time.time()
-        print("Total validation time  -> {:8.3f} s \n".format(t1 - t0))
-        val.plot_histogram_Y_all_Y_inf(
-            influential_Y, num_influential, tag=tag, fig_format=fig_format
-        )
+        # gsa.plot_sa_results(
+        #     S_dict,
+        #     fig_format=fig_format,
+        # )
+        # t0 = time.time()
+        # val = Validation(
+        #     model=model,
+        #     iterations=iterations_validation,
+        #     seed=validation_seed,
+        #     default_x_rescaled=None,
+        #     write_dir=write_dir,
+        # )
+        # tag = "SaltelliTotalIndex"
+        # influential_Y = val.get_influential_Y_from_gsa(total, num_influential, tag=tag)
+        # t1 = time.time()
+        # print("Total validation time  -> {:8.3f} s \n".format(t1 - t0))
+        # val.plot_histogram_Y_all_Y_inf(
+        #     influential_Y, num_influential, tag=tag, fig_format=fig_format
+        # )
 
+        parameter_inds_convergence_plot = np.argsort(total)[::-1][:num_influential]
         conv = Convergence(
             gsa.filepath_Y,
             gsa.num_params,
@@ -141,13 +135,13 @@ if __name__ == "__main__":
         )
 
     if flag_eFAST:
-        iterations = 200 * num_params
+        iterations = 65 * num_params
         M = 4
         gsa = eFAST(
             M=M, iterations=iterations, model=model, write_dir=write_dir, seed=gsa_seed
         )
-        S_dict = gsa.perform_gsa()
-        # S_dict = gsa.generate_gsa_indices()
+        # S_dict = gsa.perform_gsa()
+        S_dict = gsa.generate_gsa_indices()
         first = S_dict["First order"]
         total = S_dict["Total order"]
         gsa.plot_sa_results(
@@ -170,17 +164,16 @@ if __name__ == "__main__":
         val.plot_histogram_Y_all_Y_inf(
             influential_Y, num_influential, tag=tag, fig_format=fig_format
         )
-
-        conv = Convergence(
-            gsa.filepath_Y,
-            gsa.num_params,
-            gsa.generate_gsa_indices,
-            gsa.gsa_label,
-            write_dir,
-            num_steps=100,
-            M=M,
-        )
-        conv.run_convergence(
-            parameter_inds=parameter_inds_convergence_plot,
-            fig_format=fig_format,
-        )
+        # conv = Convergence(
+        #     gsa.filepath_Y,
+        #     gsa.num_params,
+        #     gsa.generate_gsa_indices,
+        #     gsa.gsa_label,
+        #     write_dir,
+        #     num_steps=100,
+        #     M=M,
+        # )
+        # conv.run_convergence(
+        #     parameter_inds=parameter_inds_convergence_plot,
+        #     fig_format=fig_format,
+        # )

@@ -10,9 +10,10 @@ def xgboost_scores(
     filepath_Y,
     filepath_X,
     iterations,
-    num_params,  # TODO should we pass iterations and num_params, given that we can derive them?
+    tuning_parameters=None,
     train_test_ratio=0.8,
-    write_dir=None,
+    num_boost_round=10,
+    xgb_model=None,
 ):
     """Compute fscores obtained from the gradient boosting machines regression using XGBoost library.
 
@@ -42,31 +43,30 @@ def xgboost_scores(
 
     # 1. Preparations
     X = read_hdf5_array(filepath_X)
-    y = read_hdf5_array(filepath_Y)
-    y = y.flatten()
-
-    # 2. Read xgboost parameters
-    filename = os.path.join(write_dir, "xgboost_params.json")
-    try:
-        with open(filename, "r") as f:
-            params = json.load(f)
-    except:
-        params = {}
-
+    Y = read_hdf5_array(filepath_Y).flatten()
+    num_params = X.shape[1]
+    if tuning_parameters is None:
+        tuning_parameters = {}
+    tuning_parameters.update({"base_score": np.mean(Y)})
     # 3. Prepare training and testing sets for  gradient boosting trees
     n_split = int(train_test_ratio * iterations)
     X_train, X_test = X[:n_split, :], X[n_split:iterations, :]
-    y_train, y_test = y[:n_split], y[n_split:iterations]
-    dtrain = xgb.DMatrix(X_train, y_train)
+    Y_train, Y_test = Y[:n_split], Y[n_split:iterations]
+    dtrain = xgb.DMatrix(X_train, Y_train)
     X_dtest = xgb.DMatrix(X_test)
 
     # 4. Train the model
-    model = xgb.train(params, dtrain)
+    model = xgb.train(
+        tuning_parameters,
+        dtrain,
+        num_boost_round=num_boost_round,
+        xgb_model=xgb_model,
+    )
 
     # 5. make predictions and compute prediction score
     y_pred = model.predict(X_dtest)
-    r2 = r2_score(y_test, y_pred)
-    explained_variance = explained_variance_score(y_test, y_pred)
+    r2 = r2_score(Y_test, y_pred)
+    explained_variance = explained_variance_score(Y_test, y_pred)
 
     # 6. Save importance scores
     fscores_inf = model.get_fscore()
@@ -74,6 +74,6 @@ def xgboost_scores(
     fscores_all = np.array([fscores_dict.get(i, 0) for i in range(num_params)])
 
     S_dict = {
-        "fscores": fscores_all,
+        "fscores": fscores_all / sum(fscores_all),
     }
     return S_dict, r2, explained_variance

@@ -55,9 +55,12 @@ class Convergence:
     def generate_iterations_min_and_least_common_multiple(
         self, gsa_label, **kwargs
     ):  # TODO should be in methods?
-        if gsa_label in ["correlationsGsa", "deltaGsa"]:  # TODO change for delta
+        if "correlationsGsa" in gsa_label:  # TODO change for delta
             iterations_least_common_multiple = 1
             iterations_min = 10
+        elif "deltaGsa" in gsa_label:
+            iterations_least_common_multiple = 1
+            iterations_min = 100
         elif "saltelliGsa" in gsa_label:
             iterations_least_common_multiple = self.num_params + 2
             iterations_min = self.num_params + 2
