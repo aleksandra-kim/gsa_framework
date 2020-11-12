@@ -11,17 +11,18 @@ import time
 
 if __name__ == "__main__":
 
-    #     path_base = Path(
-    #         "/Users/akim/PycharmProjects/gsa_framework/dev/write_files/paper_gsa/"
-    #     )
-    path_base = Path("/data/user/kim_a/paper_gsa/gsa_framework_files")
+    path_base = Path(
+        "/Users/akim/PycharmProjects/gsa_framework/dev/write_files/paper_gsa/"
+    )
+    # path_base = Path("/data/user/kim_a/paper_gsa/gsa_framework_files")
 
     # 1. Models
     num_params = 5000
+    # num_influential=10
     num_influential = num_params // 100
     iterations_validation = 2000
     write_dir = path_base / "sobol_Gstar_model_{}".format(num_params)
-    gsa_seed = 9883
+    gsa_seed = 3407
     sobol_g_star_seed = 345897
     validation_seed = 7043
     if num_influential == 10:
@@ -52,10 +53,10 @@ if __name__ == "__main__":
     )
 
     # TODO Choose which GSA to perform
-    flag_sobol = 1
+    flag_sobol = 0
     flag_correlation = 0
     flag_eFAST = 0
-    flag_xgboost = 0
+    flag_xgboost = 1
 
     if flag_sobol:
         iterations = 100 * num_params
@@ -186,9 +187,77 @@ if __name__ == "__main__":
         conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
 
     if flag_xgboost:
-        gsa = GradientBoosting(iterations=iterations, model=model, write_dir=write_dir)
-        S_dict = gsa.perform_gsa()
+        if num_params == 100 or num_params == 1000:
+            num_boost_round = 100
+            tuning_parameters = {
+                "max_depth": 60,
+                "eta": 0.1,
+                "objective": "reg:squarederror",
+                "n_jobs": -1,
+                "refresh_leaf": True,
+                "subsample": 0.6,
+            }
+        elif num_params == 5000:
+            num_boost_round = 100
+            max_depth = 60
+            tuning_parameters = {
+                "max_depth": max_depth,  # try 100
+                "eta": 0.1,
+                "objective": "reg:squarederror",
+                "n_jobs": -1,
+                "refresh_leaf": True,
+                "subsample": 0.6,
+            }
+        iterations = 2 * num_params
+        gsa = GradientBoosting(
+            iterations=iterations,
+            model=model,
+            write_dir=write_dir,
+            seed=gsa_seed,
+            tuning_parameters=tuning_parameters,
+            num_boost_round=num_boost_round,
+            xgb_model=None,
+        )
+        t0 = time.time()
+        S_dict, r2, explained_var = gsa.perform_gsa(
+            flag_save_S_dict=True, return_stats=True, verbose=False
+        )
+        t1 = time.time()
         fscores = S_dict["fscores"]
-        gsa.plot_sa_results(S_dict, S_boolean=model.S_boolean)
-        val = Validation(fscores, model, num_influential=model.num_influential)
-        val.generate_plots(plot_histogram=True, plot_correlation=True)
+
+        val = Validation(
+            model=model,
+            iterations=iterations_validation,
+            seed=validation_seed,
+            default_x_rescaled=None,
+            write_dir=write_dir,
+        )
+        frac_inf, frac_non_inf = val.get_fraction_identified_correctly(
+            fscores, model.influential_params
+        )
+        print(
+            "Fraction inf {0:4.3f}, fraction non-inf {1:4.3f}".format(
+                frac_inf, frac_non_inf
+            )
+        )
+        print(
+            "XGBoost training results: \n "
+            "  r2={0:4.3f}, explained_variance={1:4.3f} \n".format(r2, explained_var)
+        )
+        print("GSA indices      -> {:8.3f} s".format(t1 - t0))
+
+        gsa.plot_sa_results(
+            S_dict,
+            S_boolean=model.S_boolean,
+            fig_format=fig_format,
+        )
+
+        # conv = Convergence(
+        #     gsa.filepath_Y,
+        #     gsa.num_params,
+        #     gsa.generate_gsa_indices,
+        #     gsa.gsa_label,
+        #     write_dir,
+        #     num_steps=100,
+        # )
+        # conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)

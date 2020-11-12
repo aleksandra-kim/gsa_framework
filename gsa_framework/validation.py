@@ -59,7 +59,7 @@ class Validation:
             Y = self.model(X_rescaled)
             write_hdf5_array(Y, self.filepath_Y_all)
         else:
-            print("{} already exists".format(self.filepath_Y_all.name))
+            # print("{} already exists".format(self.filepath_Y_all.name))
             Y = read_hdf5_array(self.filepath_Y_all).flatten()
         return X_rescaled, Y
 

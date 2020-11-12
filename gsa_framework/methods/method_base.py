@@ -288,33 +288,39 @@ class SensitivityAnalysisMethod:
 
         """
         flag_convergence = kwargs.get("flag_convergence", False)
+        flag_save_S_dict = kwargs.get("flag_save_S_dict", True)
         if not flag_convergence:
             if self.filepath_S.exists():
                 with open(self.filepath_S, "rb") as f:
                     S_dict = pickle.load(f)
             else:
                 S_dict = self.generate_gsa_indices_based_on_method(**kwargs)
-                with open(self.filepath_S, "wb") as f:
-                    pickle.dump(S_dict, f)
+                if flag_save_S_dict:
+                    write_pickle(S_dict, self.filepath_S)
         else:
             S_dict = self.generate_gsa_indices_based_on_method(**kwargs)
         return S_dict
 
-    def perform_gsa(self):
+    def perform_gsa(self, **kwargs):
+        verbose = kwargs.get("verbose", True)
         t0 = time.time()
         self.generate_unitcube_samples(return_X=False)
         t1 = time.time()
-        print("Unitcube samples -> {:8.3f} s".format(t1 - t0))
+        if verbose:
+            print("Unitcube samples -> {:8.3f} s".format(t1 - t0))
         self.generate_rescaled_samples(return_X=False)
         t2 = time.time()
-        print("Rescaled samples -> {:8.3f} s".format(t2 - t1))
+        if verbose:
+            print("Rescaled samples -> {:8.3f} s".format(t2 - t1))
         self.generate_model_output(return_Y=False)
         t3 = time.time()
-        print("Model outputs    -> {:8.3f} s".format(t3 - t2))
-        S_dict = self.generate_gsa_indices()
+        if verbose:
+            print("Model outputs    -> {:8.3f} s".format(t3 - t2))
+        S_dict = self.generate_gsa_indices(**kwargs)
         t4 = time.time()
-        print("GSA indices      -> {:8.3f} s".format(t4 - t3))
-        print("Total GSA time   -> {:8.3f} s \n".format(t4 - t0))
+        if verbose:
+            print("GSA indices      -> {:8.3f} s".format(t4 - t3))
+            print("Total GSA time   -> {:8.3f} s \n".format(t4 - t0))
         return S_dict
 
     def plot_sa_results(
