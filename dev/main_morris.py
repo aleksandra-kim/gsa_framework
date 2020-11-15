@@ -17,7 +17,7 @@ if __name__ == "__main__":
     # path_base = Path('/data/user/kim_a/paper_gsa/gsa_framework_files')
 
     # 1. Models
-    num_params = 100
+    num_params = 10000
     num_influential = num_params // 100
     iterations_validation = 2000
     write_dir = path_base / "morris_model_{}".format(num_params)
@@ -252,12 +252,13 @@ if __name__ == "__main__":
 
     if flag_delta:
         iterations = 2 * num_params
-        num_resamples = 1
+        num_resamples = 2
         gsa = DeltaMoment(
             iterations=iterations,
             model=model,
             write_dir=write_dir,
             num_resamples=num_resamples,
+            seed=gsa_seed,
         )
         S_dict = gsa.perform_gsa()
         delta = S_dict["delta"]
@@ -266,12 +267,12 @@ if __name__ == "__main__":
             S_boolean=model.S_boolean,
             fig_format=fig_format,
         )
-        conv = Convergence(
-            gsa.filepath_Y,
-            gsa.num_params,
-            gsa.generate_gsa_indices,
-            gsa.gsa_label,
-            write_dir,
-            num_steps=10,
-        )
-        conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
+        # conv = Convergence(
+        #     gsa.filepath_Y,
+        #     gsa.num_params,
+        #     gsa.generate_gsa_indices,
+        #     gsa.gsa_label,
+        #     write_dir,
+        #     num_steps=25,
+        # )
+        # conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)

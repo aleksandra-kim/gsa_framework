@@ -3,6 +3,7 @@ from gsa_framework.methods.correlations import CorrelationCoefficients
 from gsa_framework.methods.extended_FAST import eFAST
 from gsa_framework.methods.saltelli_sobol import SaltelliSobol
 from gsa_framework.methods.gradient_boosting import GradientBoosting
+from gsa_framework.methods.delta_moment import DeltaMoment
 from gsa_framework.validation import Validation
 from gsa_framework.convergence import Convergence
 from pathlib import Path
@@ -17,7 +18,7 @@ if __name__ == "__main__":
     # path_base = Path("/data/user/kim_a/paper_gsa/gsa_framework_files")
 
     # 1. Models
-    num_params = 5000
+    num_params = 1000
     # num_influential=10
     num_influential = num_params // 100
     iterations_validation = 2000
@@ -56,7 +57,8 @@ if __name__ == "__main__":
     flag_sobol = 0
     flag_correlation = 0
     flag_eFAST = 0
-    flag_xgboost = 1
+    flag_xgboost = 0
+    flag_delta = 1
 
     if flag_sobol:
         iterations = 100 * num_params
@@ -145,12 +147,12 @@ if __name__ == "__main__":
         conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
 
     if flag_eFAST:
-        iterations = 6000 * num_params
+        iterations = 3000 * num_params
         M = 4
         gsa = eFAST(
             M=M, iterations=iterations, model=model, write_dir=write_dir, seed=gsa_seed
         )
-        S_dict = gsa.perform_gsa()
+        S_dict = gsa.generate_gsa_indices()
         first = S_dict["First order"]
         total = S_dict["Total order"]
         gsa.plot_sa_results(
@@ -175,6 +177,9 @@ if __name__ == "__main__":
         #     influential_Y, num_influential, tag=tag, fig_format=fig_format
         # )
         #
+        parameter_inds_convergence_plot = np.hstack(
+            [np.argsort(first)[::-1][:10], np.argsort(first)[::-1][-10:]]
+        )
         conv = Convergence(
             gsa.filepath_Y,
             gsa.num_params,
@@ -184,7 +189,9 @@ if __name__ == "__main__":
             num_steps=100,
             M=M,
         )
-        conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
+        conv.run_convergence(
+            parameter_inds=parameter_inds_convergence_plot, fig_format=fig_format
+        )
 
     if flag_xgboost:
         if num_params == 100 or num_params == 1000:
@@ -261,3 +268,21 @@ if __name__ == "__main__":
         #     num_steps=100,
         # )
         # conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
+
+    if flag_delta:
+        iterations = 2 * num_params
+        num_resamples = 100
+        gsa = DeltaMoment(
+            iterations=iterations,
+            model=model,
+            write_dir=write_dir,
+            num_resamples=num_resamples,
+            seed=gsa_seed,
+        )
+        S_dict = gsa.perform_gsa()
+        delta = S_dict["delta"]
+        gsa.plot_sa_results(
+            S_dict,
+            S_boolean=model.S_boolean,
+            fig_format=fig_format,
+        )
