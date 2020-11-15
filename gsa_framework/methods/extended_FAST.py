@@ -16,7 +16,9 @@ class eFAST(SAM):
         self.sampling_label = self.sampling_label + "M{}".format(
             M
         )  # TODO where should this be?
-        self.write_dir_convergence = self.write_dir / "convergence_intermediate"  # TODO
+        self.write_dir_convergence = (
+            self.write_dir / "convergence_intermediate_{}".format(self.gsa_label)
+        )
         self.write_dir_convergence.mkdir(parents=True, exist_ok=True)
 
     def calculate_iterations(self, iterations):

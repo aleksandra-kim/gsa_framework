@@ -23,6 +23,10 @@ class GradientBoosting(SAM):
             int(self.tuning_parameters.get("subsample") * 100),
         )
         self.xgb_model = xgb_model
+        self.write_dir_convergence = (
+            self.write_dir / "convergence_intermediate_{}".format(self.gsa_label)
+        )  # TODO
+        self.write_dir_convergence.mkdir(parents=True, exist_ok=True)
 
     def create_S_convergence_filepath(self, iterations_step, iterations):
         filename = "S.{}.{}.{}Step{}.{}.pickle".format(
@@ -50,10 +54,6 @@ class GradientBoosting(SAM):
             # print("XGBoost training results: \n "
             #       "  r2={0:4.3f}, explained_variance={1:4.3f} \n".format(r2, explained_var))
         else:
-            write_dir_convergence = (
-                self.write_dir / "convergence_intermediate_{}".format(self.gsa_label)
-            )  # TODO
-            write_dir_convergence.mkdir(parents=True, exist_ok=True)
             iterations = kwargs.get("iterations", self.iterations)
             iterations_step = kwargs.get("iterations_step", self.iterations)
             filepath_S = self.create_S_convergence_filepath(iterations_step, iterations)
