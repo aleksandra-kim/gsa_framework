@@ -54,6 +54,8 @@ def eFAST_indices(filepath_Y, iterations, num_params, M=4, selected_iterations=N
 
     y = read_hdf5_array(filepath_Y)
     y = y.flatten()
+    if selected_iterations is not None:
+        y = y[selected_iterations]
     iterations_per_param = iterations // num_params
     # Recreate the vector omega used in the sampling
     omega = get_omega_eFAST(num_params, iterations_per_param, M)

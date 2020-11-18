@@ -12,7 +12,9 @@ class CorrelationCoefficients(SAM):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.iterations = self.calculate_iterations()
-        self.write_dir_convergence = self.write_dir / "convergence_intermediate"  # TODO
+        self.write_dir_convergence = (
+            self.write_dir / "convergence_intermediate_{}".format(self.gsa_label)
+        )  # TODO
         self.write_dir_convergence.mkdir(parents=True, exist_ok=True)
 
     def calculate_iterations(self):

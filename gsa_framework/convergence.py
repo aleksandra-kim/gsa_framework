@@ -57,7 +57,7 @@ class Convergence:
     ):  # TODO should be in methods?
         if "correlationsGsa" in gsa_label:  # TODO change for delta
             iterations_least_common_multiple = 1
-            iterations_min = 10
+            iterations_min = max(self.iterations // self.num_steps, 20)
         elif "deltaGsa" in gsa_label:
             iterations_least_common_multiple = 1
             iterations_min = 100
@@ -68,6 +68,9 @@ class Convergence:
             M = kwargs.get("M", 4)
             iterations_least_common_multiple = 4 * M ** 2 + 1
             iterations_min = iterations_least_common_multiple * self.num_params
+        elif "xgboostGsa" in gsa_label:
+            iterations_least_common_multiple = 1
+            iterations_min = max(self.iterations // self.num_steps, 20)
         else:
             iterations_least_common_multiple = 1
             iterations_min = 10

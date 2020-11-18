@@ -3,6 +3,7 @@ from .method_base import SensitivityAnalysisMethod as SAM
 from ..sampling.get_samples import eFAST_samples
 from ..sensitivity_analysis.extended_FAST import eFAST_indices
 from ..utils import write_hdf5_array, read_hdf5_array
+import numpy as np
 
 
 class eFAST(SAM):
@@ -17,7 +18,7 @@ class eFAST(SAM):
             M
         )  # TODO where should this be?
         self.write_dir_convergence = (
-            self.write_dir / "convergence_intermediate_{}".format(self.gsa_label)
+            self.write_dir / "convergence_intermediate_{}".format(self.sampling_label)
         )
         self.write_dir_convergence.mkdir(parents=True, exist_ok=True)
 
