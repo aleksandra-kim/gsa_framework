@@ -7,6 +7,47 @@ from ..utils import uniform_rescale
 #      it's also in the Saltelli paper, 2009
 
 
+class Nonlinear(ModelBase):
+    """Class that implements nonlinear function y = x0(x1-x2).
+
+    Parameters
+    ----------
+    num_params : int
+        Number of model inputs.
+    num_influential : int
+        Number of influential inputs.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Paper:
+        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
+        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
+        https://doi.org/10.1016/j.jspi.2005.01.001
+    Useful link:
+        http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
+
+    """
+
+    def __init__(self):
+        self.num_params = 10
+
+    def __len__(self):
+        return self.num_params
+
+    def rescale(self, X):
+        return X
+
+    def __call__(self, X):
+        y = np.zeros(X.shape[0])
+        y[:] = X[:, 0] * (X[:, 1] - X[:, 2])
+        return y
+
+
 ######################
 # ## Test functions ###
 # #####################

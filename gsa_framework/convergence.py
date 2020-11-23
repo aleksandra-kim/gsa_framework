@@ -57,7 +57,7 @@ class Convergence:
     ):  # TODO should be in methods?
         if "correlationsGsa" in gsa_label:  # TODO change for delta
             iterations_least_common_multiple = 1
-            iterations_min = max(self.iterations // self.num_steps, 20)
+            iterations_min = 10  # max(self.iterations // self.num_steps, 20)
         elif "deltaGsa" in gsa_label:
             iterations_least_common_multiple = 1
             iterations_min = 100
@@ -151,6 +151,7 @@ class Convergence:
                 )
             )
             sa_convergence_dict_temp[iterations_current] = gsa_indices_dict
+
         # Put all blocks together
         sa_convergence_dict = {
             key: np.zeros(shape=(0, self.num_params))
@@ -163,6 +164,9 @@ class Convergence:
                 new_sa_array = np.vstack([sa_array, sa_dict[key]])
                 sa_convergence_dict.update({key: new_sa_array})
         # TODO remove intermediate files for sensitivities, eg in correlations
+        sa_convergence_dict["iterations"] = np.array(
+            list(sa_convergence_dict_temp.keys())
+        )
         return sa_convergence_dict
 
     def plot_convergence(
@@ -184,6 +188,8 @@ class Convergence:
                 np.random.randint(0, 256),
             )
         # Plot
+        x = sa_convergence_dict["iterations"]
+        sa_convergence_dict.pop("iterations")
         fig = make_subplots(
             rows=len(sa_convergence_dict),
             cols=1,
@@ -197,7 +203,7 @@ class Convergence:
                     showlegend = True
                 fig.add_trace(
                     go.Scatter(
-                        x=self.iterations_for_convergence,
+                        x=x,
                         y=sa_array[:, parameter],
                         mode="lines+markers",
                         showlegend=showlegend,

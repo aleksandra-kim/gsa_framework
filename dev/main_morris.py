@@ -9,6 +9,12 @@ from gsa_framework.convergence import Convergence
 from pathlib import Path
 import time
 
+
+from gsa_framework.model_base import ModelBase
+import numpy as np
+from gsa_framework.test_functions import Nonlinear
+
+
 if __name__ == "__main__":
 
     path_base = Path(
@@ -17,7 +23,7 @@ if __name__ == "__main__":
     # path_base = Path('/data/user/kim_a/paper_gsa/gsa_framework_files')
 
     # 1. Models
-    num_params = 1000
+    num_params = 5000
     # num_influential = num_params // 100
     num_influential = 100
     iterations_validation = 2000
@@ -37,9 +43,9 @@ if __name__ == "__main__":
     )
 
     # TODO Choose which GSA to perform
-    flag_sobol = 0
+    flag_sobol = 1
     flag_correlation = 0
-    flag_eFAST = 1
+    flag_eFAST = 0
     flag_xgboost = 0
     flag_delta = 0
 
@@ -113,18 +119,18 @@ if __name__ == "__main__":
         #     influential_Y, num_influential, tag=tag, fig_format=fig_format
         # )
 
-        conv = Convergence(
-            gsa.filepath_Y,
-            gsa.num_params,
-            gsa.generate_gsa_indices,
-            gsa.gsa_label,
-            write_dir,
-            num_steps=100,
-        )
-        conv.run_convergence(
-            parameter_inds=parameter_inds,
-            fig_format=fig_format,
-        )
+        # conv = Convergence(
+        #     gsa.filepath_Y,
+        #     gsa.num_params,
+        #     gsa.generate_gsa_indices,
+        #     gsa.gsa_label,
+        #     write_dir,
+        #     num_steps=100,
+        # )
+        # conv.run_convergence(
+        #     parameter_inds=parameter_inds,
+        #     fig_format=fig_format,
+        # )
 
     if flag_eFAST:
         iterations = 100 * num_params
@@ -196,7 +202,7 @@ if __name__ == "__main__":
                 "min_child_weight": 0.5,
             }
         elif num_params == 10000:
-            num_boost_round = 1000
+            num_boost_round = 300
             tuning_parameters = {
                 "max_depth": 2,  # higher than 10 is definitely not good
                 "eta": 0.25,
@@ -206,7 +212,7 @@ if __name__ == "__main__":
                 "subsample": 0.65,
                 "min_child_weight": 0.5,
             }
-        iterations = 2 * num_params
+        iterations = 10000
         gsa = GradientBoosting(
             iterations=iterations,
             model=model,
@@ -243,22 +249,22 @@ if __name__ == "__main__":
         #     influential_Y, num_influential, tag=tag, fig_format=fig_format
         # )
 
-        # conv = Convergence(
-        #     gsa.filepath_Y,
-        #     gsa.num_params,
-        #     gsa.generate_gsa_indices,
-        #     gsa.gsa_label,
-        #     write_dir,
-        #     num_steps=100,
-        # )
-        # conv.run_convergence(
-        #     parameter_inds=parameter_inds,
-        #     fig_format=fig_format,
-        # )
+        conv = Convergence(
+            gsa.filepath_Y,
+            gsa.num_params,
+            gsa.generate_gsa_indices,
+            gsa.gsa_label,
+            write_dir,
+            num_steps=100,
+        )
+        conv.run_convergence(
+            parameter_inds=parameter_inds,
+            fig_format=fig_format,
+        )
 
     if flag_delta:
-        iterations = 2 * num_params
-        num_resamples = 2
+        iterations = 30000  # 2 * num_params
+        num_resamples = 1
         gsa = DeltaMoment(
             iterations=iterations,
             model=model,
@@ -266,19 +272,20 @@ if __name__ == "__main__":
             num_resamples=num_resamples,
             seed=gsa_seed,
         )
-        S_dict = gsa.perform_gsa()
-        delta = S_dict["delta"]
-        gsa.plot_sa_results(
-            S_dict,
-            S_boolean=model.S_boolean,
-            fig_format=fig_format,
-        )
-        # conv = Convergence(
-        #     gsa.filepath_Y,
-        #     gsa.num_params,
-        #     gsa.generate_gsa_indices,
-        #     gsa.gsa_label,
-        #     write_dir,
-        #     num_steps=25,
+        # S_dict = gsa.perform_gsa()
+        S_dict = gsa.generate_gsa_indices()
+        # delta = S_dict["delta"]
+        # gsa.plot_sa_results(
+        #     S_dict,
+        #     S_boolean=model.S_boolean,
+        #     fig_format=fig_format,
         # )
-        # conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
+        conv = Convergence(
+            gsa.filepath_Y,
+            gsa.num_params,
+            gsa.generate_gsa_indices,
+            gsa.gsa_label,
+            write_dir,
+            num_steps=25,
+        )
+        conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
