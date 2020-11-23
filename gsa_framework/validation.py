@@ -35,7 +35,9 @@ class Validation:
                 default_x_rescaled = model.rescale(0.5 * np.ones(self.num_params))
         self.default_x_rescaled = default_x_rescaled
         self.model_output_name = model_output_name
-        self.X_rescaled, self.Y_all = self.generate_X_rescaled_Y_all_parameters_vary()
+#         self.X_rescaled, self.Y_all = self.generate_X_rescaled_Y_all_parameters_vary()
+        self.X_rescaled = self.generate_X_rescaled_all_parameters_vary()
+        self.Y_all = self.generate_Y_all_parameters_vary()
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
@@ -44,7 +46,7 @@ class Validation:
             dir_path = self.write_dir / dir
             dir_path.mkdir(parents=True, exist_ok=True)
 
-    def generate_X_rescaled_Y_all_parameters_vary(self):
+    def generate_X_rescaled_all_parameters_vary(self):
         # Rescaled samples
         if not self.filepath_X_rescaled_all.exists():
             # Unitcube samples
@@ -54,14 +56,17 @@ class Validation:
             write_hdf5_array(X_rescaled, self.filepath_X_rescaled_all)
         else:
             X_rescaled = read_hdf5_array(self.filepath_X_rescaled_all)
+        return X_rescaled
+    
+    def generate_Y_all_parameters_vary(self):
         # Model output
         if not self.filepath_Y_all.exists():
-            Y = self.model(X_rescaled)
+            Y = self.model(self.X_rescaled)
             write_hdf5_array(Y, self.filepath_Y_all)
         else:
             # print("{} already exists".format(self.filepath_Y_all.name))
             Y = read_hdf5_array(self.filepath_Y_all).flatten()
-        return X_rescaled, Y
+        return Y
 
     def get_fraction_identified_correctly(self, gsa_indices, influential_params_true):
         num_influential = len(influential_params_true)
