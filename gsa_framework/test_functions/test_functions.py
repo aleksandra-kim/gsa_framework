@@ -7,47 +7,6 @@ from ..utils import uniform_rescale
 #      it's also in the Saltelli paper, 2009
 
 
-class Nonlinear(ModelBase):
-    """Class that implements nonlinear function y = x0(x1-x2).
-
-    Parameters
-    ----------
-    num_params : int
-        Number of model inputs.
-    num_influential : int
-        Number of influential inputs.
-
-    Returns
-    -------
-    y : np.array of size [iterations, 1]
-        Model outputs.
-
-    References
-    ----------
-    Paper:
-        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
-        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
-        https://doi.org/10.1016/j.jspi.2005.01.001
-    Useful link:
-        http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
-
-    """
-
-    def __init__(self):
-        self.num_params = 10
-
-    def __len__(self):
-        return self.num_params
-
-    def rescale(self, X):
-        return X
-
-    def __call__(self, X):
-        y = np.zeros(X.shape[0])
-        y[:] = X[:, 0] * (X[:, 1] - X[:, 2])
-        return y
-
-
 ######################
 # ## Test functions ###
 # #####################
@@ -106,6 +65,95 @@ class Morris(ModelBase):
         for i in range(self.num_influential - 1):
             for j in range(i + 1, self.num_influential):
                 y[:] += self.beta * X[:, i] * X[:, j]
+        return y
+
+
+class Morris4(ModelBase):
+    """Class that implements the Morris function.
+
+    Parameters
+    ----------
+    num_params : int
+        Number of model inputs.
+    num_influential : int
+        Number of influential inputs.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Paper:
+        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
+        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
+        https://doi.org/10.1016/j.jspi.2005.01.001
+    Useful link:
+        http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
+
+    """
+
+    def __init__(self, num_params=100, num_influential=10):
+
+        assert num_influential <= num_params
+        self.influential_params = np.arange(
+            num_influential
+        )  # we already know for this function, for comparing with GSA results
+
+        alpha = np.sqrt(12) - 6 * np.sqrt(0.1 * (num_influential - 1))
+        beta = 12 * np.sqrt(0.1 * (num_influential - 1))
+
+        self.num_params = num_params
+        self.num_influential = num_influential
+        self.alpha = alpha
+        self.beta = beta
+
+    def __len__(self):
+        return self.num_params
+
+    def rescale(self, X):
+        return X
+
+    def __call__(self, X):
+        y = np.zeros(X.shape[0])
+
+        y[:] = self.alpha * np.sum(X[:, : self.num_influential], axis=1)
+        for i in range(self.num_influential - 1):
+            for j in range(i + 1, self.num_influential):
+                y[:] += self.beta * X[:, i] * X[:, j]
+
+        moderately_influential = np.arange(
+            self.num_influential, 2 * self.num_influential
+        )
+        num_moderately_influential = len(moderately_influential)
+        const_factor = (
+            (num_moderately_influential - 1)
+            * (num_moderately_influential - 2)
+            / num_moderately_influential ** (7 / 4)
+        )
+        y[:] += self.alpha / const_factor * np.sum(X[:, moderately_influential], axis=1)
+        for i in moderately_influential[:-1]:
+            for j in range(i + 1, moderately_influential[-1] + 1):
+                y[:] += self.beta / const_factor * X[:, i] * X[:, j]
+
+        num_low_influential = (
+            self.num_params - num_moderately_influential - self.num_influential
+        ) // 2
+        low_influential = np.arange(
+            moderately_influential[-1] + 1,
+            moderately_influential[-1] + 1 + num_low_influential,
+        )
+        const_factor = (
+            (num_low_influential - 1)
+            * (num_low_influential - 2)
+            / num_low_influential ** (8 / 7)
+        )
+        y[:] += self.alpha / const_factor * np.sum(X[:, low_influential], axis=1)
+        for i in low_influential[:-1]:
+            for j in range(i + 1, low_influential[-1] + 1):
+                y[:] += self.beta / const_factor * X[:, i] * X[:, j]
+
         return y
 
     def get_variance_Y(self):
@@ -878,3 +926,44 @@ class SobolGstar(ModelBase):
             ]
         )  # we already know for this function, for comparing with GSA results
         return S_boolean
+
+
+class Nonlinear(ModelBase):
+    """Class that implements nonlinear function y = x0(x1-x2).
+
+    Parameters
+    ----------
+    num_params : int
+        Number of model inputs.
+    num_influential : int
+        Number of influential inputs.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Paper:
+        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
+        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
+        https://doi.org/10.1016/j.jspi.2005.01.001
+    Useful link:
+        http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
+
+    """
+
+    def __init__(self):
+        self.num_params = 10
+
+    def __len__(self):
+        return self.num_params
+
+    def rescale(self, X):
+        return X
+
+    def __call__(self, X):
+        y = np.zeros(X.shape[0])
+        y[:] = X[:, 0] * (X[:, 1] - X[:, 2])
+        return y

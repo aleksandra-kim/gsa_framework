@@ -9,7 +9,7 @@ import shutil
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from ..utils import read_hdf5_array, write_hdf5_array, write_pickle
+from ..utils import read_hdf5_array, write_hdf5_array, write_pickle, read_pickle
 
 
 class SensitivityAnalysisMethod:
@@ -104,7 +104,7 @@ class SensitivityAnalysisMethod:
         dirpath.mkdir(parents=True, exist_ok=True)
 
     def create_model_output_i_chunk_filename(self, i, start, end):
-        return "{}.{}.{}.hdf5".format(i, start, end)
+        return "{}.{}.{}.pickle".format(i, start, min(end, self.iterations))
 
     def create_model_output_filename(self):
         return "Y.{}.{}.{}.hdf5".format(self.sampling_label, self.iterations, self.seed)
@@ -189,7 +189,7 @@ class SensitivityAnalysisMethod:
         across_iterations = True
         chunk_size, num_chunks, _ = self.get_parallel_params(across_iterations)
         Y = np.zeros(
-            shape=(1, 0)
+            shape=(0,)
         )  # TODO change for number of outputs for multidimensional output
         for i in range(num_chunks):
             start = i * chunk_size
@@ -198,7 +198,7 @@ class SensitivityAnalysisMethod:
                 self.dirpath_Y
                 / self.create_model_output_i_chunk_filename(i, start, end)
             )
-            Y_chunk = read_hdf5_array(filepath_Y_chunk)
+            Y_chunk = read_pickle(filepath_Y_chunk)
             Y = np.hstack(
                 [Y, Y_chunk]
             )  # TODO change to vstack for multidimensional output
@@ -212,27 +212,33 @@ class SensitivityAnalysisMethod:
             across_iterations
         )
         for i in range(num_chunks):
-            with h5py.File(self.filepath_X_rescaled, "r") as f:
-                start = i * chunk_size
-                end = (i + 1) * chunk_size
-                X_rescaled = np.array(f["dataset"][start:end, :])
-                with multiprocessing.Pool(processes=self.cpus) as pool:
-                    Y_chunk = pool.map(
-                        self.model,
-                        [
-                            X_rescaled[
-                                j
-                                * chunk_size_per_worker : (j + 1)
-                                * chunk_size_per_worker
-                            ]
-                            for j in range(self.cpus)
-                        ],
-                    )
-            Y_array = np.array([])
-            for y in Y_chunk:
-                Y_array = np.hstack([Y_array, y])
-            filepath_Y_chunk = self.create_model_output_i_chunk_filename(i, start, end)
-            write_hdf5_array(Y_array, self.dirpath_Y / filepath_Y_chunk)
+            start = i * chunk_size
+            end = (i + 1) * chunk_size
+            filepath_Y_chunk = (
+                self.dirpath_Y
+                / self.create_model_output_i_chunk_filename(i, start, end)
+            )
+            if not filepath_Y_chunk.exists():
+                with h5py.File(self.filepath_X_rescaled, "r") as f:
+                    X_rescaled = np.array(f["dataset"][start:end, :])
+                    with multiprocessing.Pool(processes=self.cpus) as pool:
+                        Y_chunk = pool.map(
+                            self.model,
+                            [
+                                X_rescaled[
+                                    j
+                                    * chunk_size_per_worker : (j + 1)
+                                    * chunk_size_per_worker
+                                ]
+                                for j in range(self.cpus)
+                            ],
+                        )
+                Y_array = np.array([])
+                for y in Y_chunk:
+                    Y_array = np.hstack([Y_array, y])
+                write_pickle(Y_array, filepath_Y_chunk)
+            else:
+                print("{} already exists", format(filepath_Y_chunk.name))
         Y = self.generate_model_output_from_chunks()
         write_hdf5_array(Y, self.filepath_Y)
         shutil.rmtree(self.dirpath_Y)  # delete directory with chunks
@@ -240,6 +246,43 @@ class SensitivityAnalysisMethod:
             return Y
         else:
             return self.filepath_Y
+
+    # def run_model_per_worker(self, X, filepath_Y_chunk):
+    #     chunk_size = 1000
+    #     num_jobs = X.shape[0]//chunk_size
+    #     Y_array = np.array([])
+    #     for i in range(num_jobs):
+    #         start = i*chunk_size
+    #         end = (i+1)*chunk_size
+    #         Y = self.model(X[start:end,:])
+    #         Y_array = np.hstack([Y_array, Y])
+    #     write_pickle(Y_array, self.dirpath_Y / filepath_Y_chunk)
+    #
+    # def generate_model_output_parallel(self, return_Y=True):
+    #     """Obtain ``model`` outputs from the ``X_rescaled`` in parallel and write them to a file."""
+    #     self.create_model_output_dir()
+    #     chunk_size_per_worker = self.iterations // (self.cpus-1)
+    #     # chunks = list(range(0, self.iterations+chunk_size_per_worker, chunk_size_per_worker))
+    #     chunks = np.arange(0,self.iterations+10000,10000)
+    #     print(chunks)
+    #     cpus_needed = len(chunks) - 1
+    #     with h5py.File(self.filepath_X_rescaled, "r") as f:
+    #         X_rescaled = np.array(f["dataset"][:])
+    #         with multiprocessing.Pool(processes=self.cpus) as pool:
+    #             pool.starmap(
+    #                 self.run_model_per_worker,
+    #                 [
+    #                     (X_rescaled[chunks[i]:chunks[i+1],:], self.create_model_output_i_chunk_filename(i, chunks[i], chunks[i+1]-1))
+    #                     for i in range(cpus_needed)
+    #                 ],
+    #             )
+    #     Y = self.generate_model_output_from_chunks()
+    #     write_hdf5_array(Y, self.filepath_Y)
+    #     shutil.rmtree(self.dirpath_Y)  # delete directory with chunks
+    #     if return_Y:
+    #         return Y
+    #     else:
+    #         return self.filepath_Y
 
     def generate_model_output_sequential(self, return_Y=True):
         """Obtain ``model`` outputs from the ``X_rescaled`` sequentially and write them to a file."""

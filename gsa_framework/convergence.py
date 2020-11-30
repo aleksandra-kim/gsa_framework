@@ -55,25 +55,26 @@ class Convergence:
     def generate_iterations_min_and_least_common_multiple(
         self, gsa_label, **kwargs
     ):  # TODO should be in methods?
-        if "correlationsGsa" in gsa_label:  # TODO change for delta
-            iterations_least_common_multiple = 1
-            iterations_min = 10  # max(self.iterations // self.num_steps, 20)
-        elif "deltaGsa" in gsa_label:
-            iterations_least_common_multiple = 1
-            iterations_min = 100
-        elif "saltelliGsa" in gsa_label:
+        if "saltelliGsa" in gsa_label:
             iterations_least_common_multiple = self.num_params + 2
-            iterations_min = self.num_params + 2
+            iterations_min_not_saltelli = self.iterations // self.num_steps
+            iterations_min_saltelli = (
+                iterations_min_not_saltelli // (self.num_params + 2) + 1
+            ) * (self.num_params + 2)
+            iterations_min = max(iterations_min_saltelli, self.num_params + 2)
         elif "eFastGsa" in gsa_label:
             M = kwargs.get("M", 4)
             iterations_least_common_multiple = 4 * M ** 2 + 1
-            iterations_min = iterations_least_common_multiple * self.num_params
-        elif "xgboostGsa" in gsa_label:
-            iterations_least_common_multiple = 1
-            iterations_min = max(self.iterations // self.num_steps, 20)
+            iterations_min_not_efast = self.iterations // self.num_steps
+            iterations_min_efast = (
+                iterations_min_not_efast // self.num_params + 1
+            ) * self.num_params
+            iterations_min = max(
+                iterations_min_efast, iterations_least_common_multiple * self.num_params
+            )
         else:
             iterations_least_common_multiple = 1
-            iterations_min = 10
+            iterations_min = max(self.iterations // self.num_steps, 20)
         return iterations_min, iterations_least_common_multiple
 
     def generate_iterations_for_convergence(self):

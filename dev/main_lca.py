@@ -43,8 +43,8 @@ if __name__ == "__main__":
     flag_correlation = 0
     flag_eFAST = 0
     flag_sobol = 0
-    flag_xgboost = 0
-    flag_delta = 1
+    flag_xgboost = 1
+    flag_delta = 0
 
     if flag_correlation:
         iterations = 2 * num_params
@@ -234,7 +234,7 @@ if __name__ == "__main__":
             gsa.generate_gsa_indices,
             gsa.gsa_label,
             write_dir,
-            num_steps=25,
+            num_steps=100,
         )
         conv.run_convergence(
             parameter_inds=parameter_inds_convergence_plot,
