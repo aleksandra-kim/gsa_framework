@@ -238,7 +238,7 @@ class SensitivityAnalysisMethod:
                     Y_array = np.hstack([Y_array, y])
                 write_pickle(Y_array, filepath_Y_chunk)
             else:
-                print("{} already exists", format(filepath_Y_chunk.name))
+                print("{} already exists".format(filepath_Y_chunk.name))
         Y = self.generate_model_output_from_chunks()
         write_hdf5_array(Y, self.filepath_Y)
         shutil.rmtree(self.dirpath_Y)  # delete directory with chunks
