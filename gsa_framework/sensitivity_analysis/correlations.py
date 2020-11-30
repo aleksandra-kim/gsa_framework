@@ -74,50 +74,50 @@ def corrcoef_many_chunks(X, y, option):
     return corrcoef
 
 
-# def corrcoef_parallel(y, filepath_X, cpus, option, selected_iterations=None):
-#     """Compute correlation coefficient efficiently in parallel, using multiprocessing with one job per worker.
-#
-#     ``option`` can be ``pearson`` or ``spearman``.
-#
-#     """
-#
-#     if option == "pearson":
-#         get_chunk_size = get_chunk_size_pearson
-#     elif option == "spearman":
-#         get_chunk_size = get_chunk_size_spearman
-#     with h5py.File(filepath_X, "r") as f:
-#         X = np.array(f["dataset"][:1, :])
-#         num_params = X.shape[1]
-#     del X
-#     chunk_size = get_chunk_size(num_params)
-#     num_jobs = int(np.ceil(np.ceil(num_params / chunk_size) / cpus))
-#     chunks = list(range(0, num_params + num_jobs * chunk_size, num_jobs * chunk_size))
-#     cpus_needed = len(chunks) - 1
-#     results_all = np.array([])
-#     if selected_iterations is None:
-#         selected_iterations = np.arange(len(y))
-#     with h5py.File(filepath_X, "r") as f:
-#         X = np.array(f["dataset"][selected_iterations, :])
-#         with multiprocessing.Pool(processes=cpus_needed) as pool:
-#             results = pool.starmap(
-#                 corrcoef_many_chunks,
-#                 [
-#                     (
-#                         X[selected_iterations, chunks[i] : chunks[i + 1]],
-#                         y[selected_iterations],
-#                         option,
-#                     )
-#                     for i in range(cpus_needed)
-#                 ],
-#             )
-#         results_array = np.array([])
-#         for res in results:
-#             results_array = np.hstack([results_array, res])
-#         results_all = np.hstack([results_all, results_array])
-#     return results_all
+def corrcoef_parallel(y, filepath_X, cpus, option, selected_iterations=None):
+    """Compute correlation coefficient efficiently in parallel, using multiprocessing with one job per worker.
+
+    ``option`` can be ``pearson`` or ``spearman``.
+
+    """
+
+    if option == "pearson":
+        get_chunk_size = get_chunk_size_pearson
+    elif option == "spearman":
+        get_chunk_size = get_chunk_size_spearman
+    with h5py.File(filepath_X, "r") as f:
+        X = np.array(f["dataset"][:1, :])
+        num_params = X.shape[1]
+    del X
+    chunk_size = get_chunk_size(num_params)
+    num_jobs = int(np.ceil(np.ceil(num_params / chunk_size) / cpus))
+    chunks = list(range(0, num_params + num_jobs * chunk_size, num_jobs * chunk_size))
+    cpus_needed = len(chunks) - 1
+    results_all = np.array([])
+    if selected_iterations is None:
+        selected_iterations = np.arange(len(y))
+    with h5py.File(filepath_X, "r") as f:
+        X = np.array(f["dataset"][selected_iterations, :])
+        with multiprocessing.Pool(processes=cpus_needed) as pool:
+            results = pool.starmap(
+                corrcoef_many_chunks,
+                [
+                    (
+                        X[selected_iterations, chunks[i] : chunks[i + 1]],
+                        y[selected_iterations],
+                        option,
+                    )
+                    for i in range(cpus_needed)
+                ],
+            )
+        results_array = np.array([])
+        for res in results:
+            results_array = np.hstack([results_array, res])
+        results_all = np.hstack([results_all, results_array])
+    return results_all
 
 
-def corrcoef_parallel(y, X):
+def corrcoef_parallel2(y, X):
     """Compute correlation coefficient efficiently in parallel, using multiprocessing with one job per worker.
 
     ``option`` can be ``pearson`` or ``spearman``.

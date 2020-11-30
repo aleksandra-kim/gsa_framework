@@ -49,12 +49,16 @@ class LCAModel(ModelBase):
         write_dir,
         # var_threshold=0, #TODO should be either var_threshold or num_params
         num_params=None,
+        lca=None,
     ):
         self.func_unit = func_unit
         self.method = method
-        self.lca = bw.LCA(self.func_unit, self.method)
-        self.lca.lci()
-        self.lca.lcia()
+        if lca is None:
+            self.lca = bw.LCA(self.func_unit, self.method)
+            self.lca.lci()
+            self.lca.lcia()
+        else:
+            self.lca = deepcopy(lca)
         self.write_dir = Path(write_dir)
         self.make_dirs()
         if num_params is None:
@@ -83,7 +87,7 @@ class LCAModel(ModelBase):
         self.static_output = get_score_shift(
             self.default_uncertain_amounts, self.uncertain_tech_params_where, self.lca
         )
-        self.adjusted_score = self.static_output - self.lca.score
+        self.adjusted_score = self.static_output - self.lca.score #2675.372419737564
         method_unit = bw.Method(self.method).metadata["unit"]
         self.output_name = "LCIA scores, [{}]".format(method_unit)
         self.influential_params = []

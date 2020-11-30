@@ -60,7 +60,7 @@ class Convergence:
             iterations_min = 10  # max(self.iterations // self.num_steps, 20)
         elif "deltaGsa" in gsa_label:
             iterations_least_common_multiple = 1
-            iterations_min = 100
+            iterations_min = max(self.iterations // self.num_steps, 100)
         elif "saltelliGsa" in gsa_label:
             iterations_least_common_multiple = self.num_params + 2
             iterations_min = self.num_params + 2
