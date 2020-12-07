@@ -87,7 +87,7 @@ class LCAModel(ModelBase):
         self.static_output = get_score_shift(
             self.default_uncertain_amounts, self.uncertain_tech_params_where, self.lca
         )
-        self.adjusted_score = self.static_output - self.lca.score #2675.372419737564
+        self.adjusted_score = self.static_output - self.lca.score  # 2675.372419737564
         method_unit = bw.Method(self.method).metadata["unit"]
         self.output_name = "LCIA scores, [{}]".format(method_unit)
         self.influential_params = []
@@ -272,15 +272,16 @@ class LCAModel(ModelBase):
         return X_rescaled
 
     def __call__(self, X):
+        lca = deepcopy(self.lca)
         scores = np.zeros(X.shape[0])
         scores[:] = np.nan
         for i, x in enumerate(X):
-            amounts = deepcopy(self.lca.tech_params["amount"])
+            amounts = deepcopy(lca.tech_params["amount"])
             amounts[self.uncertain_tech_params_where] = x
-            self.lca.rebuild_technosphere_matrix(amounts)
-            self.lca.redo_lci()
-            self.lca.redo_lcia()
-            scores[i] = self.lca.score
+            lca.rebuild_technosphere_matrix(amounts)
+            lca.redo_lci()
+            lca.redo_lcia()
+            scores[i] = lca.score
         return scores
 
 

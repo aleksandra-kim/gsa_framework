@@ -23,31 +23,33 @@ if __name__ == "__main__":
     # LCA model
     bw.projects.set_current("GSA for paper")
     co = bw.Database("CH consumption 1.0")
-    act = [act for act in co if "Food" in act["name"]][0]
-    demand = {act: 1}
+    demand_act = [
+        act for act in co if "Food and non-alcoholic beverages sector" in act["name"]
+    ][0]
+    demand = {demand_act: 1}
     method = ("IPCC 2013", "climate change", "GTP 100a")
 
     # Define some variables
     num_params = 10000
     num_influential = num_params // 100
-    iterations_validation = 500
-    write_dir = path_base / "lca_model_{}".format(num_params)
+    iterations_validation = 2000
+    write_dir = path_base / "lca_model_food_{}".format(num_params)
     model = LCAModel(demand, method, write_dir, num_params=num_params)
     gsa_seed = 3403
     validation_seed = 7043
     fig_format = ["html", "pickle"]
 
     parameter_inds_convergence_plot = [1, 2, 3]  # TODO choose for convergence
+    num_steps = 50
 
     # TODO Choose which GSA to perform
     flag_correlation = 0
-    flag_eFAST = 0
-    flag_sobol = 0
-    flag_xgboost = 1
+    flag_sobol = 1
+    flag_xgboost = 0
     flag_delta = 0
 
     if flag_correlation:
-        iterations = 2 * num_params
+        iterations = 4 * num_params
         gsa = CorrelationCoefficients(
             iterations=iterations,
             model=model,
@@ -92,7 +94,7 @@ if __name__ == "__main__":
             gsa.generate_gsa_indices,
             gsa.gsa_label,
             write_dir,
-            num_steps=100,
+            num_steps=num_steps,
         )
         conv.run_convergence(
             parameter_inds=parameter_inds_convergence_plot,
@@ -100,15 +102,15 @@ if __name__ == "__main__":
         )
 
     if flag_sobol:
-        iterations = 100 * num_params
+        iterations = 40 * num_params
         gsa = SaltelliSobol(iterations=iterations, model=model, write_dir=write_dir)
         S_dict = gsa.generate_gsa_indices()  # generate_gsa_indices
         first = S_dict["First order"]
         total = S_dict["Total order"]
-        # gsa.plot_sa_results(
-        #     S_dict,
-        #     fig_format=fig_format,
-        # )
+        gsa.plot_sa_results(
+            S_dict,
+            fig_format=fig_format,
+        )
         # t0 = time.time()
         # val = Validation(
         #     model=model,
@@ -132,55 +134,11 @@ if __name__ == "__main__":
             gsa.generate_gsa_indices,
             gsa.gsa_label,
             write_dir,
-            num_steps=100,
+            num_steps=num_steps,
         )
         conv.run_convergence(
             parameter_inds=parameter_inds_convergence_plot, fig_format=fig_format
         )
-
-    if flag_eFAST:
-        iterations = 65 * num_params
-        M = 4
-        gsa = eFAST(
-            M=M, iterations=iterations, model=model, write_dir=write_dir, seed=gsa_seed
-        )
-        # S_dict = gsa.perform_gsa()
-        S_dict = gsa.generate_gsa_indices()
-        first = S_dict["First order"]
-        total = S_dict["Total order"]
-        gsa.plot_sa_results(
-            S_dict,
-            fig_format=fig_format,
-        )
-
-        t0 = time.time()
-        val = Validation(
-            model=model,
-            iterations=iterations_validation,
-            seed=validation_seed,
-            default_x_rescaled=None,
-            write_dir=write_dir,
-        )
-        tag = "eFastTotalIndex"
-        influential_Y = val.get_influential_Y_from_gsa(total, num_influential, tag=tag)
-        t1 = time.time()
-        print("Total validation time  -> {:8.3f} s \n".format(t1 - t0))
-        val.plot_histogram_Y_all_Y_inf(
-            influential_Y, num_influential, tag=tag, fig_format=fig_format
-        )
-        # conv = Convergence(
-        #     gsa.filepath_Y,
-        #     gsa.num_params,
-        #     gsa.generate_gsa_indices,
-        #     gsa.gsa_label,
-        #     write_dir,
-        #     num_steps=100,
-        #     M=M,
-        # )
-        # conv.run_convergence(
-        #     parameter_inds=parameter_inds_convergence_plot,
-        #     fig_format=fig_format,
-        # )
 
     if flag_xgboost:
         num_boost_round = 400
@@ -234,7 +192,7 @@ if __name__ == "__main__":
             gsa.generate_gsa_indices,
             gsa.gsa_label,
             write_dir,
-            num_steps=100,
+            num_steps=num_steps,
         )
         conv.run_convergence(
             parameter_inds=parameter_inds_convergence_plot,
@@ -257,7 +215,7 @@ if __name__ == "__main__":
             gsa.generate_gsa_indices,
             gsa.gsa_label,
             write_dir,
-            num_steps=25,
+            num_steps=num_steps,
         )
         parameter_inds = [0, 1, 2]
         conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
