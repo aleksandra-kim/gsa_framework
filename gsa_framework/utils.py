@@ -59,3 +59,12 @@ def uniform_rescale(X, inputs):
     right_rescale = np.array(list(inputs.values()))[:, 1]
     X_rescaled = (right_rescale - left_rescale) * X + left_rescale
     return X_rescaled
+
+
+def all_exc_same(tech_params):
+    flag=True # means that all exchanges are exactly the same, including scale, loc, amount
+    for p in tech_params[1:]:
+        if p[["amount","loc", "scale"]] != tech_params[0][["amount","loc", "scale"]]:
+            flag=False
+            break
+    return flag

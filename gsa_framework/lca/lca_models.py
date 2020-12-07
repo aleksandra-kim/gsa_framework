@@ -8,7 +8,7 @@ from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
 
 # Local imports
 from ..model_base import ModelBase
-from ..utils import read_pickle, write_pickle
+from ..utils import read_pickle, write_pickle, all_exc_same
 from ..utils_setac_lca import get_amounts_shift, get_score_shift
 
 # ###############
@@ -59,6 +59,7 @@ class LCAModel(ModelBase):
             self.lca.lcia()
         else:
             self.lca = deepcopy(lca)
+        print(self.lca.score)
         self.write_dir = Path(write_dir)
         self.make_dirs()
         if num_params is None:
@@ -166,8 +167,29 @@ class LCAModel(ModelBase):
                         self.lca.tech_params["uncertainty_type"] > 1,
                     )
                 )[0]
-                assert len(where_temp) == 1
-                scores_dict[where_temp[0]] = scores[i]
+                if len(where_temp) == 1:
+                    scores_dict[where_temp[0]] = scores[i]
+                elif len(where_temp) > 1:
+                    temp_tech_params = self.lca.tech_params[where_temp]
+                    flag_all_excs_same = all_exc_same(temp_tech_params)
+                    if flag_all_excs_same: 
+                        scores_dict[where_temp[0]] = scores[i] # so we can take any exchange
+                    else:
+                        ind = np.where(temp_tech_params['scale']==max(temp_tech_params['scale']))[0] # take max scale
+                        if len(ind)==1: # if only one exc with max scale, then just take it
+                            scores_dict[where_temp[ind[0]]] = scores[i]
+                        elif len(ind)>1 and all_exc_same(temp_tech_params[ind]): # if multiple, but they're all the same, take any
+                            scores_dict[where_temp[ind[0]]] = scores[i]
+                        else:
+                            ind = np.where(temp_tech_params['loc']==max(temp_tech_params['loc']))[0] # take max loc
+                            if len(ind)==1: # if only one exc with max loc, then just take it
+                                scores_dict[where_temp[ind[0]]] = scores[i]
+                            elif len(ind)>1 and all_exc_same(temp_tech_params[ind]): # if multiple, but all the same, take any
+                                scores_dict[where_temp[ind[0]]] = scores[i]
+                            else:
+                                print(temp_tech_params)
+                else:
+                    print("{} row and {} column exchange was not found".format(row,col))
             write_pickle(scores_dict, filepath_scores_dict)
         return scores_dict
 
@@ -272,15 +294,16 @@ class LCAModel(ModelBase):
         return X_rescaled
 
     def __call__(self, X):
+        lca = deepcopy(self.lca)
         scores = np.zeros(X.shape[0])
         scores[:] = np.nan
         for i, x in enumerate(X):
-            amounts = deepcopy(self.lca.tech_params["amount"])
+            amounts = deepcopy(lca.tech_params["amount"])
             amounts[self.uncertain_tech_params_where] = x
-            self.lca.rebuild_technosphere_matrix(amounts)
-            self.lca.redo_lci()
-            self.lca.redo_lcia()
-            scores[i] = self.lca.score
+            lca.rebuild_technosphere_matrix(amounts)
+            lca.redo_lci()
+            lca.redo_lcia()
+            scores[i] = lca.score
         return scores
 
 
