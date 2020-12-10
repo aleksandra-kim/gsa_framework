@@ -59,7 +59,6 @@ class LCAModel(ModelBase):
             self.lca.lcia()
         else:
             self.lca = deepcopy(lca)
-        print(self.lca.score)
         self.write_dir = Path(write_dir)
         self.make_dirs()
         if num_params is None:
