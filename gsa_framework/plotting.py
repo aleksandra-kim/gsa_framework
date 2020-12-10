@@ -55,9 +55,9 @@ def histogram_Y(
         width=410,
         height=220,
         margin=dict(l=20, r=20, t=20, b=20),
-        legend=dict(x=0.43, y=0.96),
+        legend=dict(x=0.6, y=0.96),
     )
-    fig.update_yaxes(title_text="Frequency", range=[-10, 420])
+    fig.update_yaxes(title_text="Frequency")
     fig.update_xaxes(title_text=xaxes_title_text)
     fig.show()
     return fig

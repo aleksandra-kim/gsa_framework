@@ -18,7 +18,7 @@ if __name__ == "__main__":
     # path_base = Path('/data/user/kim_a/paper_gsa/gsa_framework_files')
 
     # 1. Models
-    num_params = 800
+    num_params = 100
     if num_params < 500:
         num_influential = 10
     else:

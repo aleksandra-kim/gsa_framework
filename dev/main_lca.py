@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # path_base = Path('/data/user/kim_a/paper_gsa/gsa_framework_files')
 
     # LCA model
-    bw.projects.set_current("GSA for paper")
+    bw.projects.set_current("GSA for oases")
     co = bw.Database("CH consumption 1.0")
     demand_act = [
         act for act in co if "Food and non-alcoholic beverages sector" in act["name"]
