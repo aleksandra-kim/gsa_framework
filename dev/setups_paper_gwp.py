@@ -14,12 +14,14 @@ import dask
 from gsa_framework.sensitivity_analysis.delta_moment import delta_moment_stability
 
 
-def setup_lca_model(num_params=None, write_dir_name=None, flag_generate_scores_dict=False):
+def setup_lca_model_oases(num_params=None, write_dir_name=None, flag_generate_scores_dict=False):
     path_base = Path('/data/user/kim_a/')
     # LCA model
     bw.projects.set_current("GSA for oases")
     co = bw.Database("CH consumption 1.0")
-    demand_act = [act for act in co if "ch hh average consumption" in act['name']][0]
+    demand_act = [act for act in co if "ch hh average consumption" in act['name']]
+    assert len(demand_act)==1
+    demand_act = demand_act[0]
     demand = {demand_act: 1}
     method = ("IPCC 2013", "climate change", "GWP 100a")
     # num_params
@@ -42,7 +44,37 @@ def setup_lca_model(num_params=None, write_dir_name=None, flag_generate_scores_d
     gsa_seed = 92374523
     return model, write_dir, gsa_seed
 
-def setup_corr(num_params, iterations):
+def setup_lca_model_paper(num_params=None, write_dir=None, flag_generate_scores_dict=False):
+    # LCA model
+    bw.projects.set_current("GSA for paper")
+    co = bw.Database("CH consumption 1.0")
+    demand_act = [act for act in co if "Food" in act['name']]
+    assert len(demand_act)==1
+    demand_act = demand_act[0]
+    demand = {demand_act: 1}
+    method = ("IPCC 2013", "climate change", "GWP 100a")
+    # num_params
+    if num_params is None:
+        lca = bw.LCA(demand, method)
+        lca.lci()
+        lca.lcia()
+        print("LCA score is {}".format(lca.score))
+        all_uncertain_params = lca.tech_params[lca.tech_params['uncertainty_type']>1]
+        num_params = len(all_uncertain_params)
+        print('Total number of uncertain exchanges is {}'.format(num_params))
+    # Define some variables
+    if write_dir is None:
+        path_base = Path('/data/user/kim_a/paper_gsa')
+        write_dir = path_base / "lca_model_food_{}".format(num_params)
+    if flag_generate_scores_dict:
+        model = LCAModel(demand, method, write_dir) # generate scores_dict
+        del model
+    model = LCAModel(demand, method, write_dir, num_params=num_params)
+    gsa_seed = 92374523
+    return model, write_dir, gsa_seed
+
+
+def setup_corr(num_params, iterations, setup_lca_model):
     model, write_dir, gsa_seed = setup_lca_model(num_params)
     # Setup GSA
     gsa = CorrelationCoefficients(
@@ -53,12 +85,12 @@ def setup_corr(num_params, iterations):
     )
     return gsa
 
-def setup_salt(num_params, iterations):
+def setup_salt(num_params, iterations, setup_lca_model):
     model, write_dir, gsa_seed = setup_lca_model(num_params)
     gsa = SaltelliSobol(iterations=iterations, model=model, write_dir=write_dir)
     return gsa
 
-def setup_delt(num_params, iterations):
+def setup_delt(num_params, iterations, setup_lca_model):
     model, write_dir, gsa_seed = setup_lca_model(num_params)
     num_resamples = 1
     gsa = DeltaMoment(
@@ -70,7 +102,7 @@ def setup_delt(num_params, iterations):
     )
     return gsa
 
-def setup_xgbo(num_params, iterations):
+def setup_xgbo(num_params, iterations, setup_lca_model):
     model, write_dir, gsa_seed = setup_lca_model(num_params)
     num_boost_round = 400
     tuning_parameters = {
@@ -106,15 +138,15 @@ def write_X_chunks(gsa, n_workers):
         filepath_X_chunk = gsa.dirpath_Y / "X.unitcube.{}.{}.pickle".format(i, n_workers)
         write_pickle(X_chunk, filepath_X_chunk)
 
-def compute_scores_per_worker(option, num_params, iterations, i_worker, n_workers):
+def compute_scores_per_worker(option, num_params, iterations, i_worker, n_workers, setup_lca_model):
     if option == "corr":
-        gsa = setup_corr(num_params, iterations)
+        gsa = setup_corr(num_params, iterations, setup_lca_model)
     elif option == "salt":
-        gsa = setup_salt(num_params, iterations)
+        gsa = setup_salt(num_params, iterations, setup_lca_model)
     elif option == 'delt':
-        gsa = setup_delt(num_params, iterations)
+        gsa = setup_delt(num_params, iterations, setup_lca_model)
     elif option == 'xgbo':
-        gsa = setup_xgbo(num_params, iterations)
+        gsa = setup_xgbo(num_params, iterations, setup_lca_model)
     gsa.dirpath_Y.mkdir(parents=True, exist_ok=True)
     filepath_X_chunk = gsa.dirpath_Y / "X.unitcube.{}.{}.pickle".format(i_worker, n_workers)
     X_chunk_unitcube = read_pickle(filepath_X_chunk)
