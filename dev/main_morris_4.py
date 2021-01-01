@@ -34,7 +34,7 @@ if __name__ == "__main__":
     fig_format = ["html", "pickle"]  # can have elements "pdf", "html", "pickle"
 
     # TODO Choose which GSA to perform
-    flag_sobol = 1
+    flag_sobol = 0
     flag_correlation = 0
     flag_eFAST = 0
     flag_xgboost = 0

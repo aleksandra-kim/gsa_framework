@@ -67,95 +67,6 @@ class Morris(ModelBase):
                 y[:] += self.beta * X[:, i] * X[:, j]
         return y
 
-
-class Morris4(ModelBase):
-    """Class that implements the Morris function.
-
-    Parameters
-    ----------
-    num_params : int
-        Number of model inputs.
-    num_influential : int
-        Number of influential inputs.
-
-    Returns
-    -------
-    y : np.array of size [iterations, 1]
-        Model outputs.
-
-    References
-    ----------
-    Paper:
-        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
-        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
-        https://doi.org/10.1016/j.jspi.2005.01.001
-    Useful link:
-        http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
-
-    """
-
-    def __init__(self, num_params=100, num_influential=10):
-
-        assert num_influential <= num_params
-        self.influential_params = np.arange(
-            num_influential
-        )  # we already know for this function, for comparing with GSA results
-
-        alpha = np.sqrt(12) - 6 * np.sqrt(0.1 * (num_influential - 1))
-        beta = 12 * np.sqrt(0.1 * (num_influential - 1))
-
-        self.num_params = num_params
-        self.num_influential = num_influential
-        self.alpha = alpha
-        self.beta = beta
-
-    def __len__(self):
-        return self.num_params
-
-    def rescale(self, X):
-        return X
-
-    def __call__(self, X):
-        y = np.zeros(X.shape[0])
-
-        y[:] = self.alpha * np.sum(X[:, : self.num_influential], axis=1)
-        for i in range(self.num_influential - 1):
-            for j in range(i + 1, self.num_influential):
-                y[:] += self.beta * X[:, i] * X[:, j]
-
-        moderately_influential = np.arange(
-            self.num_influential, 2 * self.num_influential
-        )
-        num_moderately_influential = len(moderately_influential)
-        const_factor = (
-            (num_moderately_influential - 1)
-            * (num_moderately_influential - 2)
-            / num_moderately_influential ** (7 / 4)
-        )
-        y[:] += self.alpha / const_factor * np.sum(X[:, moderately_influential], axis=1)
-        for i in moderately_influential[:-1]:
-            for j in range(i + 1, moderately_influential[-1] + 1):
-                y[:] += self.beta / const_factor * X[:, i] * X[:, j]
-
-        num_low_influential = (
-            self.num_params - num_moderately_influential - self.num_influential
-        ) // 2
-        low_influential = np.arange(
-            moderately_influential[-1] + 1,
-            moderately_influential[-1] + 1 + num_low_influential,
-        )
-        const_factor = (
-            (num_low_influential - 1)
-            * (num_low_influential - 2)
-            / num_low_influential ** (8 / 7)
-        )
-        y[:] += self.alpha / const_factor * np.sum(X[:, low_influential], axis=1)
-        for i in low_influential[:-1]:
-            for j in range(i + 1, low_influential[-1] + 1):
-                y[:] += self.beta / const_factor * X[:, i] * X[:, j]
-
-        return y
-
     def get_variance_Y(self):
         # Let $ summand1 = \alpha \sum_{i=1}^k x_i $
         # and $ summand2 = \beta \sum_{i=1}^{k-1} \sum_{j=i}^k x_i x_j $
@@ -255,6 +166,101 @@ class Morris4(ModelBase):
             [
                 np.ones(self.num_influential),
                 np.zeros(self.num_params - self.num_influential),
+            ]
+        )
+        return S_boolean
+
+
+class Morris4(ModelBase):
+    """Class that implements the Morris function.
+
+    Parameters
+    ----------
+    num_params : int
+        Number of model inputs.
+    num_influential : int
+        Number of influential inputs.
+
+    Returns
+    -------
+    y : np.array of size [iterations, 1]
+        Model outputs.
+
+    References
+    ----------
+    Paper:
+        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
+        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
+        https://doi.org/10.1016/j.jspi.2005.01.001
+    Useful link:
+        http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
+
+    """
+
+    def __init__(self, num_params=100, num_influential=10):
+
+        assert num_influential <= num_params
+        self.influential_params = np.arange(
+            num_influential
+        )  # we already know for this function, for comparing with GSA results
+
+        self.num_params = num_params
+        self.num_influential = num_influential
+        self.morris = Morris(self.num_influential, self.num_influential)
+        self.alpha = self.morris.alpha
+        self.beta = self.morris.beta
+        # level of influence
+        self.level0_const = 1
+        self.level1_const = 1 / np.sqrt(2)
+        self.level2_const = 1 / np.sqrt(10)
+        self.S_dict_analytical = self.get_sensitivity_indices()
+        self.S_boolean = self.get_boolean_indices()
+
+    def __len__(self):
+        return self.num_params
+
+    def rescale(self, X):
+        return X
+
+    def __call__(self, X):
+        k = self.num_influential
+        y_level0 = self.level0_const * self.morris(X[:, 0:k])
+        y_level1 = self.level1_const * self.morris(X[:, k : 2 * k])
+        y_level2 = self.level2_const * self.morris(X[:, 2 * k : 3 * k])
+        y = y_level0 + y_level1 + y_level2
+        return y
+
+    def get_sensitivity_indices(self):
+        Var_Y_ = self.morris.get_variance_Y() * (
+            self.level0_const ** 2 + self.level1_const ** 2 + self.level2_const ** 2
+        )
+        first = np.hstack(
+            [
+                self.level0_const ** 2 * self.morris.get_first_order(Var_Y_),
+                self.level1_const ** 2 * self.morris.get_first_order(Var_Y_),
+                self.level2_const ** 2 * self.morris.get_first_order(Var_Y_),
+                np.zeros(self.num_params - 3 * self.num_influential),
+            ]
+        )
+        total = np.hstack(
+            [
+                self.level0_const ** 2 * self.morris.get_total_order(Var_Y_),
+                self.level1_const ** 2 * self.morris.get_total_order(Var_Y_),
+                self.level2_const ** 2 * self.morris.get_total_order(Var_Y_),
+                np.zeros(self.num_params - 3 * self.num_influential),
+            ]
+        )
+        dict_ = {
+            "First order": first,
+            "Total order": total,
+        }
+        return dict_
+
+    def get_boolean_indices(self):
+        S_boolean = np.hstack(
+            [
+                np.ones(2 * self.num_influential),
+                np.zeros(self.num_params - 2 * self.num_influential),
             ]
         )
         return S_boolean
