@@ -117,7 +117,7 @@ def corrcoef_parallel(y, filepath_X, cpus, option, selected_iterations=None):
     return results_all
 
 
-def corrcoef_parallel_v2(y, X):
+def corrcoef_parallel_stability_spearman(y, X, cpus=None):
     """Compute correlation coefficient efficiently in parallel, using multiprocessing with one job per worker.
 
     ``option`` can be ``pearson`` or ``spearman``.
@@ -127,7 +127,11 @@ def corrcoef_parallel_v2(y, X):
     get_chunk_size = get_chunk_size_spearman
     num_params = X.shape[1]
     chunk_size = get_chunk_size(num_params)
-    cpus = multiprocessing.cpu_count()
+    cpus = min(
+        # There has to be a way to make this more elegant, -> S: Set default cpus to inf?
+        cpus or multiprocessing.cpu_count(),
+        multiprocessing.cpu_count(),
+    )
     num_jobs = int(np.ceil(np.ceil(num_params / chunk_size) / cpus))
     chunks = list(range(0, num_params + num_jobs * chunk_size, num_jobs * chunk_size))
     cpus_needed = len(chunks) - 1
@@ -146,7 +150,9 @@ def corrcoef_parallel_v2(y, X):
     results_array = np.array([])
     for res in results:
         results_array = np.hstack([results_array, res])
-    return results_array
+
+    S_dict = {"spearman": results_array}
+    return S_dict
 
 
 def correlation_coefficients(
