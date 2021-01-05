@@ -11,7 +11,6 @@ from gsa_framework.utils import read_hdf5_array, read_pickle, write_hdf5_array, 
 import h5py
 from gsa_framework.convergence import Convergence
 import dask
-from gsa_framework.sensitivity_analysis.delta_moment import delta_moment_stability
 
 
 def setup_lca_model_oases(num_params=None, write_dir_name=None, flag_generate_scores_dict=False):
