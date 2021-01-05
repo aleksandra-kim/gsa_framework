@@ -74,3 +74,42 @@ def sobol_indices(filepath_Y, num_params, selected_iterations=None):
         "Total order": total,
     }
     return sa_dict
+
+
+def sobol_indices_stability(Y, num_params):
+    """Compute estimations of Sobol' first and total order indices.
+
+    High values of the Sobol first order index signify important parameters, while low values of the  total indices
+    point to non-important parameters. First order computes main effects only, total order takes into account
+    interactions between parameters.
+
+    Parameters
+    ----------
+    gsa_dict : dict
+        Dictionary that contains model outputs ``y`` obtained by running model on Saltelli samples,
+        and number of parameters ``num_params``.
+
+    Returns
+    -------
+    sa_dict : dict
+        Dictionary that contains computed sensitivity indices.
+
+    References
+    ----------
+    Paper:
+        Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index
+        Saltelli A., Annoni P., Azzini I., Campolongo F., Ratto M., Tarantola S., 2010
+        https://doi.org/10.1016/j.cpc.2009.09.018
+    Link with the original implementation:
+        https://github.com/SALib/SALib/blob/master/src/SALib/analyze/sobol.py
+
+    """
+
+    A, B, AB = separate_output_values(Y, num_params)
+    first = sobol_first_order(A, AB, B)
+    total = sobol_total_order(A, AB, B)
+    sa_dict = {
+        "First order": first,
+        "Total order": total,
+    }
+    return sa_dict
