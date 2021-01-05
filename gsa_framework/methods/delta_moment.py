@@ -9,9 +9,10 @@ class DeltaMoment(SAM):
     sampling_label = "latinSampling"
     gsa_label = "deltaGsa"
 
-    def __init__(self, num_resamples=10, **kwargs):
+    def __init__(self, num_resamples=1, **kwargs):
         super().__init__(**kwargs)
         self.num_resamples = num_resamples
+        self.conf_level = kwargs.get("conf_level", 0.95)
         self.gsa_label = self.gsa_label + "Nr{}".format(self.num_resamples)
         self.write_dir_convergence = (
             self.write_dir / "convergence_intermediate_{}".format(self.gsa_label)
@@ -39,25 +40,25 @@ class DeltaMoment(SAM):
             S_dict = delta_moment(
                 self.filepath_Y,
                 self.filepath_X_rescaled,
-                self.iterations,
-                self.num_params,
-                seed=self.seed,
-                num_resamples=self.num_resamples,
+                self.num_resamples,
+                self.conf_level,
+                self.seed,
+                self.cpus,
             )
-        else:
-            iterations = kwargs.get("iterations", self.iterations)
-            iterations_step = kwargs.get("iterations_step", self.iterations)
-            filepath_S = self.create_S_convergence_filepath(iterations_step, iterations)
-            if not filepath_S.exists():
-                S_dict = delta_moment(
-                    filepath_Y=self.filepath_Y,
-                    filepath_X=self.filepath_X_rescaled,
-                    iterations=iterations,
-                    num_params=self.num_params,
-                    seed=self.seed,
-                    num_resamples=self.num_resamples,
-                )
-                write_pickle(S_dict, filepath_S)
-            else:
-                S_dict = read_pickle(filepath_S)
+        # else:
+        #     iterations = kwargs.get("iterations", self.iterations)
+        #     iterations_step = kwargs.get("iterations_step", self.iterations)
+        #     filepath_S = self.create_S_convergence_filepath(iterations_step, iterations)
+        #     if not filepath_S.exists():
+        #         S_dict = delta_moment(
+        #             filepath_Y=self.filepath_Y,
+        #             filepath_X=self.filepath_X_rescaled,
+        #             iterations=iterations,
+        #             num_params=self.num_params,
+        #             seed=self.seed,
+        #             num_resamples=self.num_resamples,
+        #         )
+        #         write_pickle(S_dict, filepath_S)
+        #     else:
+        #         S_dict = read_pickle(filepath_S)
         return S_dict
