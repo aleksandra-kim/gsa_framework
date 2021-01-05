@@ -97,6 +97,33 @@ def delta_parallel(Y, filepath_X, num_resamples, conf_level, cpus):
     return results_all_delta, results_all_delta_conf
 
 
+def delta_parallel_stability(Y, X, num_resamples, conf_level, cpus):
+    num_params = X.shape[1]
+    num_jobs = int(np.ceil(num_params / cpus))
+    chunks = list(range(0, num_params + num_jobs, num_jobs))
+    cpus_needed = len(chunks) - 1
+    results_all_delta = np.array([])
+    results_all_delta_conf = np.array([])
+    with multiprocessing.Pool(processes=cpus_needed) as pool:
+        results = pool.starmap(
+            bias_reduced_delta_many_chunks,
+            [
+                (Y, X[:, chunks[i] : chunks[i + 1]], num_resamples, conf_level)
+                for i in range(cpus_needed)
+            ],
+        )
+    results_array_delta = np.array([])
+    results_array_delta_conf = np.array([])
+    for res in results:
+        results_array_delta = np.hstack([results_array_delta, res[::2]])
+        results_array_delta_conf = np.hstack([results_array_delta_conf, res[1::2]])
+    results_all_delta = np.hstack([results_all_delta, results_array_delta])
+    results_all_delta_conf = np.hstack(
+        [results_all_delta_conf, results_array_delta_conf]
+    )
+    return results_all_delta, results_all_delta_conf
+
+
 def delta_moment(
     filepath_Y,
     filepath_X_rescaled,
@@ -175,27 +202,37 @@ def bias_reduced_delta(Y, Ygrid, X, m, num_resamples, conf_level, fy=None, xr=No
     return d.mean(), get_z_alpha_2(conf_level) * d.std(ddof=1)
 
 
-# def delta_moment_stability(Y, X, num_resamples=10):
-#     iterations = X.shape[0]
-#     num_params = X.shape[1]
-#     # equal frequency partition
-#     exp = 2 / (7 + np.tanh((1500 - iterations) / 500))
-#     M = int(np.round(min(int(np.ceil(iterations ** exp)), 48)))
-#     m = np.linspace(0, iterations, M + 1)
-#     Ygrid = np.linspace(np.min(Y), np.max(Y), 100)
-#
-#     S_dict = {"delta": [np.nan] * num_params}
-#
-#     try:
-#         for i in range(num_params):
-#             X_i = X[:, i]
-#             S_dict["delta"][i] = bias_reduced_delta(Y, Ygrid, X_i, m, num_resamples)
-#     except np.linalg.LinAlgError:
-#         msg = "Singular matrix detected\n"
-#         msg += "This may be due to the sample size ({}) being too small\n".format(
-#             Y.size
-#         )
-#         msg += "If this is not the case, check Y values or raise an issue with the\n"
-#         msg += "SALib team"
-#         raise np.linalg.LinAlgError(msg)
-#     return S_dict
+def delta_moment_parallel_stability(
+    Y,
+    X_rescaled,
+    num_resamples=1,
+    conf_level=0.95,
+    seed=None,
+    cpus=None,
+):
+    """Compute estimations of different correlation coefficients, such as Pearson and Spearman.
+
+    Parameters
+    ----------
+    gsa_dict : dict
+        Dictionary that contains parameter sampling matrix ``X`` and model outputs ``y``.
+
+    Returns
+    -------
+
+    Dictionary that contains computed sensitivity indices.
+
+    """
+    np.random.seed(seed)
+    cpus = min(
+        # There has to be a way to make this more elegant, -> S: Set default cpus to inf?
+        cpus or multiprocessing.cpu_count(),
+        multiprocessing.cpu_count(),
+    )
+    results_delta, results_delta_conf = delta_parallel_stability(
+        Y, X_rescaled, num_resamples, conf_level, cpus
+    )
+    return {
+        "delta": results_delta,
+        "delta_conf": results_delta_conf,
+    }
