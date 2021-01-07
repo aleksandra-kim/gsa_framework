@@ -236,3 +236,36 @@ def delta_moment_parallel_stability(
         "delta": results_delta,
         "delta_conf": results_delta_conf,
     }
+
+
+def delta_moment_stability(
+    Y,
+    X_rescaled,
+    num_resamples=1,
+    conf_level=0.95,
+    seed=None,
+):
+    """Compute estimations of different correlation coefficients, such as Pearson and Spearman.
+
+    Parameters
+    ----------
+    gsa_dict : dict
+        Dictionary that contains parameter sampling matrix ``X`` and model outputs ``y``.
+
+    Returns
+    -------
+
+    Dictionary that contains computed sensitivity indices.
+
+    """
+    np.random.seed(seed)
+    results_delta, results_delta_conf = bias_reduced_delta_many_chunks(
+        Y,
+        X_rescaled,
+        num_resamples=num_resamples,
+        conf_level=conf_level,
+    )
+    return {
+        "delta": results_delta,
+        "delta_conf": results_delta_conf,
+    }
