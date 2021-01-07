@@ -1,4 +1,5 @@
 from gsa_framework.lca import LCAModel
+from gsa_framework.test_functions import Morris4
 from gsa_framework.methods.correlations import CorrelationCoefficients
 from gsa_framework.methods.saltelli_sobol import SaltelliSobol
 from gsa_framework.methods.delta_moment import DeltaMoment
@@ -73,8 +74,17 @@ def setup_lca_model_paper(num_params=None, write_dir=None, flag_generate_scores_
     return model, write_dir, gsa_seed
 
 
-def setup_corr(num_params, iterations, setup_lca_model):
-    model, write_dir, gsa_seed = setup_lca_model(num_params)
+def setup_morris4_model(num_params):
+    path_base = Path('/data/user/kim_a/paper_gsa/')
+    num_influential = num_params // 100
+    write_dir = path_base / "{}_morris4".format(num_params)
+    model = Morris4(num_params=num_params, num_influential=num_influential)
+    gsa_seed = 3407
+    return model, write_dir, gsa_seed
+
+
+def setup_corr(num_params, iterations, setup_model):
+    model, write_dir, gsa_seed = setup_model(num_params)
     # Setup GSA
     gsa = CorrelationCoefficients(
         iterations=iterations,
@@ -84,13 +94,13 @@ def setup_corr(num_params, iterations, setup_lca_model):
     )
     return gsa
 
-def setup_salt(num_params, iterations, setup_lca_model):
-    model, write_dir, gsa_seed = setup_lca_model(num_params)
+def setup_salt(num_params, iterations, setup_model):
+    model, write_dir, gsa_seed = setup_model(num_params)
     gsa = SaltelliSobol(iterations=iterations, model=model, write_dir=write_dir)
     return gsa
 
-def setup_delt(num_params, iterations, setup_lca_model):
-    model, write_dir, gsa_seed = setup_lca_model(num_params)
+def setup_delt(num_params, iterations, setup_model):
+    model, write_dir, gsa_seed = setup_model(num_params)
     num_resamples = 1
     gsa = DeltaMoment(
         iterations=iterations,
@@ -101,7 +111,7 @@ def setup_delt(num_params, iterations, setup_lca_model):
     )
     return gsa
 
-def setup_xgbo(num_params, iterations, setup_lca_model):
+def setup_xgbo_lca(num_params, iterations, setup_lca_model):
     model, write_dir, gsa_seed = setup_lca_model(num_params)
     num_boost_round = 400
     tuning_parameters = {
@@ -123,6 +133,31 @@ def setup_xgbo(num_params, iterations, setup_lca_model):
         xgb_model=None,
     )
     return gsa
+
+def setup_xgbo_morris4(num_params, iterations, setup_morris4_model):
+    # TODO tune properly
+    model, write_dir, gsa_seed = setup_morris4_model(num_params)
+    num_boost_round = 400
+    tuning_parameters = {
+         'max_depth': 6,  
+         'eta': 0.1,
+         'objective': 'reg:squarederror',
+         'n_jobs': -1,
+         'refresh_leaf': True,
+         'subsample': 0.6,
+         'min_child_weight': 0.5,
+    }
+    gsa = GradientBoosting(
+        iterations=iterations,
+        model=model,
+        write_dir=write_dir,
+        seed=gsa_seed,
+        tuning_parameters=tuning_parameters,
+        num_boost_round=num_boost_round,
+        xgb_model=None,
+    )
+    return gsa
+
 
 def write_X_chunks(gsa, n_workers):
     X = gsa.generate_unitcube_samples_based_on_method(gsa.iterations)

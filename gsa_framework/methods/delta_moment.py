@@ -18,6 +18,10 @@ class DeltaMoment(SAM):
             self.write_dir / "convergence_intermediate_{}".format(self.gsa_label)
         )  # TODO
         self.write_dir_convergence.mkdir(parents=True, exist_ok=True)
+        self.write_dir_stability = (
+            self.write_dir / "stability_intermediate_{}".format(self.gsa_label)
+        )  # TODO
+        self.write_dir_stability.mkdir(parents=True, exist_ok=True)
 
     def create_S_convergence_filepath(self, iterations_step, iterations):
         filename = "S.{}.{}.{}Step{}.{}.pickle".format(
