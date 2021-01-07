@@ -76,7 +76,9 @@ def sobol_indices(filepath_Y, num_params, selected_iterations=None):
     return sa_dict
 
 
-def sobol_indices_stability(Y, num_params):
+def sobol_indices_stability(
+    Y, num_params, iterations_for_convergence, num_bootstrap=None
+):
     """Compute estimations of Sobol' first and total order indices.
 
     High values of the Sobol first order index signify important parameters, while low values of the  total indices
@@ -105,11 +107,21 @@ def sobol_indices_stability(Y, num_params):
 
     """
 
-    A, B, AB = separate_output_values(Y, num_params)
-    first = sobol_first_order(A, AB, B)
-    total = sobol_total_order(A, AB, B)
-    sa_dict = {
-        "First order": first,
-        "Total order": total,
-    }
+    for iterations_current in iterations_for_convergence:
+        Ycurrent = Y[:iterations_current]
+        A, B, AB = separate_output_values(Ycurrent, num_params)
+        choice = np.random.randint(
+            iterations_current, size=(iterations_current, num_bootstrap)
+        )
+        A_choice = A[choice]
+        B_choice = B[choice]
+        for j in range(num_params):
+            first = sobol_first_order(A_choice, AB[choice, j], B_choice)
+            total = sobol_total_order(A_choice, AB[choice, j], B_choice)
+        sa_dict = {
+            iterations_current: {
+                "First order": first,
+                "Total order": total,
+            }
+        }
     return sa_dict
