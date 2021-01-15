@@ -259,13 +259,13 @@ def delta_moment_stability(
 
     """
     np.random.seed(seed)
-    results_delta, results_delta_conf = bias_reduced_delta_many_chunks(
+    results = bias_reduced_delta_many_chunks(
         Y,
         X_rescaled,
         num_resamples=num_resamples,
         conf_level=conf_level,
     )
     return {
-        "delta": results_delta,
-        "delta_conf": results_delta_conf,
+        "delta": results[::2],
+        "delta_conf": results[1::2],
     }
