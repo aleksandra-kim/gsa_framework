@@ -189,17 +189,21 @@ def calc_delta(Y, Ygrid, X, m, fy=None, xr=None):
 
 def bias_reduced_delta(Y, Ygrid, X, m, num_resamples, conf_level, fy=None, xr=None):
     """Plischke et al. 2013 bias reduction technique (eqn 30)"""
-    d = np.zeros(num_resamples)
+
     d_hat = calc_delta(Y, Ygrid, X, m, fy=fy, xr=xr)
 
-    N = len(Y)
-    r = np.random.randint(N, size=(num_resamples, N))
-    for i in range(num_resamples):
-        r_i = r[i, :]
-        d[i] = calc_delta(Y[r_i], Ygrid, X[r_i], m)
+    if num_resamples > 0:
+        d = np.zeros(num_resamples)
+        N = len(Y)
+        r = np.random.randint(N, size=(num_resamples, N))
+        for i in range(num_resamples):
+            r_i = r[i, :]
+            d[i] = calc_delta(Y[r_i], Ygrid, X[r_i], m)
 
-    d = 2 * d_hat - d
-    return d.mean(), get_z_alpha_2(conf_level) * d.std(ddof=1)
+        d = 2 * d_hat - d
+        return d.mean(), get_z_alpha_2(conf_level) * d.std(ddof=1)
+    else:
+        return d_hat, np.nan
 
 
 def delta_moment_parallel_stability(
