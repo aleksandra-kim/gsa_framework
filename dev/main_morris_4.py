@@ -28,7 +28,7 @@ if __name__ == "__main__":
     fig_format = ["pickle"]  # can have elements "pdf", "html", "pickle"
 
     iterations = 4 * num_params
-    num_resamples = 1
+    num_resamples = 0
     gsa = DeltaMoment(
         iterations=iterations,
         model=model,
