@@ -101,7 +101,7 @@ def setup_salt(num_params, iterations, setup_model):
 
 def setup_delt(num_params, iterations, setup_model):
     model, write_dir, gsa_seed = setup_model(num_params)
-    num_resamples = 1
+    num_resamples = 0
     gsa = DeltaMoment(
         iterations=iterations,
         model=model,
