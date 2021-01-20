@@ -238,3 +238,273 @@ def correlation_Y1_Y2(
     )
     fig.show()
     return fig
+
+
+def max_min_band_many(data_dicts):
+    nrows = max([len(data_dict) for data_dict in data_dicts.values()])
+    ncols = len(data_dicts)
+    fig = make_subplots(
+        rows=nrows,
+        cols=ncols,
+        shared_yaxes=True,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+    )
+    col = 1
+    annotations = []
+    for data_title, data_dict in data_dicts.items():
+        fig = max_min_band(data_dict, fig, col=col)
+        annotations.append(
+            dict(
+                x=0,
+                y=1.05,  # annotation point
+                xref="x{}".format(col),
+                yref="paper".format(col),
+                text=data_title,
+                showarrow=False,
+                xanchor="left",
+            ),
+        )
+        col += 1
+    fig["layout"].update(annotations=annotations)
+    fig.show()
+    return fig
+
+
+def max_min_band(data_dict, fig=None, col=None):
+    if fig is None:
+        # Plotting
+        nrows = len(data_dict)
+        ncols = 1
+        fig = make_subplots(
+            rows=nrows,
+            cols=ncols,
+            shared_yaxes=True,
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+        )
+        col = 1
+    else:
+        nrows = len(fig._grid_ref)
+        ncols = len(fig._grid_ref[0])
+    opacity = 0.5
+    row = 1
+    for sa_name, data in data_dict.items():
+        x = data["iterations"]
+        width = data["width"]
+        lower = -width / 2
+        upper = +width / 2
+        color = np.random.randint(low=50, high=255, size=3)
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=np.zeros(len(x)),
+                mode="lines",
+                opacity=1,
+                showlegend=False,
+                marker=dict(
+                    color="rgba({},{},{},{})".format(
+                        color[0],
+                        color[1],
+                        color[2],
+                        1,
+                    ),
+                ),
+            ),
+            row=row,
+            col=col,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=lower,
+                mode="lines",
+                opacity=opacity,
+                showlegend=False,
+                marker=dict(
+                    color="rgba({},{},{},{})".format(
+                        color[0],
+                        color[1],
+                        color[2],
+                        opacity,
+                    ),
+                ),
+                line=dict(width=0),
+            ),
+            row=row,
+            col=col,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=upper,
+                showlegend=False,
+                line=dict(width=0),
+                mode="lines",
+                fillcolor="rgba({},{},{},{})".format(
+                    color[0],
+                    color[1],
+                    color[2],
+                    opacity,
+                ),
+                fill="tonexty",
+            ),
+            row=row,
+            col=col,
+        )
+
+        # fig.add_trace(
+        #     go.Scatter(
+        #         x=[convergence_iterations[0], convergence_iterations[-1]],
+        #         y=[CI_THRESHOLD/2, CI_THRESHOLD/2],
+        #         mode="lines",
+        #         opacity=1,
+        #         showlegend=False,
+        #         marker = dict(color='red'),
+        #     ),
+        #     row=row + 1,
+        #     col=1,
+        # )
+        # fig.add_trace(
+        #     go.Scatter(
+        #         x=[convergence_iterations[0], convergence_iterations[-1]],
+        #         y=[-CI_THRESHOLD / 2, -CI_THRESHOLD / 2],
+        #         mode="lines",
+        #         opacity=1,
+        #         showlegend=False,
+        #         marker = dict(color='red'),
+        #     ),
+        #     row=row + 1,
+        #     col=1,
+        # )
+        fig.update_yaxes(title_text=sa_name, row=row, col=col)
+        row += 1
+
+    fig.update_layout(
+        width=300 * ncols,
+        height=300 * nrows,
+    )
+    fig.update_xaxes(title_text="iterations", row=row - 1, col=col)
+    return fig
+
+
+def ranking_convergence(data_dict, fig=None, col=None):
+    if fig is None:
+        # Plotting
+        nrows = 1
+        ncols = 1
+        fig = make_subplots(
+            rows=nrows,
+            cols=ncols,
+            shared_yaxes=True,
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+        )
+        col = 1
+    else:
+        nrows = len(fig._grid_ref)
+        ncols = len(fig._grid_ref[0])
+    opacity = 0.5
+    row = 1
+    for sa_name, data in data_dict.items():
+        x = data["iterations"]
+        means = data["mean"]
+        lower = data["q05"]
+        upper = data["q95"]
+        color = np.random.randint(low=50, high=255, size=3)
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=means,
+                mode="lines",
+                opacity=1,
+                showlegend=False,
+                marker=dict(
+                    color="rgba({},{},{},{})".format(
+                        color[0],
+                        color[1],
+                        color[2],
+                        1,
+                    ),
+                ),
+            ),
+            row=row,
+            col=col,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=lower,
+                mode="lines",
+                opacity=opacity,
+                showlegend=False,
+                marker=dict(
+                    color="rgba({},{},{},{})".format(
+                        color[0],
+                        color[1],
+                        color[2],
+                        opacity,
+                    ),
+                ),
+                line=dict(width=0),
+            ),
+            row=row,
+            col=col,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=upper,
+                showlegend=False,
+                line=dict(width=0),
+                mode="lines",
+                fillcolor="rgba({},{},{},{})".format(
+                    color[0],
+                    color[1],
+                    color[2],
+                    opacity,
+                ),
+                fill="tonexty",
+            ),
+            row=row,
+            col=col,
+        )
+        fig.update_yaxes(title_text=sa_name, row=row, col=col)
+
+    fig.update_layout(
+        width=400 * ncols,
+        height=400 * nrows,
+    )
+    fig.update_xaxes(title_text="iterations", row=row, col=col)
+    return fig
+
+
+def ranking_convergence_many(data_dicts):
+    nrows = 1
+    ncols = len(data_dicts)
+    fig = make_subplots(
+        rows=nrows,
+        cols=ncols,
+        shared_yaxes=False,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+    )
+    col = 1
+    annotations = []
+    for data_title, data_dict in data_dicts.items():
+        fig = ranking_convergence(data_dict, fig, col=col)
+        annotations.append(
+            dict(
+                x=0,
+                y=1.05,  # annotation point
+                xref="x{}".format(col),
+                yref="paper".format(col),
+                text=data_title,
+                showarrow=False,
+                xanchor="left",
+            ),
+        )
+        col += 1
+    fig["layout"].update(annotations=annotations)
+    fig.show()
+    return fig

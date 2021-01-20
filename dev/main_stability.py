@@ -1,16 +1,35 @@
 from gsa_framework.stability_convergence_metrics import *
 from pathlib import Path
 from gsa_framework.utils import read_pickle
+from gsa_framework.stability_convergence_metrics import Stability
+from gsa_framework.plotting import max_min_band_many, ranking_convergence_many
 
-filename_delta = "stability.S.deltaGsaNr1.latinSampling.8000Step160.60.3407.pickle"
-filename_spear = "stability.S.correlationsGsa.randomSampling.4000Step80.60.3407.pickle"
-filepath_stability = Path("write_files") / filename_delta
-stability_dict = read_pickle(filepath_stability)
-parameters = [0, 1, 2, 10, 20, 30]
-sb_parameters = get_ci_convergence_per_parameter(
-    stability_dict,
-    ci_option="student",
-    sensitivity_index_names=["delta"],
-    parameters=parameters,
-)
-plot_confidence_convergence(sb_parameters)
+# 1. Choose which stability dictionaries to include
+path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files")
+
+# 1. Models
+models = ["1000_morris4", "5000_morris4", "10000_morris4", "10000_lca"]
+# models = ["1000_morris4"]
+ranking_stats = {}
+for model in models:
+    if "morris" in model:
+        write_dir = path_base / model
+    elif "lca" in model:
+        write_dir = path_base / "lca_model_food_10000"
+    write_arr = write_dir / "arrays"
+    files = [x for x in write_arr.iterdir() if x.is_file() and "stability." in x.name]
+    files = sorted(files)
+    stability_dicts = []
+    for file in files:
+        stability_dict = read_pickle(file)
+        stability_dicts.append(stability_dict)
+    st = Stability(stability_dicts, write_dir)
+    # data_dicts[model] = st.confidence_intervals_max
+    ranking_stats[model] = st.stat_ranking_all_steps()
+# fig = max_min_band_many(data_dicts)
+
+# ranks = st.rankings['delta']['ranks'][48]
+# sindices = st.sa_stability_dict['delta']['bootstrap'][48]
+# st.stat_ranking(ranks, sindices)
+
+ranking_convergence_many(ranking_stats)
