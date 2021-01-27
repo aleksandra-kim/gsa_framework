@@ -54,8 +54,11 @@ def histogram_Y(
     fig.update_layout(
         width=410,
         height=220,
+        # width=600,
+        # height=300,
         margin=dict(l=20, r=20, t=20, b=20),
         legend=dict(x=0.6, y=0.96),
+        # legend=dict(x=1.0, y=1),
     )
     fig.update_yaxes(title_text="Frequency")
     fig.update_xaxes(title_text=xaxes_title_text)
@@ -127,10 +130,13 @@ def histogram_Y1_Y2(
 
     fig.update_layout(
         barmode="overlay",
-        width=600,
-        height=300,
+        width=410,
+        height=220,
+        # width=600,
+        # height=300,
         margin=dict(l=20, r=20, t=20, b=20),
-        legend=dict(x=1.0, y=1),
+        legend=dict(x=0.6, y=0.96),
+        # legend=dict(x=1.0, y=1),
     )
     fig.update_yaxes(title_text="Frequency")
     fig.update_xaxes(title_text=xaxes_title_text)
@@ -167,6 +173,7 @@ def correlation_Y1_Y2(
             name=trace_name1,
             mode="lines+markers",
             marker=dict(color=color1),
+            showlegend=True,
         ),
         row=1,
         col=1,
@@ -178,6 +185,7 @@ def correlation_Y1_Y2(
             name=trace_name2,
             mode="lines+markers",
             marker=dict(color=color2),
+            showlegend=True,
         ),
         row=1,
         col=1,
@@ -204,7 +212,7 @@ def correlation_Y1_Y2(
     fig.update_layout(
         width=800,
         height=220,
-        legend=dict(x=0.03, y=1.0),  # on top
+        legend=dict(x=0.4, y=1.0),  # on top
         xaxis1=dict(domain=[0.0, 0.63]),
         xaxis2=dict(domain=[0.78, 1.0]),
         margin=dict(l=20, r=20, t=20, b=20),
@@ -266,7 +274,7 @@ def max_min_band_many(data_dicts):
             ),
         )
         col += 1
-    fig["layout"].update(annotations=annotations)
+    # fig["layout"].update(annotations=annotations)
     fig.show()
     return fig
 
@@ -378,13 +386,45 @@ def max_min_band(data_dict, fig=None, col=None):
         #     col=1,
         # )
         fig.update_yaxes(title_text=sa_name, row=row, col=col)
+        # fig.update_yaxes(title_text="$Stat_{indices}$ ", row=row, col=col)
         row += 1
 
     fig.update_layout(
-        width=300 * ncols,
-        height=300 * nrows,
+        width=400 * ncols,
+        height=400 * nrows,
     )
     fig.update_xaxes(title_text="iterations", row=row - 1, col=col)
+    return fig
+
+
+def ranking_convergence_many(data_dicts):
+    nrows = 1
+    ncols = len(data_dicts)
+    fig = make_subplots(
+        rows=nrows,
+        cols=ncols,
+        shared_yaxes=False,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+    )
+    col = 1
+    annotations = []
+    for data_title, data_dict in data_dicts.items():
+        fig = ranking_convergence(data_dict, fig, col=col)
+        annotations.append(
+            dict(
+                x=0,
+                y=1.1,  # annotation point
+                xref="x{}".format(col),
+                yref="paper".format(col),
+                text=data_title,
+                showarrow=False,
+                xanchor="left",
+            ),
+        )
+        col += 1
+    fig["layout"].update(annotations=annotations)
+    fig.show()
     return fig
 
 
@@ -418,7 +458,9 @@ def ranking_convergence(data_dict, fig=None, col=None):
                 y=means,
                 mode="lines",
                 opacity=1,
-                showlegend=False,
+                showlegend=True,
+                legendgroup=sa_name,
+                name=sa_name,
                 marker=dict(
                     color="rgba({},{},{},{})".format(
                         color[0],
@@ -438,6 +480,7 @@ def ranking_convergence(data_dict, fig=None, col=None):
                 mode="lines",
                 opacity=opacity,
                 showlegend=False,
+                legendgroup=sa_name,
                 marker=dict(
                     color="rgba({},{},{},{})".format(
                         color[0],
@@ -456,6 +499,7 @@ def ranking_convergence(data_dict, fig=None, col=None):
                 x=x,
                 y=upper,
                 showlegend=False,
+                legendgroup=sa_name,
                 line=dict(width=0),
                 mode="lines",
                 fillcolor="rgba({},{},{},{})".format(
@@ -469,42 +513,11 @@ def ranking_convergence(data_dict, fig=None, col=None):
             row=row,
             col=col,
         )
-        fig.update_yaxes(title_text=sa_name, row=row, col=col)
+        fig.update_yaxes(title_text="rho", row=row, col=col)
 
     fig.update_layout(
         width=400 * ncols,
         height=400 * nrows,
     )
     fig.update_xaxes(title_text="iterations", row=row, col=col)
-    return fig
-
-
-def ranking_convergence_many(data_dicts):
-    nrows = 1
-    ncols = len(data_dicts)
-    fig = make_subplots(
-        rows=nrows,
-        cols=ncols,
-        shared_yaxes=False,
-        shared_xaxes=True,
-        vertical_spacing=0.05,
-    )
-    col = 1
-    annotations = []
-    for data_title, data_dict in data_dicts.items():
-        fig = ranking_convergence(data_dict, fig, col=col)
-        annotations.append(
-            dict(
-                x=0,
-                y=1.05,  # annotation point
-                xref="x{}".format(col),
-                yref="paper".format(col),
-                text=data_title,
-                showarrow=False,
-                xanchor="left",
-            ),
-        )
-        col += 1
-    fig["layout"].update(annotations=annotations)
-    fig.show()
     return fig

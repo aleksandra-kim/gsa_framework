@@ -77,51 +77,31 @@ def sobol_indices(filepath_Y, num_params, selected_iterations=None):
 
 
 def sobol_indices_stability(
-    Y, num_params, iterations_for_convergence, num_bootstrap=None
+    Y, num_params, iterations_for_convergence, num_bootstrap, stability_seeds=None
 ):
-    """Compute estimations of Sobol' first and total order indices.
-
-    High values of the Sobol first order index signify important parameters, while low values of the  total indices
-    point to non-important parameters. First order computes main effects only, total order takes into account
-    interactions between parameters.
-
-    Parameters
-    ----------
-    gsa_dict : dict
-        Dictionary that contains model outputs ``y`` obtained by running model on Saltelli samples,
-        and number of parameters ``num_params``.
-
-    Returns
-    -------
-    sa_dict : dict
-        Dictionary that contains computed sensitivity indices.
-
-    References
-    ----------
-    Paper:
-        Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index
-        Saltelli A., Annoni P., Azzini I., Campolongo F., Ratto M., Tarantola S., 2010
-        https://doi.org/10.1016/j.cpc.2009.09.018
-    Link with the original implementation:
-        https://github.com/SALib/SALib/blob/master/src/SALib/analyze/sobol.py
-
-    """
-
-    for iterations_current in iterations_for_convergence:
+    S_dict = {}
+    for i, iterations_current in enumerate(iterations_for_convergence):
         Ycurrent = Y[:iterations_current]
+        iterations_per_param = Ycurrent.shape[0] // (num_params + 2)
         A, B, AB = separate_output_values(Ycurrent, num_params)
-        choice = np.random.randint(
-            iterations_current, size=(iterations_current, num_bootstrap)
-        )
-        A_choice = A[choice]
-        B_choice = B[choice]
-        for j in range(num_params):
-            first = sobol_first_order(A_choice, AB[choice, j], B_choice)
-            total = sobol_total_order(A_choice, AB[choice, j], B_choice)
-        sa_dict = {
-            iterations_current: {
-                "First order": first,
-                "Total order": total,
-            }
+        all_first = np.zeros((0, num_params))
+        all_total = np.zeros((0, num_params))
+        for j in range(num_bootstrap):
+            if stability_seeds is not None:
+                stability_seed = stability_seeds[i, j]
+                np.random.seed(stability_seed)
+            choice = np.random.choice(
+                np.arange(iterations_per_param), size=iterations_per_param, replace=True
+            )
+            Aj = A[choice]
+            Bj = B[choice]
+            ABj = AB[choice]
+            first = sobol_first_order(Aj, ABj, Bj)
+            total = sobol_total_order(Aj, ABj, Bj)
+            all_first = np.vstack([all_first, first])
+            all_total = np.vstack([all_total, total])
+        S_dict[iterations_current] = {
+            "first": all_first,
+            "total": all_total,
         }
-    return sa_dict
+    return S_dict
