@@ -2,8 +2,6 @@
 
 Basic project description
 
-## Motivation for not just using SALib
-
 ## Installation
 
 Details on how to install the package
