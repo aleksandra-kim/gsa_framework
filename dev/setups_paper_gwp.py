@@ -150,24 +150,28 @@ def setup_xgbo_lca(num_params, iterations, setup_lca_model, path_base):
 def setup_xgbo_morris4(num_params, iterations, setup_morris4_model, path_base):
     # TODO tune properly
     model, write_dir, gsa_seed = setup_morris4_model(path_base, num_params)
-    num_boost_round = 400
-    tuning_parameters = {
-        "max_depth": 6,
-        "eta": 0.1,
-        "objective": "reg:squarederror",
-        "n_jobs": -1,
-        "refresh_leaf": True,
-        "subsample": 0.6,
-        "min_child_weight": 0.5,
-    }
+    test_size = 0.2
+    xgb_model = None
+    if num_params == 1000:
+        tuning_parameters = dict(
+            learning_rate=0.1,
+            gamma=0,
+            min_child_weight=30,
+            max_depth=2,
+            reg_lambda=10,
+            reg_alpha=0,
+            n_estimators=500,
+            subsample=0.6,
+            colsample_bytree=0.3,
+        )
     gsa = GradientBoosting(
         iterations=iterations,
         model=model,
         write_dir=write_dir,
         seed=gsa_seed,
         tuning_parameters=tuning_parameters,
-        num_boost_round=num_boost_round,
-        xgb_model=None,
+        test_size=test_size,
+        xgb_model=xgb_model,
     )
     return gsa
 
