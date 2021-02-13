@@ -122,6 +122,7 @@ if __name__ == "__main__":
             write_dir=write_dir,
             seed=gsa_seed,
             tuning_parameters=tuning_parameters,
+            test_size=test_size,
             xgb_model=None,
         )
 
