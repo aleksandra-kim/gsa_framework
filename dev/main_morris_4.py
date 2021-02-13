@@ -9,9 +9,7 @@ from sklearn.metrics import explained_variance_score, r2_score
 if __name__ == "__main__":
 
     #     path_base = Path('/data/user/kim_a/paper_gsa/')
-    path_base = Path(
-        "/Users/akim/PycharmProjects/gsa_framework/dev/write_files/paper_gsa"
-    )
+    path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files/")
 
     # 1. Models
     num_params = 1000
@@ -129,7 +127,7 @@ if __name__ == "__main__":
 
         S_dict = gsa.perform_gsa(flag_save_S_dict=True)
         print(S_dict["stat.r2"], S_dict["stat.explained_variance"])
-        gsa.plot_sa_results(
-            {"fscores": S_dict["fscores"]},
-            fig_format=fig_format,
-        )
+        # gsa.plot_sa_results(
+        #     {"fscores": S_dict["fscores"]},
+        #     fig_format=fig_format,
+        # )

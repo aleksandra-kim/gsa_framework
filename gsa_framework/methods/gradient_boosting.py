@@ -7,23 +7,20 @@ from ..utils import write_pickle, read_pickle
 class GradientBoosting(SAM):
     gsa_label = "xgboostGsa"
 
-    def __init__(
-        self,
-        tuning_parameters=None,
-        test_size=0.2,
-        num_boost_round=10,
-        xgb_model=None,
-        **kwargs
-    ):
+    def __init__(self, tuning_parameters=None, test_size=0.2, xgb_model=None, **kwargs):
         super().__init__(**kwargs)
         if tuning_parameters is None:
             tuning_parameters = {}
         tuning_parameters.update({"random_state": self.seed})
         self.tuning_parameters = tuning_parameters
         self.test_size = test_size
-        self.num_boost_round = num_boost_round
         self.xgb_model = xgb_model
         self.gsa_label = self.create_gsa_label()
+        self.write_dir_stability = self.write_dir / "stability_intermediate_{}".format(
+            self.gsa_label
+        )  # TODO
+        self.write_dir_stability.mkdir(parents=True, exist_ok=True)
+
         # self.write_dir_convergence = (
         #     self.write_dir / "convergence_intermediate_{}".format(self.gsa_label)
         # )  # TODO
