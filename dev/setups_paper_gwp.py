@@ -189,16 +189,16 @@ def write_X_chunks(gsa, n_workers):
 
 
 def compute_scores_per_worker(
-    option, num_params, iterations, i_worker, n_workers, setup_lca_model
+    option, num_params, iterations, i_worker, n_workers, setup_lca_model, path_base
 ):
     if option == "corr":
-        gsa = setup_corr(num_params, iterations, setup_lca_model)
+        gsa = setup_corr(num_params, iterations, setup_lca_model, path_base)
     elif option == "salt":
-        gsa = setup_salt(num_params, iterations, setup_lca_model)
+        gsa = setup_salt(num_params, iterations, setup_lca_model, path_base)
     elif option == "delt":
-        gsa = setup_delt(num_params, iterations, setup_lca_model)
+        gsa = setup_delt(num_params, iterations, setup_lca_model, path_base)
     elif option == "xgbo":
-        gsa = setup_xgbo(num_params, iterations, setup_lca_model)
+        gsa = setup_xgbo(num_params, iterations, setup_lca_model, path_base)
     gsa.dirpath_Y.mkdir(parents=True, exist_ok=True)
     filepath_X_chunk = gsa.dirpath_Y / "X.unitcube.{}.{}.pickle".format(
         i_worker, n_workers
