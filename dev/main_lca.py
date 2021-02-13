@@ -10,7 +10,7 @@ from pathlib import Path
 import brightway2 as bw
 import time
 import numpy as np
-from gsa_framework.plotting import histogram_Y1_Y2
+from gsa_framework.plotting import plot_histogram_Y1_Y2
 from gsa_framework.utils import read_hdf5_array
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ class Validation:
                 default_x_rescaled = model.rescale(0.5 * np.ones(self.num_params))
         self.default_x_rescaled = default_x_rescaled
         self.model_output_name = model_output_name
-#         self.X_rescaled, self.Y_all = self.generate_X_rescaled_Y_all_parameters_vary()
+        #         self.X_rescaled, self.Y_all = self.generate_X_rescaled_Y_all_parameters_vary()
         self.X_rescaled = self.generate_X_rescaled_all_parameters_vary()
         self.Y_all = self.generate_Y_all_parameters_vary()
 
@@ -57,7 +57,7 @@ class Validation:
         else:
             X_rescaled = read_hdf5_array(self.filepath_X_rescaled_all)
         return X_rescaled
-    
+
     def generate_Y_all_parameters_vary(self):
         # Model output
         if not self.filepath_Y_all.exists():
@@ -193,7 +193,7 @@ class Validation:
         num_bins=60,
         fig_format=(),
     ):
-        fig = histogram_Y(
+        fig = plot_histogram_Y(
             Y=self.Y_all,
             default_Y=default_Y,
             bin_min=bin_min,
@@ -226,7 +226,7 @@ class Validation:
         bin_max=None,
         num_bins=60,
     ):
-        fig = histogram_Y1_Y2(
+        fig = plot_histogram_Y1_Y2(
             self.Y_all,
             influential_Y,
             default_Y=None,
@@ -267,7 +267,7 @@ class Validation:
         tag=None,
         fig_format=(),
     ):
-        fig = correlation_Y1_Y2(
+        fig = plot_correlation_Y1_Y2(
             Y1=self.Y_all,
             Y2=influential_Y,
             start=0,
