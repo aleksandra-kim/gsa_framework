@@ -1,6 +1,8 @@
 import numpy as np
 from scipy import stats
 from pathlib import Path
+from scipy.stats import spearmanr
+import jenkspy
 
 from .utils import get_z_alpha_2, read_pickle, write_pickle
 
@@ -59,6 +61,56 @@ def get_ci_max_width(sb_dict):
     return data
 
 
+def rho1_jk(Rj, Rk):
+    """Spearman correlation"""
+    rho = spearmanr(Rj, Rk)[0]
+    return rho
+
+
+def rho2_jk(Rj, Rk):
+    """Weighted Spearman correlation"""
+    numerator = (Rj - Rk) ** 2 * (1 / (Rj + 1) + 1 / (Rk + 1))
+    rho = 1 - 2 * np.sum(numerator) / np.max(numerator)
+    return rho
+
+
+def rho3_jk(Rj, Rk):
+    """Weighted Spearman correlation"""
+    numerator = (Rj - Rk) ** 2 / (Rj + 1) / (Rk + 1)
+    rho = 1 - 2 * np.sum(numerator) / np.max(numerator)
+    return rho
+
+
+def rho4_jk(Rj, Rk):
+    """Weighted Spearman correlation"""
+    numerator = (Rj - Rk) ** 2 / (Rj + 1 + Rk + 1)
+    rho = 1 - 2 * np.sum(numerator) / np.max(numerator)
+    return rho
+
+
+def rho5_jk(Rj, Rk):
+    """Correlation coefficient computed on Savage scores"""
+    M = len(Rj)
+    SSarr = 1 / np.arange(1, M + 1)
+    SSsum = np.cumsum(SSarr[::-1])[::-1]
+    SSj = SSsum[Rj]
+    SSk = SSsum[Rk]
+    numerator = (SSj - SSk) ** 2
+    rho = 1 - np.sum(numerator) / 2 / (M - SSsum[0])
+    return rho
+
+
+def rho6_jk(Rj, Rk, Sj, Sk):
+    diff = np.abs(Rj - Rk)
+    Sjk = np.vstack([Sj, Sk])
+    maxs2 = np.max(Sjk, axis=0) ** 2
+    rho = sum(diff * maxs2) / sum(maxs2)
+    return rho
+
+
+#######################
+### Stability class ###
+#######################
 class Stability:
     def __init__(self, stability_dicts, write_dir, **kwargs):
 
@@ -74,6 +126,18 @@ class Stability:
         )
         self.confidence_intervals_max = self.get_confidence_intervals_max()
         self.rankings = self.get_rankings(self.sa_stability_dict)
+        self.num_ranks = kwargs.get("num_ranks", 16)
+        self.clustered_rankings = self.get_clustered_rankings(
+            self.sa_stability_dict, self.num_ranks
+        )
+        self.ranking_rho_dict = {
+            "rho1": rho1_jk,
+            "rho2": rho2_jk,
+            "rho3": rho3_jk,
+            "rho4": rho4_jk,
+            "rho5": rho5_jk,
+            "rho6": rho6_jk,
+        }
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
@@ -82,9 +146,15 @@ class Stability:
             dir_path = self.write_dir / dir
             dir_path.mkdir(parents=True, exist_ok=True)
 
-    def create_ranking_filepath(self, sa_name):
-        filename = "ranking.{}.steps{}.pickle".format(
-            sa_name, len(self.sa_stability_dict[sa_name]["iterations"])
+    def create_ranking_filepath(self, tag, sa_name):
+        filename = "ranking.{}.{}.steps{}.pickle".format(
+            tag, sa_name, len(self.sa_stability_dict[sa_name]["iterations"])
+        )
+        return self.write_dir / "stability" / filename
+
+    def create_ranking_rho_filepath(self, tag, sa_name, rho_name):
+        filename = "ranking.{}.{}.steps{}.{}.pickle".format(
+            tag, sa_name, len(self.sa_stability_dict[sa_name]["iterations"]), rho_name
         )
         return self.write_dir / "stability" / filename
 
@@ -137,55 +207,112 @@ class Stability:
         return confidence_intervals_max
 
     def get_rankings(self, sa_stability_dict):
+        tag = "not_clustered"
         rankings = {}
         for sa_name, data in sa_stability_dict.items():
-            B_list = data["bootstrap"]
+            filepath_ranking = self.create_ranking_filepath(tag, sa_name)
+            if filepath_ranking.exists():
+                ranks_list = read_pickle(filepath_ranking)
+            else:
+                ranks_list = []
+                B_list = data["bootstrap"]
+                for B_array in B_list:
+                    ranks_arr = np.zeros((0, B_array.shape[1]), dtype=int)
+                    for array in B_array:
+                        ranks_arr = np.vstack([ranks_arr, np.argsort(array)[-1::-1]])
+                    ranks_list.append(ranks_arr)
+                write_pickle(ranks_list, filepath_ranking)
             rankings[sa_name] = {
                 "iterations": self.sa_stability_dict[sa_name]["iterations"],
-                "ranks": [],
+                "ranks": ranks_list,
             }
-            for B_array in B_list:
-                ranks = np.zeros((0, B_array.shape[1]), dtype=int)
-                for array in B_array:
-                    ranks = np.vstack([ranks, np.argsort(array)[-1::-1]])
-                rankings[sa_name]["ranks"].append(ranks)
         return rankings
 
-    def stat_ranking(self, ranks, sindices):
+    def get_clustered_rankings(self, sa_stability_dict, num_ranks=16):
+        tag = "clustered{}".format(num_ranks)
+        clustered_rankings = {}
+        for sa_name, data in sa_stability_dict.items():
+            filepath_ranking = self.create_ranking_filepath(tag, sa_name)
+            if filepath_ranking.exists():
+                ranks_list = read_pickle(filepath_ranking)
+            else:
+                ranks_list = []
+                B_list = data["bootstrap"]
+                for B_array in B_list:
+                    ranks_arr = np.zeros(B_array.shape, dtype=int)
+                    ranks_arr[:] = np.nan
+                    for j, array in enumerate(B_array):
+                        breaks = jenkspy.jenks_breaks(array, nb_class=num_ranks)
+                        for b in range(num_ranks):
+                            where = np.where(
+                                np.logical_and(
+                                    array >= breaks[b], array < breaks[b + 1]
+                                )
+                            )[0]
+                            if b == num_ranks - 1:
+                                where = np.where(
+                                    np.logical_and(
+                                        array >= breaks[b], array <= breaks[b + 1]
+                                    )
+                                )[0]
+                            ranks_arr[j, where] = num_ranks - 1 - b
+                    ranks_list.append(ranks_arr)
+                write_pickle(ranks_list, filepath_ranking)
+            clustered_rankings[sa_name] = {
+                "iterations": self.sa_stability_dict[sa_name]["iterations"],
+                "ranks": ranks_list,
+            }
+        return clustered_rankings
+
+    def stat_ranking_rho(self, ranks, sindices, rho_name):
+        rho_jk_func = self.ranking_rho_dict.get(rho_name, "rho6")
         num_bootstrap, num_params = ranks.shape
         rho = np.zeros(num_bootstrap * (num_bootstrap - 1) // 2)
         jk = 0
         for j in range(num_bootstrap):
             for k in range(j + 1, num_bootstrap):
-                diff = np.abs(ranks[j, :] - ranks[k, :])
-                maxs2 = np.max(sindices[[j, k], :], axis=0) ** 2
-                rho[jk] = sum(diff * maxs2) / sum(maxs2)
+                Rj = ranks[j, :]
+                Rk = ranks[k, :]
+                Sj = sindices[j, :]
+                Sk = sindices[k, :]
+                if rho_name in ["rho1", "rho2", "rho3", "rho4", "rho5"]:
+                    rho[jk] = rho_jk_func(Rj, Rk)
+                elif rho_name == "rho6":
+                    rho[jk] = rho_jk_func(Rj, Rk, Sj, Sk)
                 jk += 1
         return rho
 
-    def stat_ranking_all_steps(self):
-        ranking_stats = {}
+    def stat_ranking(self, rho_name, which_ranking="not_clustered"):
+        if which_ranking == "clustered":
+            rankings_dict = self.clustered_rankings
+            tag = "{}{}".format(which_ranking, self.num_ranks)
+        else:
+            rankings_dict = self.rankings
+            tag = which_ranking
+        stat_ranking_dict = {}
         for sa_name in self.sa_names:
-            filepath_rho = self.create_ranking_filepath(sa_name)
+            filepath_rho = self.create_ranking_rho_filepath(tag, sa_name, rho_name)
             if filepath_rho.exists():
                 rho = read_pickle(filepath_rho)
             else:
-                ranks = self.rankings[sa_name]["ranks"]
+                ranks = rankings_dict[sa_name]["ranks"]
                 sindices = self.sa_stability_dict[sa_name]["bootstrap"]
                 num_bootstrap = ranks[0].shape[0]
                 rho = np.zeros((0, num_bootstrap * (num_bootstrap - 1) // 2))
                 for i in range(len(ranks)):
                     ranks_i = ranks[i]
                     sindices_i = sindices[i]
-                    rho = np.vstack([rho, self.stat_ranking(ranks_i, sindices_i)])
+                    rho = np.vstack(
+                        [rho, self.stat_ranking_rho(ranks_i, sindices_i, rho_name)]
+                    )
                 write_pickle(rho, filepath_rho)
-            ranking_stats[sa_name] = {
+            stat_ranking_dict[sa_name] = {
                 "iterations": self.sa_stability_dict[sa_name]["iterations"],
                 "q95": np.percentile(rho, 95, axis=1),
                 "q05": np.percentile(rho, 5, axis=1),
                 "mean": np.mean(rho, axis=1),
             }
-        return ranking_stats
+        return stat_ranking_dict
 
 
 # def plot_confidence_convergence(sb_dict, sensitivity_index_names=None):

@@ -157,7 +157,7 @@ def delta_moment(
     )
     return {
         "delta": results_delta,
-        "delta_conf": results_delta_conf,
+        "stat.delta_conf": results_delta_conf,
     }
 
 
@@ -238,7 +238,7 @@ def delta_moment_parallel_stability(
     )
     return {
         "delta": results_delta,
-        "delta_conf": results_delta_conf,
+        "stat.delta_conf": results_delta_conf,
     }
 
 
@@ -271,5 +271,5 @@ def delta_moment_stability(
     )
     return {
         "delta": results[::2],
-        "delta_conf": results[1::2],
+        "stat.delta_conf": results[1::2],
     }

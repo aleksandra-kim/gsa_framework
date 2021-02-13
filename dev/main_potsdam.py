@@ -1,6 +1,10 @@
 from pathlib import Path
 import brightway2 as bw
-from gsa_framework.plotting import histogram_Y, histogram_Y1_Y2, correlation_Y1_Y2
+from gsa_framework.plotting import (
+    plot_histogram_Y,
+    plot_histogram_Y1_Y2,
+    plot_correlation_Y1_Y2,
+)
 from gsa_framework.utils import read_hdf5_array
 import numpy as np
 
@@ -75,7 +79,7 @@ if __name__ == "__main__":
     # Validation correlation plots
     filepath_Yall_23567 = write_dir_arrays / "validation.Y.all.2000.23467.hdf5"
     Yall = read_hdf5_array(filepath_Yall_23567).flatten()
-    fig = correlation_Y1_Y2(
+    fig = plot_correlation_Y1_Y2(
         Yall,
         Yall,
         color2="#636EFA",
