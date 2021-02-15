@@ -132,10 +132,10 @@ class Stability:
         )
         self.ranking_rho_dict = {
             "rho1": rho1_jk,
-            "rho2": rho2_jk,
-            "rho3": rho3_jk,
-            "rho4": rho4_jk,
-            "rho5": rho5_jk,
+            # "rho2": rho2_jk,
+            # "rho3": rho3_jk,
+            # "rho4": rho4_jk,
+            # "rho5": rho5_jk,
             "rho6": rho6_jk,
         }
 

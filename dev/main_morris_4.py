@@ -21,10 +21,10 @@ if __name__ == "__main__":
 
     fig_format = []  # can have elements "pdf", "html", "pickle"
 
-    iterations = 4 * num_params
+    iterations = 2 * num_params
     test_size = 0.2
 
-    option = "gsa"
+    option = "no tuning"
     if "tuning" in option:
         # 1. Preparations
         np.random.seed(gsa_seed)
@@ -45,15 +45,15 @@ if __name__ == "__main__":
             ### ROUND 1 ###
             # xgb.train uses parameter `num_boost_round`, while XGBRegressor needs `n_estimators`. These two are the same.
             param_grid = {
-                "learning_rate": [0.01, 0.1, 0.3],
-                "gamma": [0, 0.5],
-                "min_child_weight": [5, 10, 30],
+                "learning_rate": [0.1],
+                "gamma": [0],
+                "min_child_weight": [30, 100],
                 "max_depth": [2],
                 "reg_lambda": [0, 10],
                 "reg_alpha": [0, 10],
-                "n_estimators": [300, 500],
-                "subsample": [0.3, 0.6],
-                "colsample_bytree": [0.3, 0.6, 0.9],
+                "n_estimators": [500],
+                "subsample": [0.1, 0.3],
+                "colsample_bytree": [0.1, 0.3],
             }
 
             optimal_params = GridSearchCV(
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
         S_dict = gsa.perform_gsa(flag_save_S_dict=True)
         print(S_dict["stat.r2"], S_dict["stat.explained_variance"])
-        # gsa.plot_sa_results(
-        #     {"fscores": S_dict["fscores"]},
-        #     fig_format=fig_format,
-        # )
+        gsa.plot_sa_results(
+            {"fscores": S_dict["fscores"]},
+            fig_format=fig_format,
+        )
