@@ -164,6 +164,30 @@ def setup_xgbo_morris4(num_params, iterations, setup_morris4_model, path_base):
             subsample=0.6,
             colsample_bytree=0.3,
         )
+    elif num_params == 5000:
+         tuning_parameters = dict(
+            learning_rate=0.2,
+            gamma=0,
+            min_child_weight=300,
+            max_depth=2,
+            reg_lambda=0,
+            reg_alpha=0,
+            n_estimators=800,
+            subsample=0.3,
+            colsample_bytree=0.3,
+        )
+    elif num_params == 10000:
+        tuning_parameters = dict(
+            learning_rate=0.2,
+            gamma=0,
+            min_child_weight=600,
+            max_depth=2,
+            reg_lambda=0,
+            reg_alpha=0,
+            n_estimators=1500,
+            subsample=0.2,
+            colsample_bytree=0.2,
+        )
     gsa = GradientBoosting(
         iterations=iterations,
         model=model,
