@@ -397,7 +397,9 @@ def plot_max_min_band(data_dict, fig=None, col=None):
     return fig
 
 
-def plot_ranking_convergence_many(data_dicts):
+def plot_ranking_convergence_many(
+    data_dicts, y_name="mean", lower_name="q05", upper_name="q95"
+):
     nrows = len(list(list(list(data_dicts.values())[0].values())[0].keys()))
     ncols = len(data_dicts)
     rho_names = list(list(data_dicts.values())[0].keys())
@@ -422,7 +424,15 @@ def plot_ranking_convergence_many(data_dicts):
     col = 1
     annotations = []
     for data_title, data_dict in data_dicts.items():
-        fig = plot_ranking_convergence(data_dict, colors, fig, col=col)
+        fig = plot_ranking_convergence(
+            data_dict,
+            colors,
+            fig,
+            col=col,
+            y_name=y_name,
+            lower_name=lower_name,
+            upper_name=upper_name,
+        )
         annotations.append(
             dict(
                 x=0,
@@ -444,7 +454,15 @@ def plot_ranking_convergence_many(data_dicts):
     return fig
 
 
-def plot_ranking_convergence(data_dict, colors, fig=None, col=None):
+def plot_ranking_convergence(
+    data_dict,
+    colors,
+    fig=None,
+    col=None,
+    y_name="mean",
+    lower_name="q05",
+    upper_name="q95",
+):
     if fig is None:
         # Plotting
         nrows = len(data_dict)  # TODO??
@@ -467,14 +485,14 @@ def plot_ranking_convergence(data_dict, colors, fig=None, col=None):
         for row, sa_name in enumerate(sa_names):
             data = dict_[sa_name]
             x = data["iterations"]
-            means = data["mean"]
-            lower = data["q05"]
-            upper = data["q95"]
+            y = data[y_name]
+            lower = data.get(lower_name, None)
+            upper = data.get(upper_name, None)
             # color = np.random.randint(low=50, high=255, size=3)
             fig.add_trace(
                 go.Scatter(
                     x=x,
-                    y=means,
+                    y=y,
                     mode="lines",
                     opacity=1,
                     showlegend=True,
@@ -492,48 +510,48 @@ def plot_ranking_convergence(data_dict, colors, fig=None, col=None):
                 row=row + 1,
                 col=col,
             )
-
-            fig.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=lower,
-                    mode="lines",
-                    opacity=opacity,
-                    showlegend=False,
-                    legendgroup=rho_name,
-                    marker=dict(
-                        color="rgba({},{},{},{})".format(
+            if lower is not None:
+                fig.add_trace(
+                    go.Scatter(
+                        x=x,
+                        y=lower,
+                        mode="lines",
+                        opacity=opacity,
+                        showlegend=False,
+                        legendgroup=rho_name,
+                        marker=dict(
+                            color="rgba({},{},{},{})".format(
+                                color[0],
+                                color[1],
+                                color[2],
+                                opacity,
+                            ),
+                        ),
+                        line=dict(width=0),
+                    ),
+                    row=row + 1,
+                    col=col,
+                )
+            if upper is not None:
+                fig.add_trace(
+                    go.Scatter(
+                        x=x,
+                        y=upper,
+                        showlegend=False,
+                        legendgroup=rho_name,
+                        line=dict(width=0),
+                        mode="lines",
+                        fillcolor="rgba({},{},{},{})".format(
                             color[0],
                             color[1],
                             color[2],
                             opacity,
                         ),
+                        fill="tonexty",
                     ),
-                    line=dict(width=0),
-                ),
-                row=row + 1,
-                col=col,
-            )
-
-            fig.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=upper,
-                    showlegend=False,
-                    legendgroup=rho_name,
-                    line=dict(width=0),
-                    mode="lines",
-                    fillcolor="rgba({},{},{},{})".format(
-                        color[0],
-                        color[1],
-                        color[2],
-                        opacity,
-                    ),
-                    fill="tonexty",
-                ),
-                row=row + 1,
-                col=col,
-            )
+                    row=row + 1,
+                    col=col,
+                )
             fig.update_yaxes(title_text=sa_name, row=row + 1, col=col)
 
     # fig.update_layout(

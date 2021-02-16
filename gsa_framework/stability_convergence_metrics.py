@@ -3,6 +3,7 @@ from scipy import stats
 from pathlib import Path
 from scipy.stats import spearmanr
 import jenkspy
+from copy import deepcopy
 
 from .utils import get_z_alpha_2, read_pickle, write_pickle
 
@@ -114,7 +115,7 @@ def rho6_jk(Rj, Rk, Sj, Sk):
 class Stability:
     def __init__(self, stability_dicts, write_dir, **kwargs):
 
-        self.stability_dicts = stability_dicts
+        self.stability_dicts = self.remove_nans(stability_dicts)
         self.write_dir = Path(write_dir)
         self.make_dirs()
         self.ci_type = kwargs.get("ci_type", "student")
@@ -138,6 +139,20 @@ class Stability:
             # "rho5": rho5_jk,
             "rho6": rho6_jk,
         }
+        self.sa_rho_convergence_dict = self.stat_rho_convergence(
+            "rho1", self.num_ranks, which_ranking="clustered"
+        )
+
+    def remove_nans(self, stability_dicts):
+        for stability_dict in stability_dicts:
+            where = []
+            for k, v in stability_dict.items():
+                for array in v.values():
+                    if np.isnan(array).any():
+                        where.append(k)
+                        break
+            [stability_dict.pop(k) for k in where]
+        return stability_dicts
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
@@ -154,6 +169,12 @@ class Stability:
 
     def create_ranking_rho_filepath(self, tag, sa_name, rho_name):
         filename = "ranking.{}.{}.steps{}.{}.pickle".format(
+            tag, sa_name, len(self.sa_stability_dict[sa_name]["iterations"]), rho_name
+        )
+        return self.write_dir / "stability" / filename
+
+    def create_rho_convergence_filepath(self, tag, sa_name, rho_name):
+        filename = "ranking.convergence.{}.{}.steps{}.{}.pickle".format(
             tag, sa_name, len(self.sa_stability_dict[sa_name]["iterations"]), rho_name
         )
         return self.write_dir / "stability" / filename
@@ -228,6 +249,21 @@ class Stability:
             }
         return rankings
 
+    def get_one_clustered_ranking(self, array, num_ranks):
+        breaks = jenkspy.jenks_breaks(array, nb_class=num_ranks)
+        clustered_ranking = np.zeros(len(array))
+        clustered_ranking[:] = np.nan
+        for b in range(num_ranks):
+            where = np.where(np.logical_and(array >= breaks[b], array < breaks[b + 1]))[
+                0
+            ]
+            if b == num_ranks - 1:
+                where = np.where(
+                    np.logical_and(array >= breaks[b], array <= breaks[b + 1])
+                )[0]
+            clustered_ranking[where] = num_ranks - 1 - b
+        return clustered_ranking
+
     def get_clustered_rankings(self, sa_stability_dict, num_ranks=16):
         tag = "clustered{}".format(num_ranks)
         clustered_rankings = {}
@@ -239,23 +275,13 @@ class Stability:
                 ranks_list = []
                 B_list = data["bootstrap"]
                 for B_array in B_list:
-                    ranks_arr = np.zeros(B_array.shape, dtype=int)
+                    ranks_arr = np.zeros(B_array.shape)
                     ranks_arr[:] = np.nan
                     for j, array in enumerate(B_array):
-                        breaks = jenkspy.jenks_breaks(array, nb_class=num_ranks)
-                        for b in range(num_ranks):
-                            where = np.where(
-                                np.logical_and(
-                                    array >= breaks[b], array < breaks[b + 1]
-                                )
-                            )[0]
-                            if b == num_ranks - 1:
-                                where = np.where(
-                                    np.logical_and(
-                                        array >= breaks[b], array <= breaks[b + 1]
-                                    )
-                                )[0]
-                            ranks_arr[j, where] = num_ranks - 1 - b
+                        clustered_ranking = self.get_one_clustered_ranking(
+                            array, num_ranks
+                        )
+                        ranks_arr[j, :] = clustered_ranking
                     ranks_list.append(ranks_arr)
                 write_pickle(ranks_list, filepath_ranking)
             clustered_rankings[sa_name] = {
@@ -313,6 +339,45 @@ class Stability:
                 "mean": np.mean(rho, axis=1),
             }
         return stat_ranking_dict
+
+    def stat_rho_convergence(self, rho_name, num_ranks, which_ranking="not_clustered"):
+        if which_ranking == "clustered":
+            rankings_dict = self.clustered_rankings
+            tag = "{}{}".format(which_ranking, self.num_ranks)
+            get_one_ranking = lambda array: self.get_one_clustered_ranking(
+                array, num_ranks
+            )
+        else:
+            rankings_dict = self.rankings
+            get_one_ranking = self.get_one_not_clustered_ranking
+            tag = which_ranking
+        sa_rho_convergence_dict = {}
+        for sa_name in self.sa_names:
+            filepath_rho_conv = self.create_rho_convergence_filepath(
+                tag, sa_name, rho_name
+            )
+            if filepath_rho_conv.exists():
+                rho_convergence = read_pickle(filepath_rho_conv)
+            else:
+                sindices = self.sa_stability_dict[sa_name]["bootstrap"]
+                array = np.mean(sindices[0], axis=0)
+                ranks_i_bmean_prev = get_one_ranking(array)
+                rho_convergence = []
+                for sindices_i in sindices[1:]:
+                    array = np.mean(sindices_i, axis=0)
+                    ranks_i_bmean_curr = get_one_ranking(array)
+                    rho_convergence.append(
+                        self.ranking_rho_dict[rho_name](
+                            ranks_i_bmean_prev, ranks_i_bmean_curr
+                        )
+                    )
+                    ranks_i_bmean_prev = deepcopy(ranks_i_bmean_curr)
+                write_pickle(rho_convergence, filepath_rho_conv)
+            sa_rho_convergence_dict[sa_name] = {
+                "iterations": rankings_dict[sa_name]["iterations"][1:],
+                "rho_convergence": rho_convergence,
+            }
+        return sa_rho_convergence_dict
 
 
 # def plot_confidence_convergence(sb_dict, sensitivity_index_names=None):
