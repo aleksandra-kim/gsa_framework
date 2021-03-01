@@ -20,9 +20,8 @@ import dask
 
 
 def setup_lca_model_oases(
-    num_params=None, write_dir_name=None, flag_generate_scores_dict=False
+    path_base, num_params=None, write_dir_name=None, flag_generate_scores_dict=False
 ):
-    path_base = Path("/data/user/kim_a/")
     # LCA model
     bw.projects.set_current("GSA for oases")
     co = bw.Database("CH consumption 1.0")
@@ -128,14 +127,14 @@ def setup_xgbo_lca(num_params, iterations, setup_lca_model, path_base):
     xgb_model=None
     test_size = 0.2
     tuning_parameters = dict(
-        learning_rate=0.2,
+        learning_rate=0.15,
         gamma=0,
-        min_child_weight=600,
-        max_depth=6,
+        min_child_weight=300,
+        max_depth=4,
         reg_lambda=0,
         reg_alpha=0,
-        n_estimators=1500,
-        subsample=0.2,
+        n_estimators=600,
+        subsample=0.3,
         colsample_bytree=0.2,
     )
     gsa = GradientBoosting(
