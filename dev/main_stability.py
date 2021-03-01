@@ -47,11 +47,25 @@ for model in models:
         )
 
 
-# fig1 = max_min_band_many(data_dicts)
-# fig2 = plot_ranking_convergence_many(ranking_stats_rho)
+fig1 = plot_max_min_band_many(data_dicts)
+filename_fig = "stat_indices.html"
+filepath_fig = path_base / "figures" / filename_fig
+fig1.write_html(filepath_fig.as_posix())
+filename_fig = "stat_indices.pdf"
+filepath_fig = path_base / "figures" / filename_fig
+fig1.write_image(filepath_fig.as_posix())
+
+
+fig2 = plot_ranking_convergence_many(ranking_stats_rho)
 fig3 = plot_ranking_convergence_many(
     ranking_stats_rho_convergence, y_name="rho_convergence"
 )
+filename_fig = "ranking_convergence.html"
+filepath_fig = path_base / "figures" / filename_fig
+fig3.write_html(filepath_fig.as_posix())
+filename_fig = "ranking_convergence.pdf"
+filepath_fig = path_base / "figures" / filename_fig
+fig3.write_image(filepath_fig.as_posix())
 
 
 # def numerator_rho1(Rj, Rk):

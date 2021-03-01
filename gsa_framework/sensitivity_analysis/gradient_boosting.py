@@ -125,5 +125,6 @@ def xgboost_scores_stability(
         "fscores": fscores_all / sum(fscores_all),
         "stat.r2": r2,
         "stat.explained_variance": explained_variance,
+        "stat.xgb_model": model,
     }
     return S_dict

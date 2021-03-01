@@ -274,7 +274,13 @@ def plot_max_min_band_many(data_dicts):
             ),
         )
         col += 1
-    # fig["layout"].update(annotations=annotations)
+    fig["layout"].update(annotations=annotations)
+    fig.update_layout(
+        width=400 * ncols,
+        height=200 * nrows,
+    )
+    # fig.update_xaxes(type="log", range=[2, 6])
+    # fig.update_yaxes(range=[-1, 1])
     fig.show()
     return fig
 
@@ -559,4 +565,47 @@ def plot_ranking_convergence(
     #     height=400 * nrows,
     # )
     fig.update_xaxes(title_text="iterations", row=row + 1, col=col)
+    return fig
+
+
+def plot_S(data_dict):
+    nrows = len(list(data_dict.values())[0])
+    ncols = len(data_dict)
+    fig = make_subplots(
+        rows=nrows,
+        cols=ncols,
+        shared_yaxes=False,
+        shared_xaxes=False,
+        vertical_spacing=0.05,
+        subplot_titles=list(data_dict.keys()),
+    )
+    col = 1
+    for model_name, S_dicts in data_dict.items():
+        row = 1
+        for sa_name, S_array in S_dicts.items():
+            l = len(S_array)
+            use = int(0.1 * l)
+            x = np.arange(l)[:use]
+            y = S_array[:use]
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="markers",
+                    showlegend=False,
+                    marker=dict(size=4, color="#636EFA"),
+                ),
+                row=row,
+                col=col,
+            )
+            if col == 1:
+                fig.update_yaxes(title_text=sa_name.lower(), row=row, col=col)
+            row += 1
+        fig.update_xaxes(title_text="model inputs", row=row - 1, col=col)
+        col += 1
+    fig.update_layout(
+        width=800 * ncols,
+        height=200 * nrows,
+    )
+    fig.show()
     return fig
