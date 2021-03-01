@@ -5,6 +5,7 @@ from sklearn.model_selection import GridSearchCV, train_test_split
 import numpy as np
 import xgboost as xgb
 from sklearn.metrics import explained_variance_score, r2_score
+from gsa_framework.utils import write_pickle
 
 if __name__ == "__main__":
 
@@ -12,7 +13,7 @@ if __name__ == "__main__":
     path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files/")
 
     # 1. Models
-    num_params = 10000
+    num_params = 1000
     num_influential = max(num_params // 100, 10)
     write_dir = path_base / "{}_morris4".format(num_params)
     model = Morris4(num_params=num_params, num_influential=num_influential)
@@ -126,23 +127,8 @@ if __name__ == "__main__":
             xgb_model=None,
         )
 
-        S_dict = gsa.perform_gsa(flag_save_S_dict=False)
-        xgb_model = S_dict["stat.xgb_model"]
-        print(S_dict["stat.r2"], S_dict["stat.explained_variance"])
-        S_dict_xgb_temp = dict(
-            weight=xgb_model.get_score(importance_type="weight"),
-            gain=xgb_model.get_score(importance_type="gain"),
-            cover=xgb_model.get_score(importance_type="cover"),
-            tgain=xgb_model.get_score(importance_type="total_gain"),
-            tcover=xgb_model.get_score(importance_type="total_cover"),
-        )
-        S_dict_xgb = {}
-        for k, v in S_dict_xgb_temp.items():
-            scores_dict = {int(key[1:]): val for key, val in v.items()}
-            scores_all = np.array([scores_dict.get(i, 0) for i in range(num_params)])
-            S_dict_xgb[k] = scores_all / sum(scores_all)
-
+        S_dict = gsa.perform_gsa(flag_save_S_dict=True, flag_return_xgb_model=False)
         gsa.plot_sa_results(
-            S_dict_xgb,
+            S_dict,
             fig_format=fig_format,
         )

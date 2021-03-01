@@ -388,13 +388,18 @@ class SensitivityAnalysisMethod:
         is_boolean_given = S_boolean is not None
         is_analytical_given = S_dict_analytical is not None
         params = np.arange(self.num_params)
+        n_stat = len(
+            [gsa_method for gsa_method in S_dict.keys() if "stat." in gsa_method]
+        )
         fig = make_subplots(
-            rows=len(S_dict),
+            rows=len(S_dict) - n_stat,
             cols=1,
             shared_xaxes=False,
         )
         row = 1
         for gsa_method, gsa_array in S_dict.items():
+            if "stat." in gsa_method:
+                continue
             showlegend = False
             if row == 1:
                 showlegend = True

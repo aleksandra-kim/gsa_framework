@@ -53,12 +53,14 @@ class GradientBoosting(SAM):
     def generate_gsa_indices_based_on_method(self, **kwargs):
         # flag_convergence = kwargs.get("flag_convergence", False)
         # if not flag_convergence:
+        flag_return_xgb_model = kwargs.get("flag_return_xgb_model")
         S_dict = xgboost_scores(
             filepath_Y=self.filepath_Y,
             filepath_X=self.filepath_X_rescaled,
             tuning_parameters=self.tuning_parameters,
             test_size=self.test_size,
             xgb_model=self.xgb_model,
+            flag_return_xgb_model=flag_return_xgb_model,
         )
         # else:
         #     iterations = kwargs.get("iterations", self.iterations)

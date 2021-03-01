@@ -38,25 +38,31 @@ def xgboost_scores(
     tuning_parameters=None,
     test_size=0.2,
     xgb_model=None,
+    importance_types=None,
+    flag_return_xgb_model=True,
 ):
     X = read_hdf5_array(filepath_X)
     Y = read_hdf5_array(filepath_Y).flatten()
-    S_dict = xgboost_scores_stability(
+    S_dict = xgboost_scores_base(
         Y,
         X,
         tuning_parameters,
         test_size,
         xgb_model,
+        importance_types,
+        flag_return_xgb_model,
     )
     return S_dict
 
 
-def xgboost_scores_stability(
+def xgboost_scores_base(
     Y,
     X,
     tuning_parameters=None,
     test_size=0.2,
     xgb_model=None,
+    importance_types=None,  # TODO set default to empty list?
+    flag_return_xgb_model=True,
 ):
     """Compute fscores obtained from the gradient boosting machines regression using XGBoost library.
 
@@ -104,7 +110,7 @@ def xgboost_scores_stability(
     X_dtest = xgb.DMatrix(X_test)
 
     # 4. Train the model
-    model = xgb.train(
+    xgb_model_current = xgb.train(
         tuning_parameters,
         dtrain,
         num_boost_round=num_boost_round,
@@ -112,19 +118,53 @@ def xgboost_scores_stability(
     )
 
     # 5. make predictions and compute prediction score
-    y_pred = model.predict(X_dtest)
+    y_pred = xgb_model_current.predict(X_dtest)
     r2 = r2_score(Y_test, y_pred)
     explained_variance = explained_variance_score(Y_test, y_pred)
 
-    # 6. Save importance scores
-    fscores_inf = model.get_fscore()
-    fscores_dict = {int(key[1:]): val for key, val in fscores_inf.items()}
-    fscores_all = np.array([fscores_dict.get(i, 0) for i in range(num_params)])
-
     S_dict = {
-        "fscores": fscores_all / sum(fscores_all),
         "stat.r2": r2,
         "stat.explained_variance": explained_variance,
-        "stat.xgb_model": model,
     }
+    if flag_return_xgb_model:
+        S_dict["stat.xgb_model"] = xgb_model_current
+
+    # 6. Save importance scores
+    if importance_types is None:
+        importance_types = ["weight", "gain", "cover", "total_gain", "total_cover"]
+    for importance_type in importance_types:
+        importance_scores_ = xgb_model_current.get_score(
+            importance_type=importance_type
+        )
+        importance_scores = {
+            int(key[1:]): val for key, val in importance_scores_.items()
+        }
+        importance_scores_arr = np.array(
+            [importance_scores.get(i, 0) for i in range(num_params)]
+        )
+        S_dict.update(
+            {importance_type: importance_scores_arr / np.sum(importance_scores_arr)}
+        )
+
+    return S_dict
+
+
+def xgboost_scores_stability(
+    Y,
+    X,
+    tuning_parameters=None,
+    test_size=0.2,
+    xgb_model=None,
+    importance_types=None,  # TODO set default to empty list?
+    flag_return_xgb_model=False,
+):
+    S_dict = xgboost_scores_base(
+        Y,
+        X,
+        tuning_parameters,
+        test_size,
+        xgb_model,
+        importance_types,
+        flag_return_xgb_model,
+    )
     return S_dict
