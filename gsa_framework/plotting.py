@@ -62,7 +62,6 @@ def plot_histogram_Y(
     )
     fig.update_yaxes(title_text="Frequency")
     fig.update_xaxes(title_text=xaxes_title_text)
-    fig.show()
     return fig
 
 
@@ -80,6 +79,7 @@ def plot_histogram_Y1_Y2(
     color_default_Y="red",
     opacity=0.65,
     xaxes_title_text="Values",
+    showlegend=True,
 ):
     if bin_min is None:
         bin_min = min(np.hstack([Y1, Y2]))
@@ -98,7 +98,7 @@ def plot_histogram_Y1_Y2(
             name=trace_name1,
             opacity=opacity,
             marker=dict(color=color1),
-            showlegend=True,
+            showlegend=showlegend,
         ),
     )
     fig.add_trace(
@@ -108,6 +108,7 @@ def plot_histogram_Y1_Y2(
             name=trace_name2,
             opacity=opacity,
             marker=dict(color=color2),
+            showlegend=showlegend,
         ),
     )
 
@@ -140,7 +141,6 @@ def plot_histogram_Y1_Y2(
     )
     fig.update_yaxes(title_text="Frequency")
     fig.update_xaxes(title_text=xaxes_title_text)
-    fig.show()
     return fig
 
 
@@ -244,7 +244,6 @@ def plot_correlation_Y1_Y2(
         row=1,
         col=2,
     )
-    fig.show()
     return fig
 
 
@@ -267,7 +266,7 @@ def plot_max_min_band_many(data_dicts):
                 x=0,
                 y=1.05,  # annotation point
                 xref="x{}".format(col),
-                yref="paper".format(col),
+                yref="paper",
                 text=data_title,
                 showarrow=False,
                 xanchor="left",

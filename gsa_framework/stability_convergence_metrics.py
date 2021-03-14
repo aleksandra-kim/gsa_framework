@@ -19,25 +19,15 @@ def ci_student(B_array, confidence_level=0.95):
     num_resamples = B_array.shape[0]
     degrees_of_freedom = num_resamples - 1
     t_alpha_2 = stats.t.ppf(1 - (1 - confidence_level) / 2, degrees_of_freedom)
-    means = np.mean(B_array, axis=0)
     interval_width = t_alpha_2 * np.std(B_array, axis=0)
-    ci_dict = {
-        "means": means,
-        "width": interval_width,
-    }
-    return ci_dict
+    return interval_width
 
 
 def ci_normal(B_array, confidence_level=0.95):
     """Normal confidence interval."""
     z_alpha_2 = get_z_alpha_2(confidence_level)
-    means = np.mean(B_array, axis=0)
     interval_width = z_alpha_2 * np.std(B_array, axis=0)
-    ci_dict = {
-        "means": means,
-        "width": interval_width,
-    }
-    return ci_dict
+    return interval_width
 
 
 def get_ci_max_width(sb_dict):
@@ -109,6 +99,22 @@ def rho6_jk(Rj, Rk, Sj, Sk):
     return rho
 
 
+def compute_spearmanr(mat, vec):
+    """
+    Spearmanr between each row of matrix `mat` and vector `vec`. Takes into account the case when some rows in mat
+    have just one unique element.
+    """
+    rho = np.zeros(len(mat))
+    rho[:] = np.nan
+    skip_inds = np.where(np.array([len(set(r)) for r in mat]) == 1)[0]
+    incl_inds = np.setdiff1d(np.arange(len(mat)), skip_inds)
+    if len(incl_inds) > 0:
+        rho_temp, _ = spearmanr(mat[incl_inds, :].T, vec)
+        rho_temp = rho_temp[-1, :-1]
+        rho[incl_inds] = rho_temp
+    return rho
+
+
 #######################
 ### Stability class ###
 #######################
@@ -120,28 +126,40 @@ class Stability:
         self.make_dirs()
         self.ci_type = kwargs.get("ci_type", "student")
         self.confidence_level = kwargs.get("confidence_level", 0.95)
-        self.sa_stability_dict = self.get_sa_stability_dict(self.stability_dicts)
-        self.sa_names = list(self.sa_stability_dict.keys())
+        self.num_ranks = kwargs.get("num_ranks", 10)
+        self.bootstrap_ranking_tag = kwargs.get("bootstrap_ranking_tag")
+        self.q_min = kwargs.get("q_min", 5)
+        self.q_max = kwargs.get("q_max", 95)
+        self.num_params = list(list(self.stability_dicts[0].values())[0].values())[
+            0
+        ].shape[1]
+        (
+            self.sa_names,
+            self.iterations,
+            self.bootstrap_data,
+            self.sa_mean_results,
+        ) = self.get_data_from_stability_dicts(self.stability_dicts)
         self.confidence_intervals = self.get_confidence_intervals(
-            self.sa_stability_dict
+            self.bootstrap_data, self.ci_type
         )
-        self.confidence_intervals_max = self.get_confidence_intervals_max()
-        self.rankings = self.get_rankings(self.sa_stability_dict)
-        self.num_ranks = kwargs.get("num_ranks", 16)
-        self.clustered_rankings = self.get_clustered_rankings(
-            self.sa_stability_dict, self.num_ranks
+        self.confidence_intervals_max = self.get_confidence_intervals_max(
+            self.confidence_intervals
         )
-        self.ranking_rho_dict = {
-            "rho1": rho1_jk,
-            # "rho2": rho2_jk,
-            # "rho3": rho3_jk,
-            # "rho4": rho4_jk,
-            # "rho5": rho5_jk,
-            "rho6": rho6_jk,
-        }
-        self.sa_rho_convergence_dict = self.stat_rho_convergence(
-            "rho1", self.num_ranks, which_ranking="clustered"
+        # self.rankings_convergence = self.get_rankings_convergence_to_last(self.sa_mean_results, num_ranks=self.num_ranks)
+        self.bootstrap_rankings = self.get_bootstrap_rankings(
+            self.bootstrap_data,
+            self.sa_mean_results,
+            self.bootstrap_ranking_tag,
+            self.num_ranks,
         )
+        self.bootstrap_rankings_width_percentiles = (
+            self.get_bootstrap_rankings_width_percentiles(
+                self.bootstrap_rankings,
+                q_min=self.q_min,
+                q_max=self.q_max,
+            )
+        )
+        self.stat_medians = self.get_stat_medians(self.bootstrap_data)
 
     def remove_nans(self, stability_dicts):
         for stability_dict in stability_dicts:
@@ -161,98 +179,146 @@ class Stability:
             dir_path = self.write_dir / dir
             dir_path.mkdir(parents=True, exist_ok=True)
 
-    def create_ranking_filepath(self, tag, sa_name):
-        filename = "ranking.{}.{}.steps{}.pickle".format(
-            tag, sa_name, len(self.sa_stability_dict[sa_name]["iterations"])
+    def create_bootstrap_rankings_filepath(
+        self, num_ranks, tag, sa_name, num_bootstrap
+    ):
+        filename = "ranking{}.{}.{}.bootstrap{}.steps{}.pickle".format(
+            num_ranks, tag, sa_name, num_bootstrap, len(self.iterations[sa_name])
         )
         return self.write_dir / "stability" / filename
 
-    def create_ranking_rho_filepath(self, tag, sa_name, rho_name):
-        filename = "ranking.{}.{}.steps{}.{}.pickle".format(
-            tag, sa_name, len(self.sa_stability_dict[sa_name]["iterations"]), rho_name
-        )
-        return self.write_dir / "stability" / filename
-
-    def create_rho_convergence_filepath(self, tag, sa_name, rho_name):
-        filename = "ranking.convergence.{}.{}.steps{}.{}.pickle".format(
-            tag, sa_name, len(self.sa_stability_dict[sa_name]["iterations"]), rho_name
-        )
-        return self.write_dir / "stability" / filename
-
-    def get_sa_stability_dict(self, stability_dicts):
-        sa_stability_dict = {}
+    def get_data_from_stability_dicts(self, stability_dicts):
+        iterations, bootstrap_data, sa_mean_results = {}, {}, {}
         for stability_dict in stability_dicts:
             sa_names_current = list(list(stability_dict.values())[0].keys())
             sa_iteration_steps = np.array(list(stability_dict.keys()))
-            sa_stability_dict.update(
-                {
-                    sa_name: {
-                        "iterations": sa_iteration_steps,
-                        "bootstrap": [],
-                    }
-                    for sa_name in sa_names_current
-                }
-            )
+            for sa_name in sa_names_current:
+                iterations.update({sa_name: sa_iteration_steps})
+                bootstrap_data.update({sa_name: []})
             for data in stability_dict.values():
                 for sa_name in sa_names_current:
-                    sa_stability_dict[sa_name]["bootstrap"].append(data[sa_name])
-        return sa_stability_dict
+                    bootstrap_data[sa_name].append(data[sa_name])
+        sa_names = []
+        for sa_name, list_ in bootstrap_data.items():
+            if "stat." in sa_name:
+                ydim = 1
+            else:
+                ydim = self.num_params
+                sa_names.append(sa_name)
+            means = np.zeros((0, ydim))
+            means[:] = np.nan
+            for data in list_:
+                means = np.vstack([means, np.mean(data, axis=0)])
+            sa_mean_results[sa_name] = means
+        return sa_names, iterations, bootstrap_data, sa_mean_results
 
-    def get_confidence_intervals(self, sa_stability_dict):
-        if self.ci_type == "normal":
+    def get_confidence_intervals(self, bootstrap_data, ci_type="student"):
+        if ci_type == "normal":
             get_ci = ci_normal
         else:
             get_ci = ci_student
         confidence_intervals = {}
-        for sa_name, data in sa_stability_dict.items():
-            B_list = data["bootstrap"]
-            confidence_intervals[sa_name] = []
-            for B_array in B_list:
-                confidence_intervals[sa_name].append(
-                    get_ci(B_array, self.confidence_level)
+        for sa_name, data in bootstrap_data.items():
+            confidence_intervals_arr = np.zeros((0, data[0].shape[1]))
+            confidence_intervals_arr[:] = np.nan
+            for B_array in data:
+                confidence_intervals_arr = np.vstack(
+                    [confidence_intervals_arr, get_ci(B_array, self.confidence_level)]
                 )
+            confidence_intervals[sa_name] = confidence_intervals_arr
         return confidence_intervals
 
-    def get_confidence_intervals_max(self):
+    def get_confidence_intervals_max(self, confidence_intervals):
         confidence_intervals_max = {}
-        for sa_name, list_ in self.confidence_intervals.items():
-            confidence_intervals_max[sa_name] = {
-                "iterations": self.sa_stability_dict[sa_name]["iterations"],
-                "width": [],
-            }
-            for data in list_:
-                confidence_intervals_max[sa_name]["width"].append(max(data["width"]))
-            confidence_intervals_max[sa_name]["width"] = np.array(
-                confidence_intervals_max[sa_name]["width"]
-            )
+        for sa_name, data in confidence_intervals.items():
+            confidence_intervals_max[sa_name] = np.max(data, axis=1)
         return confidence_intervals_max
 
-    def get_rankings(self, sa_stability_dict):
-        tag = "not_clustered"
-        rankings = {}
-        for sa_name, data in sa_stability_dict.items():
-            filepath_ranking = self.create_ranking_filepath(tag, sa_name)
-            if filepath_ranking.exists():
-                ranks_list = read_pickle(filepath_ranking)
+    def get_bootstrap_rankings(
+        self, bootstrap_data, sa_mean_results, tag, num_ranks=10
+    ):
+        bootstrap_rankings = {}
+        for sa_name in self.sa_names:
+            num_bootstrap = bootstrap_data[sa_name][0].shape[0]
+            filepath_bootstrap_rankings = self.create_bootstrap_rankings_filepath(
+                num_ranks,
+                tag,
+                sa_name,
+                num_bootstrap,
+            )
+            if filepath_bootstrap_rankings.exists():
+                bootstrap_rankings_arr = read_pickle(filepath_bootstrap_rankings)
             else:
-                ranks_list = []
-                B_list = data["bootstrap"]
-                for B_array in B_list:
-                    ranks_arr = np.zeros((0, B_array.shape[1]), dtype=int)
-                    for array in B_array:
-                        ranks_arr = np.vstack([ranks_arr, np.argsort(array)[-1::-1]])
-                    ranks_list.append(ranks_arr)
-                write_pickle(ranks_list, filepath_ranking)
-            rankings[sa_name] = {
-                "iterations": self.sa_stability_dict[sa_name]["iterations"],
-                "ranks": ranks_list,
-            }
-        return rankings
+                bootstrap_rankings_arr = np.zeros((0, num_bootstrap))
+                bootstrap_rankings_arr[:] = np.nan
+                if sa_name == "total_gain":
+                    means = self.bootstrap_data[sa_name][-1][0, :]
+                else:
+                    means = sa_mean_results[sa_name][-1, :]
+                breaks = jenkspy.jenks_breaks(means, nb_class=num_ranks)
+                mean_ranking = self.get_one_clustered_ranking(means, num_ranks, breaks)
+                for i in range(len(self.iterations[sa_name])):
+                    bootstrap_data_sa = bootstrap_data[sa_name][i]
+                    rankings = np.zeros((0, self.num_params))
+                    for data in bootstrap_data_sa:
+                        rankings = np.vstack(
+                            [
+                                rankings,
+                                self.get_one_clustered_ranking(data, num_ranks, breaks),
+                            ]
+                        )
+                    rho = compute_spearmanr(rankings, mean_ranking)
+                    bootstrap_rankings_arr = np.vstack([bootstrap_rankings_arr, rho])
+                write_pickle(bootstrap_rankings_arr, filepath_bootstrap_rankings)
+            bootstrap_rankings[sa_name] = bootstrap_rankings_arr
+        return bootstrap_rankings
 
-    def get_one_clustered_ranking(self, array, num_ranks):
-        breaks = jenkspy.jenks_breaks(array, nb_class=num_ranks)
+    def get_bootstrap_rankings_width_percentiles(
+        self, bootstrap_rankings, q_min=5, q_max=95
+    ):
+        bootstrap_rankings_width_percentiles = {}
+        for sa_name in self.sa_names:
+            data = bootstrap_rankings[sa_name]
+            min_ = np.percentile(data, q_min, axis=1)
+            max_ = np.percentile(data, q_max, axis=1)
+            median = np.percentile(data, 50, axis=1)
+            mean = np.mean(data, axis=1)
+            confidence_interval = ci_student(data.T)
+            bootstrap_rankings_width_percentiles[sa_name] = {
+                "q_max": max_,
+                "q_min": min_,
+                "median": median,
+                "mean": mean,
+                "confidence_interval": confidence_interval,
+            }
+        return bootstrap_rankings_width_percentiles
+
+    def get_rankings_convergence_to_last(self, sa_mean_results, num_ranks=10):
+        ranking_convergence = {}
+        for sa_name in self.sa_names:
+            means = sa_mean_results[sa_name]
+            breaks = jenkspy.jenks_breaks(means[-1, :], nb_class=num_ranks)
+            rankings = np.zeros((0, self.num_params))
+            for means_ in means:
+                rankings = np.vstack(
+                    [
+                        rankings,
+                        self.get_one_clustered_ranking(means_, num_ranks, breaks),
+                    ]
+                )
+            rho = compute_spearmanr(rankings[:-1, :], rankings[-1, :])
+            ranking_convergence[sa_name] = rho
+        return ranking_convergence
+
+    def get_one_clustered_ranking(self, array, num_ranks, breaks=None):
+        if breaks is None:
+            breaks = jenkspy.jenks_breaks(array, nb_class=num_ranks)
+        breaks = deepcopy(breaks)
+        breaks[0] = array.min()
+        breaks[-1] = array.max()
         clustered_ranking = np.zeros(len(array))
         clustered_ranking[:] = np.nan
+        where_dict = {}
         for b in range(num_ranks):
             where = np.where(np.logical_and(array >= breaks[b], array < breaks[b + 1]))[
                 0
@@ -261,223 +327,47 @@ class Stability:
                 where = np.where(
                     np.logical_and(array >= breaks[b], array <= breaks[b + 1])
                 )[0]
-            clustered_ranking[where] = num_ranks - 1 - b
+            clustered_ranking[where] = num_ranks - b
+            where_dict[b] = where
         return clustered_ranking
 
-    def get_clustered_rankings(self, sa_stability_dict, num_ranks=16):
-        tag = "clustered{}".format(num_ranks)
-        clustered_rankings = {}
-        for sa_name, data in sa_stability_dict.items():
-            filepath_ranking = self.create_ranking_filepath(tag, sa_name)
-            if filepath_ranking.exists():
-                ranks_list = read_pickle(filepath_ranking)
-            else:
-                ranks_list = []
-                B_list = data["bootstrap"]
-                for B_array in B_list:
-                    ranks_arr = np.zeros(B_array.shape)
-                    ranks_arr[:] = np.nan
-                    for j, array in enumerate(B_array):
-                        clustered_ranking = self.get_one_clustered_ranking(
-                            array, num_ranks
-                        )
-                        ranks_arr[j, :] = clustered_ranking
-                    ranks_list.append(ranks_arr)
-                write_pickle(ranks_list, filepath_ranking)
-            clustered_rankings[sa_name] = {
-                "iterations": self.sa_stability_dict[sa_name]["iterations"],
-                "ranks": ranks_list,
-            }
-        return clustered_rankings
+    def get_stat_medians(self, bootstrap_data):
+        stat_medians = {}
+        for k, v in bootstrap_data.items():
+            if "stat." in k:
+                medians = []
+                for data in v:
+                    medians.append(np.percentile(data, 50))
+                stat_medians[k] = np.array(medians)
+        return stat_medians
 
-    def stat_ranking_rho(self, ranks, sindices, rho_name):
-        rho_jk_func = self.ranking_rho_dict.get(rho_name, "rho6")
-        num_bootstrap, num_params = ranks.shape
-        rho = np.zeros(num_bootstrap * (num_bootstrap - 1) // 2)
-        jk = 0
-        for j in range(num_bootstrap):
-            for k in range(j + 1, num_bootstrap):
-                Rj = ranks[j, :]
-                Rk = ranks[k, :]
-                Sj = sindices[j, :]
-                Sk = sindices[k, :]
-                if rho_name in ["rho1", "rho2", "rho3", "rho4", "rho5"]:
-                    rho[jk] = rho_jk_func(Rj, Rk)
-                elif rho_name == "rho6":
-                    rho[jk] = rho_jk_func(Rj, Rk, Sj, Sk)
-                jk += 1
-        return rho
-
-    def stat_ranking(self, rho_name, which_ranking="not_clustered"):
-        if which_ranking == "clustered":
-            rankings_dict = self.clustered_rankings
-            tag = "{}{}".format(which_ranking, self.num_ranks)
-        else:
-            rankings_dict = self.rankings
-            tag = which_ranking
-        stat_ranking_dict = {}
-        for sa_name in self.sa_names:
-            filepath_rho = self.create_ranking_rho_filepath(tag, sa_name, rho_name)
-            if filepath_rho.exists():
-                rho = read_pickle(filepath_rho)
-            else:
-                ranks = rankings_dict[sa_name]["ranks"]
-                sindices = self.sa_stability_dict[sa_name]["bootstrap"]
-                num_bootstrap = ranks[0].shape[0]
-                rho = np.zeros((0, num_bootstrap * (num_bootstrap - 1) // 2))
-                for i in range(len(ranks)):
-                    ranks_i = ranks[i]
-                    sindices_i = sindices[i]
-                    rho = np.vstack(
-                        [rho, self.stat_ranking_rho(ranks_i, sindices_i, rho_name)]
-                    )
-                write_pickle(rho, filepath_rho)
-            stat_ranking_dict[sa_name] = {
-                "iterations": self.sa_stability_dict[sa_name]["iterations"],
-                "q95": np.percentile(rho, 95, axis=1),
-                "q05": np.percentile(rho, 5, axis=1),
-                "mean": np.mean(rho, axis=1),
-            }
-        return stat_ranking_dict
-
-    def stat_rho_convergence(self, rho_name, num_ranks, which_ranking="not_clustered"):
-        if which_ranking == "clustered":
-            rankings_dict = self.clustered_rankings
-            tag = "{}{}".format(which_ranking, self.num_ranks)
-            get_one_ranking = lambda array: self.get_one_clustered_ranking(
-                array, num_ranks
-            )
-        else:
-            rankings_dict = self.rankings
-            get_one_ranking = self.get_one_not_clustered_ranking
-            tag = which_ranking
-        sa_rho_convergence_dict = {}
-        for sa_name in self.sa_names:
-            filepath_rho_conv = self.create_rho_convergence_filepath(
-                tag, sa_name, rho_name
-            )
-            if filepath_rho_conv.exists():
-                rho_convergence = read_pickle(filepath_rho_conv)
-            else:
-                sindices = self.sa_stability_dict[sa_name]["bootstrap"]
-                array = np.mean(sindices[0], axis=0)
-                ranks_i_bmean_prev = get_one_ranking(array)
-                rho_convergence = []
-                for sindices_i in sindices[1:]:
-                    array = np.mean(sindices_i, axis=0)
-                    ranks_i_bmean_curr = get_one_ranking(array)
-                    rho_convergence.append(
-                        self.ranking_rho_dict[rho_name](
-                            ranks_i_bmean_prev, ranks_i_bmean_curr
-                        )
-                    )
-                    ranks_i_bmean_prev = deepcopy(ranks_i_bmean_curr)
-                write_pickle(rho_convergence, filepath_rho_conv)
-            sa_rho_convergence_dict[sa_name] = {
-                "iterations": rankings_dict[sa_name]["iterations"][1:],
-                "rho_convergence": rho_convergence,
-            }
-        return sa_rho_convergence_dict
-
-
-# def plot_confidence_convergence(sb_dict, sensitivity_index_names=None):
-#     sb_dict_ = deepcopy(sb_dict)
-#     convergence_iterations = sb_dict_["iterations"]
-#     sb_dict_.pop("iterations")
-#     if sensitivity_index_names is None:
-#         sensitivity_index_names = list(list(sb_dict_.values())[0].keys())
-#
-#     # Plotting
-#     nrows = len(sensitivity_index_names)
-#     ncols = 1
-#     fig = make_subplots(
-#         rows=nrows,
-#         cols=ncols,
-#         shared_yaxes=False,
-#         shared_xaxes=True,
-#         vertical_spacing=0.05,
-#     )
-#     opacity = 0.3
-#
-#     parameters = list(sb_dict_.keys())
-#     colors = {
-#         parameter: np.random.randint(low=0, high=255, size=3)
-#         for parameter in parameters
-#     }
-#     for row, sensitivity_index_name in enumerate(sensitivity_index_names):
-#         for parameter, data in sb_dict_.items():
-#             value = data[sensitivity_index_name][:, 0]
-#             lower = data[sensitivity_index_name][:, 1]
-#             upper = data[sensitivity_index_name][:, 2]
-#             fig.add_trace(
-#                 go.Scatter(
-#                     x=convergence_iterations,
-#                     y=value,
-#                     mode="markers+lines",
-#                     opacity=1,
-#                     showlegend=False,
-#                     name="Parameter {}".format(parameter),
-#                     legendgroup="{}".format(parameter),
-#                     marker=dict(
-#                         color="rgba({},{},{},{})".format(
-#                             colors[parameter][0],
-#                             colors[parameter][1],
-#                             colors[parameter][2],
-#                             1,
-#                         ),
-#                     ),
-#                 ),
-#                 row=row + 1,
-#                 col=1,
-#             )
-#             fig.add_trace(
-#                 go.Scatter(
-#                     x=convergence_iterations,
-#                     y=lower,
-#                     mode="lines",
-#                     opacity=opacity,
-#                     showlegend=False,
-#                     legendgroup="{}".format(parameter),
-#                     marker=dict(
-#                         color="rgba({},{},{},{})".format(
-#                             colors[parameter][0],
-#                             colors[parameter][1],
-#                             colors[parameter][2],
-#                             opacity,
-#                         ),
-#                     ),
-#                     line=dict(width=0),
-#                 ),
-#                 row=row + 1,
-#                 col=1,
-#             )
-#             fig.add_trace(
-#                 go.Scatter(
-#                     x=convergence_iterations,
-#                     y=upper,
-#                     showlegend=False,
-#                     line=dict(width=0),
-#                     mode="lines",
-#                     fillcolor="rgba({},{},{},{})".format(
-#                         colors[parameter][0],
-#                         colors[parameter][1],
-#                         colors[parameter][2],
-#                         opacity,
-#                     ),
-#                     fill="tonexty",
-#                     legendgroup="{}".format(parameter),
-#                 ),
-#                 row=row + 1,
-#                 col=1,
-#             )
-#         fig.update_yaxes(title_text=sensitivity_index_name, row=row + 1, col=1)
-#
-#     fig.update_layout(
-#         width=800,
-#         height=400 * ncols,
-#         #     title_text="max conf. interval, and max difference of fscores among all inputs, bootstrap={}".format(num_bootstrap)
-#     )
-#
-#     fig.update_xaxes(title_text="iterations")
-#     # write_pickle(fig, fig_name)
-#     fig.show()
+    # def get_bootstrap_rankings(self, bootstrap_data, sa_mean_results, tag, num_ranks=10):
+    #     bootstrap_rankings = {}
+    #     for sa_name in self.sa_names:
+    #         num_bootstrap  = bootstrap_data[sa_name][0].shape[0]
+    #         filepath_bootstrap_rankings = self.create_bootstrap_rankings_filepath(
+    #             num_ranks, tag, sa_name, num_bootstrap,
+    #         )
+    #         if filepath_bootstrap_rankings.exists():
+    #             bootstrap_rankings_arr = read_pickle(filepath_bootstrap_rankings)
+    #         else:
+    #             bootstrap_rankings_arr = np.zeros((0, num_bootstrap))
+    #             bootstrap_rankings_arr[:] = np.nan
+    #             for i in range(len(self.iterations[sa_name])):
+    #                 means = sa_mean_results[sa_name][i]
+    #                 breaks = jenkspy.jenks_breaks(means, nb_class=num_ranks)
+    #                 mean_ranking = self.get_one_clustered_ranking(means, num_ranks, breaks)
+    #                 bootstrap_data_sa = bootstrap_data[sa_name][i]
+    #                 rankings = np.zeros((0, self.num_params))
+    #                 for data in bootstrap_data_sa:
+    #                     rankings = np.vstack(
+    #                         [
+    #                             rankings,
+    #                             self.get_one_clustered_ranking(data, num_ranks, breaks)
+    #                         ]
+    #                     )
+    #                 rho = compute_spearmanr(rankings, mean_ranking)
+    #                 bootstrap_rankings_arr  =  np.vstack([bootstrap_rankings_arr, rho])
+    #             write_pickle(bootstrap_rankings_arr, filepath_bootstrap_rankings)
+    #         bootstrap_rankings[sa_name] = bootstrap_rankings_arr
+    #     return bootstrap_rankings

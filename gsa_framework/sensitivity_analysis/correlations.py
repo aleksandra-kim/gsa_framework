@@ -189,7 +189,7 @@ def correlation_coefficients(
     }
 
 
-def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level=0.99):
+def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level=0.95):
     """Computes number of iterations for confident estimation of correlation coefficient  ``theta``.
 
     Parameters
@@ -265,3 +265,72 @@ def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level
         # Second stage approximation
         val["iterations"] = int(max(compute_n(b, val["n0"], val["w0"]), n0_DEFAULT))
     return corrcoeff_constants
+
+
+def get_corrcoef_interval_width(theta=None, iterations=100, confidence_level=0.95):
+    """Computes number of iterations for confident estimation of correlation coefficient  ``theta``.
+
+    Parameters
+    ----------
+    theta : float
+        "True" correlation coefficient value that the estimator should approach. Can be Pearson, Kendall or Spearman.
+    interval_width : float
+        Desired width of the confidence interval.
+    confidence_level : float
+        Desired confidence level.
+
+    Returns
+    -------
+    corrcoeff_constants : dict
+        Dictionary with all constants that were used for the calculation of the number of iterations.
+
+    References
+    ----------
+    Paper:
+        Sample size requirements for estimating Pearson, Kendall and Spearman correlations.
+        Bonett, Douglas G and Wright, Thomas A, 2000
+        http://doi.org/10.1007/BF02294183
+    Remark for testing:
+        ``num_iterations`` should agree with the values from Table 1 of the paper. Part of the table is tested in tests.
+        Sometimes there is a difference of +-1 iteration. I think this is due to minor numerical imprecision.
+
+    """
+
+    z_alpha_2 = get_z_alpha_2(confidence_level)
+
+    corrcoeff_constants = {
+        "pearson": {
+            "b": 3,
+            "c": 1,
+            "theta": theta or 0.95,
+        },  # "hardest" correlation value to estimate
+        "spearman": {"b": 3, "theta": theta or 0.8},
+        # "kendall": {"b": 4, "c": (0.437) ** 0.5, "theta": theta or 0.8},
+    }
+    corrcoeff_constants["spearman"]["c"] = (
+        1 + corrcoeff_constants["spearman"]["theta"] ** 2 / 2
+    ) ** 0.5
+
+    # compute_n0 = lambda b, c, theta, interval_width: np.round(
+    #     4 * c ** 2 * (1 - theta ** 2) ** 2 * (z_alpha_2 / interval_width) ** 2 + b
+    # )
+    compute_L1 = (
+        lambda b, c, theta, n: 0.5 * (np.log(1 + theta) - np.log(1 - theta))
+        - c * z_alpha_2 / (n - b) ** 0.5
+    )
+    compute_L2 = (
+        lambda b, c, theta, n: 0.5 * (np.log(1 + theta) - np.log(1 - theta))
+        + c * z_alpha_2 / (n - b) ** 0.5
+    )
+    compute_limit = lambda L: (np.exp(2 * L) - 1) / (np.exp(2 * L) + 1)
+
+    # compute_interval_width = lambda b, n0, w0, iterations: ( * w0**2 / (iterations-b) )**1/4
+
+    result = {}
+    for k, val in corrcoeff_constants.items():
+        b, c, theta = val["b"], val["c"], val["theta"]
+        L1 = compute_L1(b, c, theta, iterations)
+        L2 = compute_L2(b, c, theta, iterations)
+        w0 = compute_limit(L2) - compute_limit(L1)
+        result[k] = w0
+    return result
