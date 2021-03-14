@@ -221,15 +221,12 @@
 #         conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
 
 
-from .setups_paper_gwp import *
+from gsa_framework.setups_paper_gwp import *
 
-path_base = Path("/data/user/kim_a/")
-num_params = 35000
-if num_params == 10000:
-    iter_corr = 4 * num_params
-elif num_params == 35000:
-    iter_corr = 2 * num_params
-gsa_corr = setup_corr(num_params, iter_corr, setup_lca_model_oases, path_base)
+path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files/")
+num_params = 10000
+iter_corr = 4 * num_params
+gsa_corr = setup_corr(num_params, iter_corr, setup_lca_model_paper, path_base)
 
 S_dict = gsa_corr.perform_gsa()
 spearman = S_dict["spearman"]

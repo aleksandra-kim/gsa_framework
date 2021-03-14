@@ -124,7 +124,7 @@ def setup_delt(num_params, iterations, setup_model, path_base):
 
 def setup_xgbo_lca(num_params, iterations, setup_lca_model, path_base):
     model, write_dir, gsa_seed = setup_lca_model(path_base, num_params)
-    xgb_model=None
+    xgb_model = None
     test_size = 0.2
     tuning_parameters = dict(
         learning_rate=0.15,
@@ -151,7 +151,7 @@ def setup_xgbo_lca(num_params, iterations, setup_lca_model, path_base):
 
 def setup_xgbo_morris4(num_params, iterations, setup_morris4_model, path_base):
     model, write_dir, gsa_seed = setup_morris4_model(path_base, num_params)
-    xgb_model=None
+    xgb_model = None
     test_size = 0.2
     if num_params == 1000:
         tuning_parameters = dict(
@@ -166,7 +166,7 @@ def setup_xgbo_morris4(num_params, iterations, setup_morris4_model, path_base):
             colsample_bytree=0.3,
         )
     elif num_params == 5000:
-         tuning_parameters = dict(
+        tuning_parameters = dict(
             learning_rate=0.2,
             gamma=0,
             min_child_weight=300,
