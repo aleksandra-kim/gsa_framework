@@ -11,6 +11,7 @@ Welcome to gsa_framework's documentation!
    :caption: Contents:
 
    modules
+   gsa_framework
 
 Indices and tables
 ==================

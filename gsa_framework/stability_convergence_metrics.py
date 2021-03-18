@@ -11,10 +11,11 @@ CI_THRESHOLD = 0.05
 
 
 def ci_student(B_array, confidence_level=0.95):
-    """
-    Student t-distribution confidence interval
+    """Student t-distribution confidence interval
+
     B_array : np.array
         Bootstrap array of size num_resamples x num_params
+
     """
     num_resamples = B_array.shape[0]
     degrees_of_freedom = num_resamples - 1
