@@ -225,8 +225,7 @@ from gsa_framework.setups_paper_gwp import *
 
 path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files/")
 num_params = 10000
-iter_corr = 4 * num_params
-gsa_corr = setup_corr(num_params, iter_corr, setup_lca_model_paper, path_base)
+iter_xgbo = 4 * num_params
+gsa_xgbo = setup_xgbo_lca(num_params, iter_xgbo, setup_lca_model_paper, path_base)
 
-S_dict = gsa_corr.perform_gsa()
-spearman = S_dict["spearman"]
+S_dict = gsa_xgbo.perform_gsa()

@@ -92,19 +92,19 @@ if __name__ == "__main__":
         S_arr_all[num_params] = S_arr
 
     # Read stability files
-    st_classes = {}
-    for num_params in nums_params:
-        stability_dicts = []
-        write_dir = path_base / "{}_morris4".format(num_params)
-        for k, v in filepath_stability_dict[num_params].items():
-            stability_dict = read_pickle(v[0])
-            stability_dicts.append(stability_dict)
-        st_classes[num_params] = Stability(
-            stability_dicts,
-            write_dir,
-            num_ranks=num_ranks,
-            bootstrap_ranking_tag="paper1",
-        )
+    # st_classes = {}
+    # for num_params in nums_params:
+    #     stability_dicts = []
+    #     write_dir = path_base / "{}_morris4".format(num_params)
+    #     for k, v in filepath_stability_dict[num_params].items():
+    #         stability_dict = read_pickle(v[0])
+    #         stability_dicts.append(stability_dict)
+    #     st_classes[num_params] = Stability(
+    #         stability_dicts,
+    #         write_dir,
+    #         num_ranks=num_ranks,
+    #         bootstrap_ranking_tag="paper1",
+    #     )
 
     fig_format = ["pdf"]
     opacity = 0.6
@@ -754,23 +754,23 @@ if __name__ == "__main__":
 
     data_dict = {
         "spearman": {
-            "sampling": [0.09, 1.85, 5.62],
-            "indices": [1.92, 8.46, 29.83],
+            "sampling": [0.06, 1.6, 5.19],
+            "indices": [4.6, 16.73, 56.99],
             "memory": [31, 762, 3 * 1024],
         },
         "total": {
-            "sampling": [5.7, 48.57, 137.13],
-            "indices": [0.01, 0.02, 0.16],
+            "sampling": [4.88, 138.01, 735.34],
+            "indices": [0.01, 0.04, 0.05],
             "memory": [1, 3.8, 7.6],
         },
         "delta": {
-            "sampling": [0.32, 6.84, 31.11],
-            "indices": [5.05, 56.18, 184.03],
+            "sampling": [0.27, 9.44, 88.56],
+            "indices": [5.61, 114.06, 425.37],
             "memory": [61, 1.5 * 1024, 6 * 1024],
         },
         "total_gain": {
-            "sampling": [0.09, 1.85, 5.62],
-            "indices": [2, 36.33, 151.75],
+            "sampling": [0.06, 1.6, 5.19],
+            "indices": [5.51, 169.24, 1115.42],
             "memory": [31, 762, 3 * 1024],
         },
     }
@@ -876,7 +876,7 @@ if __name__ == "__main__":
         secondary_y=True,
     )
     fig.update_layout(
-        width=300,
+        width=250,
         height=520,
         paper_bgcolor="rgba(255,255,255,1)",
         plot_bgcolor="rgba(255,255,255,1)",
