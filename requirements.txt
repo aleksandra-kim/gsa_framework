@@ -5,6 +5,7 @@ scikit-learn
 scipy
 xgboost
 pre-commit
+sphinxcontrib-bibtex
 
 
 # conda install -c plotly plotly-orca
