@@ -33,7 +33,7 @@ release = "0.1"
 extensions = [
     "sphinx.ext.napoleon",
     "sphinxcontrib.bibtex",
-    "autoapi.extension",
+    # "autoapi.extension",
 ]
 
 autoapi_type = "python"

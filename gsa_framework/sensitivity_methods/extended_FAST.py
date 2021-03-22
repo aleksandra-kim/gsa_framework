@@ -1,6 +1,7 @@
-from ..sampling.get_samples import eFAST_omega
 import numpy as np
 from ..utils import read_hdf5_array
+
+# from ..sampling import eFAST_omega
 
 
 def eFAST_first_order(Y, M, omega):
@@ -64,7 +65,8 @@ def eFAST_indices(filepath_Y, num_params, M=4, selected_iterations=None):
     iterations = len(y)
     iterations_per_param = iterations // num_params
     # Recreate the vector omega used in the sampling
-    omega = eFAST_omega(iterations_per_param, num_params, M)
+    # omega = eFAST_omega(iterations_per_param, num_params, M)
+    omega = 0
     # Calculate and Output the First and Total Order Values
     first = np.zeros(num_params)
     total = np.zeros(num_params)
