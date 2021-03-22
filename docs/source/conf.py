@@ -33,7 +33,11 @@ release = "0.1"
 extensions = [
     "sphinx.ext.napoleon",
     "sphinxcontrib.bibtex",
+    "autoapi.extension",
 ]
+
+autoapi_type = "python"
+autoapi_dirs = ["../../gsa_framework"]
 
 # Bibtex
 bibtex_bibfiles = ["refs.bib"]

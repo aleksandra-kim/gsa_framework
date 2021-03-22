@@ -48,7 +48,6 @@ class eFAST(SAM):
         if not flag_convergence:
             S_dict = eFAST_indices(
                 self.filepath_Y,
-                self.iterations,
                 self.num_params,
                 self.M,
             )
@@ -63,7 +62,6 @@ class eFAST(SAM):
                 write_hdf5_array(Y, filepath_Y)
             S_dict = eFAST_indices(
                 filepath_Y,
-                iterations,
                 self.num_params,
                 self.M,
             )
