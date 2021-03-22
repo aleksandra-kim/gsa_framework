@@ -3,18 +3,18 @@ from SALib.sample.saltelli import sample as salib_saltelli_sample
 from SALib.sample.latin import sample as salib_latin_sample
 from SALib.analyze.delta import analyze as salib_delta
 from gsa_framework.sampling.get_samples import saltelli_samples, latin_hypercube_samples
-from gsa_framework.sensitivity_analysis.correlations import (
+from gsa_framework.sensitivity_methods.correlations import (
     corrcoef_parallel_stability_spearman,
 )
-from gsa_framework.sensitivity_analysis.delta_moment import (
-    delta_moment_parallel_stability,
+from gsa_framework.sensitivity_methods.delta import (
+    delta_indices_parallel_stability,
 )
 from pathlib import Path
 from gsa_framework.utils import write_pickle, read_pickle
 import time
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from gsa_framework.utils_paper_plotting import *
+from dev.utils_paper_plotting import *
 from scipy.stats import spearmanr
 
 
@@ -337,7 +337,7 @@ if __name__ == "__main__":
         for k in inputs:
             x = np.random.rand(iterations_const, k)
             t1 = time.time()
-            s = delta_moment_parallel_stability(y, x, num_resamples=num_resamples)[
+            s = delta_indices_parallel_stability(y, x, num_resamples=num_resamples)[
                 "delta"
             ]
             t2 = time.time()
@@ -378,7 +378,7 @@ if __name__ == "__main__":
             y = np.random.rand(N)
             x = np.random.rand(N, inputs_const)
             t1 = time.time()
-            s = delta_moment_parallel_stability(y, x, num_resamples=num_resamples)[
+            s = delta_indices_parallel_stability(y, x, num_resamples=num_resamples)[
                 "delta"
             ]
             t2 = time.time()

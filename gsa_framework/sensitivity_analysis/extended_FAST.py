@@ -1,81 +1,70 @@
-from ..sampling.get_samples import get_omega_eFAST
+# Local files
+from .method_base import SensitivityAnalysisMethod as SAM
+from ..sampling.get_samples import eFAST_samples
+from ..sensitivity_methods.extended_FAST import eFAST_indices
+from ..utils import write_hdf5_array, read_hdf5_array
 import numpy as np
-from ..utils import read_hdf5_array
 
 
-def eFAST_first_order(Y, M, omega):
-    """Sobol first order index estimator."""
-    N = Y.shape[0]
-    f = np.fft.fft(Y)
-    Sp = np.power(np.absolute(f[np.arange(1, int((N + 1) / 2))]) / N, 2)
-    V = 2 * np.sum(Sp)
-    D1 = 2 * np.sum(Sp[np.arange(1, M + 1) * int(omega) - 1])
-    return D1 / V
+class eFAST(SAM):
+    sampling_label = "eFastSampling"
+    gsa_label = "eFastGsa"
 
+    def __init__(self, M=4, **kwargs):
+        super().__init__(**kwargs)
+        self.M = M
+        self.iterations = self.calculate_iterations(self.iterations)
+        self.sampling_label = self.sampling_label + "M{}".format(
+            M
+        )  # TODO where should this be?
+        self.write_dir_convergence = (
+            self.write_dir / "convergence_intermediate_{}".format(self.sampling_label)
+        )
+        self.write_dir_convergence.mkdir(parents=True, exist_ok=True)
 
-def eFAST_total_order(Y, omega):
-    """Sobol total order index estimator."""
-    N = Y.shape[0]
-    f = np.fft.fft(Y)
-    Sp = np.power(np.absolute(f[np.arange(1, int((N + 1) / 2))]) / N, 2)
-    V = 2 * np.sum(Sp)
-    Dt = 2 * sum(Sp[np.arange(int(omega / 2))])
-    return 1 - Dt / V
+    def calculate_iterations(self, iterations):
+        return max(
+            (4 * self.M ** 2 + 1) * self.num_params, iterations
+        )  # Sample size N > 4M^2 is required. M=4 by default.
 
+    def generate_unitcube_samples_based_on_method(self, iterations):
+        X = eFAST_samples(
+            iterations, self.num_params, M=self.M, seed=self.seed, cpus=self.cpus
+        )
+        return X
 
-def eFAST_indices(filepath_Y, iterations, num_params, M=4, selected_iterations=None):
-    """Compute estimations of Sobol' first and total order indices.
+    def create_Y_convergence_filepath(self, iterations_step, iterations):
+        filename = "Y.{}.{}Step{}.{}.hdf5".format(
+            self.sampling_label,
+            iterations,
+            iterations_step,
+            self.seed,
+        )
+        filepath = self.write_dir_convergence / filename
+        return filepath
 
-    High values of the Sobol first order index signify important parameters, while low values of the  total indices
-    point to non-important parameters. First order computes main effects only, total order takes into account
-    interactions between parameters.
-
-    Parameters
-    ----------
-    gsa_dict : dict
-        Dictionary that contains model outputs ``y`` obtained by running model on Saltelli samples,
-        number of Monte Carlo iterations ``iterations``, and number of parameters ``num_params``.
-
-    Returns
-    -------
-    sa_dict : dict
-        Dictionary that contains computed sensitivity indices.
-
-    References
-    ----------
-    Paper:
-        A Quantitative Model-Independent Method for Global Sensitivity Analysis of Model Output.
-        Saltelli A., Tarantola S., Chan K. P.-S.
-        https://doi.org/10.1080/00401706.1999.10485594
-    Link with the original implementation:
-        https://github.com/SALib/SALib/blob/master/src/SALib/analyze/fast.py
-
-    """
-
-    y = read_hdf5_array(filepath_Y)
-    y = y.flatten()
-    if selected_iterations is not None:
-        y = y[selected_iterations]
-    iterations_per_param = iterations // num_params
-    # Recreate the vector omega used in the sampling
-    omega = get_omega_eFAST(num_params, iterations_per_param, M)
-    # Calculate and Output the First and Total Order Values
-    first = np.zeros(num_params)
-    total = np.zeros(num_params)
-    first[:], total[:] = np.nan, np.nan
-    if selected_iterations is not None:
-        iterations_per_param_current = len(y) // num_params
-        assert iterations_per_param == len(y) / num_params
-    else:
-        iterations_per_param_current = iterations_per_param
-    for i in range(num_params):
-        l = np.arange(i * iterations_per_param, (i + 1) * iterations_per_param)[
-            :iterations_per_param_current
-        ]
-        first[i] = eFAST_first_order(y[l], M, omega[0])
-        total[i] = eFAST_total_order(y[l], omega[0])
-    S_dict = {
-        "First order": first,
-        "Total order": total,
-    }
-    return S_dict
+    def generate_gsa_indices_based_on_method(self, **kwargs):
+        flag_convergence = kwargs.get("flag_convergence", False)
+        if not flag_convergence:
+            S_dict = eFAST_indices(
+                self.filepath_Y,
+                self.iterations,
+                self.num_params,
+                self.M,
+            )
+        else:
+            iterations = kwargs.get("iterations", self.iterations)
+            iterations_step = kwargs.get("iterations_step", self.iterations)
+            filepath_Y = self.create_Y_convergence_filepath(iterations_step, iterations)
+            if not filepath_Y.exists():
+                X = self.generate_unitcube_samples_based_on_method(iterations)
+                X_rescaled = self.model.rescale(X)
+                Y = self.model(X_rescaled)
+                write_hdf5_array(Y, filepath_Y)
+            S_dict = eFAST_indices(
+                filepath_Y,
+                iterations,
+                self.num_params,
+                self.M,
+            )
+        return S_dict

@@ -1,170 +1,80 @@
-from sklearn.metrics import r2_score, explained_variance_score
-import numpy as np
-import json
-import os
-import xgboost as xgb
-from ..utils import read_hdf5_array
-from sklearn.model_selection import train_test_split
-
-##############################
-### Tuning parameters info ###
-##############################
-# eta : 0.3
-#      `learning rate`  - range=[0,1], 0.1 is more common than 0.8,
-# gamma : 0.0
-#      `min_split_loss` - range=[0,\inf], tree complexity parameter, higher gamma -> more pruning
-# min_child_weight : 1
-#      `cover` - range=[0,\inf], minimum number of residuals in each leaf
-# max_depth : 6
-#      `maximum depth of a tree` - range=[0,\inf]
-# lambda : 1
-#      `reg_lambda` - L2 regularization, higher value -> more conservative model
-# alpha : 1,
-#      `reg_alpha`  - L1 regularization, higher value -> more conservative model
-# n_estimators : 10
-#       used in XGBRegressor, same as `num_boost_rounds` in xgb.train
-
-# subsample : 1
-#      `subsample ratio` - range=(0,1], trees built on randomly selected partial data
-# colsample_bytree : 1
-#      subsample ratio of columns when constructing each tree. there are other colsample options
-# tree_method : "auto"
-#      `tree construction alg.` - choices include auto, exact, approx, hist, gpu_hist
+# Local files
+from .method_base import SensitivityAnalysisMethod as SAM
+from ..sensitivity_methods.gradient_boosting import xgboost_indices
+from ..utils import write_pickle, read_pickle
 
 
-def xgboost_scores(
-    filepath_Y,
-    filepath_X,
-    tuning_parameters=None,
-    test_size=0.2,
-    xgb_model=None,
-    importance_types=None,
-    flag_return_xgb_model=True,
-):
-    X = read_hdf5_array(filepath_X)
-    Y = read_hdf5_array(filepath_Y).flatten()
-    S_dict = xgboost_scores_base(
-        Y,
-        X,
-        tuning_parameters,
-        test_size,
-        xgb_model,
-        importance_types,
-        flag_return_xgb_model,
-    )
-    return S_dict
+class GradientBoosting(SAM):
+    gsa_label = "xgboostGsa"
 
+    def __init__(self, tuning_parameters=None, test_size=0.2, xgb_model=None, **kwargs):
+        super().__init__(**kwargs)
+        if tuning_parameters is None:
+            tuning_parameters = {}
+        tuning_parameters.update({"random_state": self.seed})
+        self.tuning_parameters = tuning_parameters
+        self.test_size = test_size
+        self.xgb_model = xgb_model
+        self.gsa_label = self.create_gsa_label()
+        self.write_dir_convergence = (
+            self.write_dir / "convergence_intermediate_{}".format(self.gsa_label)
+        )  # TODO
+        self.write_dir_convergence.mkdir(parents=True, exist_ok=True)
+        self.write_dir_stability = self.write_dir / "stability_intermediate_{}".format(
+            self.gsa_label
+        )  # TODO
+        self.write_dir_stability.mkdir(parents=True, exist_ok=True)
 
-def xgboost_scores_base(
-    Y,
-    X,
-    tuning_parameters=None,
-    test_size=0.2,
-    xgb_model=None,
-    importance_types=None,  # TODO set default to empty list?
-    flag_return_xgb_model=True,
-):
-    """Compute fscores obtained from the gradient boosting machines regression using XGBoost library.
+    # def create_S_convergence_filepath(self, iterations_step, iterations):
+    #     filename = "S.{}.{}.{}Step{}.{}.pickle".format(
+    #         self.gsa_label,
+    #         self.sampling_label,
+    #         iterations,
+    #         iterations_step,
+    #         self.seed,
+    #     )
+    #     filepath = self.write_dir_convergence / filename
+    #     return filepath
 
-    Parameters
-    ----------
-    dict_ : dict
-        Dictionary that contains parameter sampling matrix ``X``, model outputs ``y``, number of iterations
-        ``iterations`` and number of parameters ``num_params``. Optionally can also contain ``train_test_ratio`` that
-        is a float between 0 and 1, specifying how much of the data is used for training and testing.
-
-    Returns
-    -------
-    sa_dict : dict
-        Dictionary that contains computed sensitivity indices.
-
-    References
-    ----------
-    Paper:
-        XGBoost: A Scalable Tree Boosting System.
-        Tianqi Chen, Carlos Guestrin.
-        http://dx.doi.org/10.1145/2939672.2939785
-
-    Link to XGBoost library:
-        https://xgboost.readthedocs.io/en/latest/index.html
-
-    """
-
-    # 1. Preparations
-    num_params = X.shape[1]
-    if tuning_parameters is None:
-        tuning_parameters = {}
-    tuning_parameters["base_score"] = np.mean(Y)
-    random_state = tuning_parameters.get("random_state", None)
-    num_boost_round = tuning_parameters.get("n_estimators")
-    tuning_parameters.pop("n_estimators")
-    # 3. Prepare training and testing sets for  gradient boosting trees
-    X_train, X_test, Y_train, Y_test = train_test_split(
-        X,
-        Y,
-        test_size=test_size,
-        random_state=random_state,
-    )
-
-    dtrain = xgb.DMatrix(X_train, Y_train)
-    X_dtest = xgb.DMatrix(X_test)
-
-    # 4. Train the model
-    xgb_model_current = xgb.train(
-        tuning_parameters,
-        dtrain,
-        num_boost_round=num_boost_round,
-        xgb_model=xgb_model,
-    )
-
-    # 5. make predictions and compute prediction score
-    y_pred = xgb_model_current.predict(X_dtest)
-    r2 = r2_score(Y_test, y_pred)
-    explained_variance = explained_variance_score(Y_test, y_pred)
-
-    S_dict = {
-        "stat.r2": r2,
-        "stat.explained_variance": explained_variance,
-    }
-    if flag_return_xgb_model:
-        S_dict["stat.xgb_model"] = xgb_model_current
-
-    # 6. Save importance scores
-    if importance_types is None:
-        importance_types = ["weight", "gain", "cover", "total_gain", "total_cover"]
-    for importance_type in importance_types:
-        importance_scores_ = xgb_model_current.get_score(
-            importance_type=importance_type
+    def create_gsa_label(self):
+        gsa_label = self.gsa_label + "_Lr{}G{}Mcw{}Md{}RegL{}RegA{}Ne{}Ss{}Cbt{}_".format(  # TODO change to include more info in the filename
+            self.tuning_parameters.get("learning_rate", 0.3),
+            self.tuning_parameters.get("gamma", 0),
+            self.tuning_parameters.get("min_child_weight", 1),
+            self.tuning_parameters.get("max_depth", 6),
+            self.tuning_parameters.get("reg_lambda", 0),
+            self.tuning_parameters.get("reg_alpha", 0),
+            self.tuning_parameters.get("n_estimators", 10),
+            self.tuning_parameters.get("subsample", 1),
+            self.tuning_parameters.get("colsample_bytree", 1),
         )
-        importance_scores = {
-            int(key[1:]): val for key, val in importance_scores_.items()
-        }
-        importance_scores_arr = np.array(
-            [importance_scores.get(i, 0) for i in range(num_params)]
+        return gsa_label
+
+    def generate_gsa_indices_based_on_method(self, **kwargs):
+        # flag_convergence = kwargs.get("flag_convergence", False)
+        # if not flag_convergence:
+        flag_return_xgb_model = kwargs.get("flag_return_xgb_model", True)
+        S_dict = xgboost_indices(
+            filepath_Y=self.filepath_Y,
+            filepath_X=self.filepath_X_rescaled,
+            tuning_parameters=self.tuning_parameters,
+            test_size=self.test_size,
+            xgb_model=self.xgb_model,
+            flag_return_xgb_model=flag_return_xgb_model,
         )
-        S_dict.update(
-            {importance_type: importance_scores_arr / np.sum(importance_scores_arr)}
-        )
-
-    return S_dict
-
-
-def xgboost_scores_stability(
-    Y,
-    X,
-    tuning_parameters=None,
-    test_size=0.2,
-    xgb_model=None,
-    importance_types=None,  # TODO set default to empty list?
-    flag_return_xgb_model=False,
-):
-    S_dict = xgboost_scores_base(
-        Y,
-        X,
-        tuning_parameters,
-        test_size,
-        xgb_model,
-        importance_types,
-        flag_return_xgb_model,
-    )
-    return S_dict
+        # else:
+        #     iterations = kwargs.get("iterations", self.iterations)
+        #     iterations_step = kwargs.get("iterations_step", self.iterations)
+        #     filepath_S = self.create_S_convergence_filepath(iterations_step, iterations)
+        #     if not filepath_S.exists():
+        #         S_dict, r2, explained_var = xgboost_scores(
+        #             filepath_Y=self.filepath_Y,
+        #             filepath_X=self.filepath_X_rescaled,
+        #             tuning_parameters=self.tuning_parameters,
+        #             num_boost_round=self.num_boost_round,
+        #             xgb_model=self.xgb_model,
+        #         )
+        #         write_pickle(S_dict, filepath_S)
+        #     else:
+        #         S_dict = read_pickle(filepath_S)
+        return S_dict

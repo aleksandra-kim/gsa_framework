@@ -1,4 +1,4 @@
-from gsa_framework.setups_paper_gwp import *
+from dev.setups_paper_gwp import *
 from pathlib import Path
 
 if __name__ == "__main__":

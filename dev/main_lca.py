@@ -1,9 +1,9 @@
-# from gsa_framework.lca import LCAModel
-# from gsa_framework.methods.correlations import CorrelationCoefficients
-# from gsa_framework.methods.extended_FAST import eFAST
-# from gsa_framework.methods.saltelli_sobol import SaltelliSobol
-# from gsa_framework.methods.gradient_boosting import GradientBoosting
-# from gsa_framework.methods.delta_moment import DeltaMoment
+# from gsa_framework.models import LCAModel
+# from gsa_framework.sensitivity_analysis.correlations import CorrelationCoefficients
+# from gsa_framework.sensitivity_analysis.extended_FAST import eFAST
+# from gsa_framework.sensitivity_analysis.saltelli_sobol import SaltelliSobol
+# from gsa_framework.sensitivity_analysis.gradient_boosting import GradientBoosting
+# from gsa_framework.sensitivity_analysis.delta_moment import DeltaMoment
 # from gsa_framework.validation import Validation
 # from gsa_framework.convergence import Convergence
 # from pathlib import Path
@@ -221,7 +221,7 @@
 #         conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
 
 
-from gsa_framework.setups_paper_gwp import *
+from dev.setups_paper_gwp import *
 
 path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files/")
 num_params = 10000

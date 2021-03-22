@@ -1,12 +1,11 @@
 from pathlib import Path
 from gsa_framework.utils import *
-from gsa_framework.stability_convergence_metrics import Stability
-from gsa_framework.plotting import plot_max_min_band_many, plot_ranking_convergence_many
-from gsa_framework.sensitivity_analysis.saltelli_sobol import *
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import jenkspy
-
+from gsa_framework.convergence_robustness_validation.robustness import Robustness
+from gsa_framework.visualization.plotting import (
+    plot_max_min_band_many,
+    plot_ranking_convergence_many,
+)
+from gsa_framework.sensitivity_methods.saltelli_sobol import *
 
 # 1. Choose which stability dictionaries to include
 path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files")
@@ -21,7 +20,7 @@ ranking_stats_rho_convergence = {}
 for model in models:
     if "morris" in model:
         write_dir = path_base / model
-    elif "lca" in model:
+    elif "models" in model:
         write_dir = path_base / "lca_model_food_10000"
     write_arr = write_dir / "arrays"
     files = [x for x in write_arr.iterdir() if x.is_file() and "stability." in x.name]
@@ -35,7 +34,7 @@ for model in models:
                 stability_dict_abs[k] = {"spearman": np.abs(v["spearman"])}
             stability_dict = stability_dict_abs
         stability_dicts.append(stability_dict)
-    st = Stability(stability_dicts, write_dir, num_ranks=16)
+    st = Robustness(stability_dicts, write_dir, num_ranks=16)
     ranking_stats_rho_convergence[model] = {"rho": st.sa_rho_convergence_dict}
 
     data_dicts[model] = st.confidence_intervals_max

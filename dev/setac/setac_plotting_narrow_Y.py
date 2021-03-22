@@ -2,9 +2,9 @@ from gsa_framework.utils import read_hdf5_array, write_hdf5_array
 from pathlib import Path
 import brightway2 as bw
 from copy import deepcopy
-from gsa_framework.utils_setac_lca import get_xgboost_params, plot_base_narrow_Y
+from dev.utils_setac_lca import get_xgboost_params, plot_base_narrow_Y
 import pickle
-from gsa_framework.lca import LCAModelSetac
+from gsa_framework.models import LCAModelSetac
 import numpy as np
 
 num_params_narrow = 12

@@ -5,19 +5,57 @@ OPTIMAL_CHUNK_SIZE_EFAST = 50
 get_chunk_size_eFAST = lambda num_params: min(OPTIMAL_CHUNK_SIZE_EFAST, num_params)
 
 
-def random_samples(gsa_dict):
-    """Random standard uniform sampling for all iterations and parameters with or without fixing random seed."""
-    np.random.seed(gsa_dict.get("seed"))
-    return np.random.rand(gsa_dict.get("iterations"), gsa_dict.get("num_params"))
+def random_samples(iterations, num_params, seed=None):
+    """Random standard uniform sampling for all iterations and parameters with an option of fixing random seed.
+
+    Parameters
+    ----------
+    iterations : int
+        Number of iterations.
+    num_params : int
+        Number of model inputs.
+    seed : int
+        Random seed.
+
+    Returns
+    -------
+    samples : array
+        Randomly generated samples of size ``iterations x num_params``.
+
+    """
+    np.random.seed(seed)
+    samples = np.random.rand(iterations, num_params)
+    return samples
 
 
-def custom_samples(gsa_dict):
+def custom_unitcube_samples(X_unitcube):
     """Wrapper function to return custom sampling matrix if it is specified by the user, values are in [0,1] range."""
-    return gsa_dict.get("X")
+    return X_unitcube
+
+
+def custom_rescaled_samples(X_rescaled):
+    """Wrapper function to return custom sampling matrix if it is specified by the user, values are in rescaled range."""
+    return X_rescaled
 
 
 def latin_hypercube_samples(iterations, num_params, seed=None):
-    """Latin hypercube samples in [0,1] range."""
+    """Latin hypercube samples in [0,1] range.
+
+    Parameters
+    ----------
+    iterations : int
+        Number of iterations.
+    num_params : int
+        Number of model inputs.
+    seed : int
+        Random seed.
+
+    Returns
+    -------
+    samples : array
+        Randomly generated latin hypercube samples of size ``iterations x num_params``.
+
+    """
     np.random.seed(seed)
     step = 1 / iterations
     samples = np.random.uniform(low=0, high=step, size=(num_params, iterations))
@@ -28,21 +66,48 @@ def latin_hypercube_samples(iterations, num_params, seed=None):
     return samples.T
 
 
-def sobol_samples(iterations, num_params, skip_samples=1000):
-    """Quasi-random Sobol sequence in [0,1] range that skips first ``skip_samples`` samples to avoid boundary values."""
+def sobol_samples(iterations, num_params, skip_iterations=1000):
+    """Quasi-random Sobol sequence in [0,1] range that skips first ``skip_iterations`` samples to avoid boundary values.
+
+    Parameters
+    ----------
+    iterations : int
+        Number of iterations.
+    num_params : int
+        Number of model inputs.
+    skip_iterations : int
+        Number of first Sobol sequence samples to skip.
+
+    Returns
+    -------
+    samples : array
+        Sobol samples of size ``iterations x num_params``.
+
+    """
     from .sobol_sequence import SobolSample
 
-    sobol = SobolSample(iterations + skip_samples, num_params, scale=31)
+    sobol = SobolSample(iterations + skip_iterations, num_params, scale=31)
     samples = sobol.generate_all_samples()
-    return samples[skip_samples:]
+    return samples[skip_iterations:]
 
 
-def saltelli_samples(iterations, num_params, skip_samples=1000):
+def saltelli_samples(iterations, num_params, skip_iterations=1000):
     """Saltelli samples in [0,1] range based on Sobol sequences and radial sampling.
 
-    Notes
-    -----
-        Speed up over SALib: for 2000 iterations and 1000 parameters, SALib needs 10 min, our implementation - 50 s.
+    Parameters
+    ----------
+    iterations : int
+        Number of iterations.
+    num_params : int
+        Number of model inputs.
+    skip_iterations : int
+        Number of first Sobol sequence samples to skip.
+
+    Returns
+    -------
+    samples : array
+        Saltelli samples of size ``iterations_per_parameter (num_params + 2) x num_params``,
+        where ``iterations_per_parameter = iterations // (num_params + 2)``.
 
     References
     ----------
@@ -50,7 +115,7 @@ def saltelli_samples(iterations, num_params, skip_samples=1000):
         Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index
         Saltelli A., Annoni P., Azzini I., Campolongo F., Ratto M., Tarantola S., 2010
         https://doi.org/10.1016/j.cpc.2009.09.018
-    Link with the original implementation:
+    Link to the original implementation:
         https://github.com/SALib/SALib/blob/master/src/SALib/sample/saltelli.py
 
     """
@@ -61,10 +126,10 @@ def saltelli_samples(iterations, num_params, skip_samples=1000):
     iterations_per_parameter = iterations // (num_params + 2)
     # generate base Sobol sequence samples
     sobol = SobolSample(
-        iterations_per_parameter + skip_samples, num_params * 2, scale=31
+        iterations_per_parameter + skip_iterations, num_params * 2, scale=31
     )
     base_samples = sobol.generate_all_samples()
-    base_samples = base_samples[skip_samples:]
+    base_samples = base_samples[skip_iterations:]
     # create saltelli samples with radial basis design
     samples = np.tile(base_samples[:, :num_params], (1, num_params + 2)).reshape(
         iterations_per_parameter * (num_params + 2), -1
@@ -80,10 +145,7 @@ def saltelli_samples(iterations, num_params, skip_samples=1000):
     return samples
 
 
-# Would be nice to have consistent function name parameters
-
-
-def get_omega_eFAST(num_params, iterations, M):
+def eFAST_omega(iterations, num_params, M):
     """Compute omega parameter for the extended FAST sampling."""
     omega = np.zeros([num_params])
     omega[0] = np.floor((iterations - 1) / (2 * M))
@@ -96,7 +158,7 @@ def get_omega_eFAST(num_params, iterations, M):
     return omega
 
 
-def eFAST_samples_one_chunk(i, num_params, iterations, M=4, seed=None):
+def eFAST_samples_one_chunk(i, iterations, num_params, M=4, seed=None):
     np.random.seed(seed)
     iterations_per_parameter = iterations // num_params
     # Determine current chunk
@@ -111,8 +173,7 @@ def eFAST_samples_one_chunk(i, num_params, iterations, M=4, seed=None):
     # Minimum number of iterations is chosen based on the Nyquist criterion, ``N`` in the paper
     N = max(4 * M ** 2 + 1, iterations_per_parameter)
     # Set of frequencies that would be assigned to each input factor
-    omega = get_omega_eFAST(num_params, N, M)
-    # omega_temp = np.zeros([num_params]) TODO not needed?
+    omega = eFAST_omega(N, num_params, M)
     # Discretization of the frequency space
     s = (2 * np.pi / N) * np.arange(N)
     # Random phase-shift
@@ -161,7 +222,7 @@ def eFAST_samples_one_chunk(i, num_params, iterations, M=4, seed=None):
 
 
 def eFAST_samples_many_chunks(
-    icpu, num_params, iterations, num_params_per_cpu, M=4, seed=None
+    icpu, iterations, num_params, num_params_per_cpu, M=4, seed=None
 ):
     chunk_size = get_chunk_size_eFAST(num_params_per_cpu)
     num_chunks = int(np.ceil(num_params_per_cpu / chunk_size))
@@ -169,17 +230,31 @@ def eFAST_samples_many_chunks(
     for ichunk in range(num_chunks):
         i = icpu * num_chunks + ichunk
         samples = np.vstack(
-            [samples, eFAST_samples_one_chunk(i, num_params, iterations, M, seed)]
+            [samples, eFAST_samples_one_chunk(i, iterations, num_params, M, seed)]
         )
     return samples
 
 
-def eFAST_samples(num_params, iterations, M=4, seed=None, cpus=None):
+def eFAST_samples(iterations, num_params, M=4, seed=None, cpus=None):
     """Extended FAST samples in [0,1] range.
 
-    Notes
-    -----
-        Code optimized from the SALib implementation, with a ~6 (??TODO) times speed up.
+    Parameters
+    ----------
+    iterations : int
+        Number of iterations.
+    num_params : int
+        Number of model inputs.
+    M : int
+        Interference factor, usually 4 or higher.
+    seed : int
+        Random seed.
+    cpus : int
+        Number of cpus for parallel computation of eFAST samples with ``multiprocessing`` library.
+
+    Returns
+    -------
+    samples : array
+        eFASTT samples of size ``iterations x num_params``.
 
     References
     ----------
@@ -187,10 +262,8 @@ def eFAST_samples(num_params, iterations, M=4, seed=None, cpus=None):
         A Quantitative Model-Independent Method for Global Sensitivity Analysis of Model Output.
         Saltelli A., Tarantola S., Chan K. P.-S.
         https://doi.org/10.1080/00401706.1999.10485594
-    Link with the original implementation:
+    Link to the original implementation:
         https://github.com/SALib/SALib/blob/master/src/SALib/sample/fast_sampler.py
-
-    TODO what to do with M? should be consistent in both sampling and FAST indices computation
 
     """
 
@@ -203,58 +276,14 @@ def eFAST_samples(num_params, iterations, M=4, seed=None, cpus=None):
     cpus_needed = len(num_params_per_cpu)
 
     with multiprocessing.Pool(processes=cpus_needed) as pool:
-        samples = pool.starmap(
+        samples_temp = pool.starmap(
             eFAST_samples_many_chunks,
             [
-                (icpu, num_params, iterations, num_params_per_cpu[icpu], M, seed)
+                (icpu, iterations, num_params, num_params_per_cpu[icpu], M, seed)
                 for icpu in range(cpus_needed)
             ],
         )
-    samples_array = np.zeros(shape=(0, num_params))
-    for res in samples:
-        samples_array = np.vstack([samples_array, res])
-    return samples_array
-
-
-def dissimilarity_samples(gsa_dict):
-    """Sampling for dissimilarity measures.
-
-    First base sampling is created where all parameters vary, then for each parameter base sampling is copied
-    but for the current parameter base values are replaced with new values.
-
-    """
-
-    base_sampler_fnc = gsa_dict.get("base_sampler_fnc")
-    iterations = gsa_dict.get("iterations")
-    num_params = gsa_dict.get("num_params")
-    iterations_per_parameter = iterations // (num_params + 1)
-    dict_base = {
-        "iterations": iterations_per_parameter,
-        "num_params": num_params,
-    }
-    base_samples = base_sampler_fnc(dict_base)
-    samples = np.tile(base_samples, (num_params + 1, 1))
-    for i in range(num_params):
-        samples[
-            (i + 1) * iterations_per_parameter : (i + 2) * iterations_per_parameter, i
-        ] = np.mean(base_samples[:, i])
+    samples = np.zeros(shape=(0, num_params))
+    for res in samples_temp:
+        samples = np.vstack([samples, res])
     return samples
-
-
-# def dissimilarity_samples(dict_):
-#     '''kth parameter is fixed'''
-#     base_sampler_fnc = dict_.get('base_sampler_fnc')
-#     iterations = dict_.get('iterations')
-#     num_params = dict_.get('num_params')
-#     iterations_per_parameter = iterations // (num_params+1)
-#     dict_adjusted = {
-#         'iterations': iterations_per_parameter*(num_params+1),
-#         'num_params': num_params,
-#     }
-#     samples = base_sampler_fnc(dict_adjusted)
-#     base_samples = samples[:iterations_per_parameter,:]
-#     print(base_samples.shape)
-#     for i in range(num_params):
-#         samples[(i+1)*iterations_per_parameter : (i+2)*iterations_per_parameter, i] = base_samples[:,i]
-#
-#     return samples

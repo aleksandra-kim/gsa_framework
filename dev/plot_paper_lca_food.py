@@ -1,16 +1,10 @@
 import numpy as np
 from pathlib import Path
-from scipy.stats import spearmanr, wasserstein_distance
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import jenkspy
-import pandas as pd
-from copy import deepcopy
 
 from gsa_framework.utils import read_hdf5_array, read_pickle
-from gsa_framework.plotting import plot_histogram_Y1_Y2, plot_correlation_Y1_Y2
-from gsa_framework.stability_convergence_metrics import Stability
-from gsa_framework.utils_paper_plotting import *
+from gsa_framework.convergence_robustness_validation.robustness import Robustness
+from dev.utils_paper_plotting import *
 
 
 normalize = lambda val: (val - min(val)) / (max(val) - min(val))
@@ -108,7 +102,7 @@ if __name__ == "__main__":
             stability_dict = read_pickle(filepath_stability_dict[k][0])
             stability_dicts.append(stability_dict)
     bootstrap_ranking_tag = "paper1"
-    st = Stability(
+    st = Robustness(
         stability_dicts,
         write_dir,
         num_ranks=num_ranks,
@@ -165,7 +159,7 @@ if __name__ == "__main__":
     # region
 
     # # Analytical spearman confidence intervals
-    # from gsa_framework.sensitivity_analysis.correlations import get_corrcoef_interval_width
+    # from gsa_framework.sensitivity_methods.correlations import get_corrcoef_interval_width
     # thetas = np.linspace(0.01, 0.95, 100)
     # all_iterations = st.iterations['spearman']
     # analytical_spearman_ci = []
@@ -556,7 +550,7 @@ if __name__ == "__main__":
     #                     mode="lines",
     #                     marker=dict(color=color_orange_rgb),
     #                     showlegend=showlegend2,
-    #                     name=r"$\text{Metrics within GSA methods}$",
+    #                     name=r"$\text{Metrics within GSA sensitivity_analysis}$",
     #                 ),
     #                 col=col, row=row,
     #                 secondary_y=True,
@@ -848,7 +842,7 @@ if __name__ == "__main__":
     save_fig(fig, "distances_in_high_dim", fig_format, write_dir_fig)
     # endregion
 
-    ### 6. Agreement between results of GSA methods
+    ### 6. Agreement between results of GSA sensitivity_analysis
     ###############################################
     # region
 

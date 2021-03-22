@@ -13,7 +13,7 @@ setup(
     packages=[
         "gsa_framework",
         "gsa_framework.sampling",
-        "gsa_framework.sensitivity_analysis",
+        "gsa_framework.sensitivity_methods",
     ],
     author="Aleksanda Kim",
     author_email="aleksandra.kim@icloud.com",

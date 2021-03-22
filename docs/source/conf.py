@@ -20,7 +20,6 @@ sys.path.insert(0, os.path.abspath("../../gsa_framework/"))
 
 project = "gsa_framework"
 copyright = "2021, Aleksandra Kim"
-author = "Aleksandra Kim"
 
 # The full version, including alpha/beta/rc tags
 release = "0.1"
@@ -31,7 +30,16 @@ release = "0.1"
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.napoleon"]
+extensions = [
+    "sphinx.ext.napoleon",
+    "sphinxcontrib.bibtex",
+]
+
+# Bibtex
+bibtex_bibfiles = ["refs.bib"]
+bibtex_encoding = "latin"
+bibtex_default_style = "alpha"
+
 
 # Napoleon settings
 napoleon_google_docstring = True
@@ -50,6 +58,12 @@ napoleon_attr_annotations = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
+
+# The suffix of source filenames.
+source_suffix = ".rst"
+
+# The master toctree document.
+master_doc = "index"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.

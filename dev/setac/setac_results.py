@@ -1,6 +1,6 @@
 from pathlib import Path
 import pickle
-from gsa_framework.utils_setac_lca import get_xgboost_params
+from dev.utils_setac_lca import get_xgboost_params
 import plotly.graph_objects as go
 import numpy as np
 

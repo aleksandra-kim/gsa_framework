@@ -1,7 +1,7 @@
 import brightway2 as bw
 from pathlib import Path
 from gsa_framework import LCAModel
-from gsa_framework.validation import Validation
+from gsa_framework.convergence_robustness_validation.validation import Validation
 
 # from gsa_framework.utils_setac_lca import *
 from gsa_framework.utils import read_hdf5_array
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     }
 
     # 1. Validation plot base_Y
-    # validation.plot_histogram_base_Y(default_Y=lca_model.lca.score, bin_min=bin_min, bin_max=bin_max, save_fig=True)
+    # validation.plot_histogram_base_Y(default_Y=lca_model.models.score, bin_min=bin_min, bin_max=bin_max, save_fig=True)
     # validation.plot_histogram_base_Y(default_Y=None, bin_min=bin_min, bin_max=bin_max, save_fig=True)
 
     # 2. Influential_Y after LSA_3 and regression

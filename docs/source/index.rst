@@ -6,12 +6,34 @@
 Welcome to gsa_framework's documentation!
 =========================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+.. include:: introduction.rst
 
-   modules
-   gsa_framework
+Bibliography
+============
+
+.. bibliography::
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Getting started
+
+   installation
+   examples
+   speedups
+   contributing
+   faqs
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: API
+
+   api/sampling
+   api/sensitivity_indices_computation
+   api/sensitivity_analysis
+   api/models
+   api/reliability
 
 Indices and tables
 ==================

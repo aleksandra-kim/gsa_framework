@@ -4,10 +4,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from gsa_framework.utils import read_pickle
-from gsa_framework.utils_paper_plotting import *
-from gsa_framework.stability_convergence_metrics import Stability
+from dev.utils_paper_plotting import *
 from gsa_framework.test_functions import Morris4
-from gsa_framework.sensitivity_analysis.correlations import get_corrcoef_interval_width
 
 
 def get_files_dict_sorted(files):
@@ -121,7 +119,7 @@ if __name__ == "__main__":
         model = Morris4(num_params=num_params, num_influential=num_influential)
         morris_models[num_params] = model
 
-    ### 1. Scalability of methods, results from all GSA
+    ### 1. Scalability of sensitivity_analysis, results from all GSA
     ###################################################
     # region
     #
@@ -552,7 +550,7 @@ if __name__ == "__main__":
     #                     mode="lines",
     #                     marker=dict(color=color_orange_rgb),
     #                     showlegend=showlegend2,
-    #                     name=r"$\text{Metrics within GSA methods}$",
+    #                     name=r"$\text{Metrics within GSA sensitivity_analysis}$",
     #                 ),
     #                 col=col, row=row,
     #                 secondary_y=True,
