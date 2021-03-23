@@ -1,6 +1,6 @@
 .. _introduction:
 
-Python package gsa_framework is aimed at providing interface for Global Sensitivity Analysis (GSA) - the study of how uncertainty in the output of a model (numerical or otherwise) can be apportioned to different sources of uncertainty in the model input :cite:`saltelli2004sensitivity`. For each GSA method, it combines its typical components in a consistent way, while preserving modularity. The components include sampling, model runs and computation of sensitivity indices, as well as optional modules that support reliable and efficient GSA by means of convergence, robustness and validation analyses.
+Python package gsa_framework is aimed at providing interface for Global Sensitivity Analysis (GSA) - the study of how uncertainty in the output of a model (numerical or otherwise) can be apportioned to different sources of uncertainty in the model input :cite:`saltelli2008global`. For each GSA method, it combines its typical components in a consistent way, while preserving modularity. The components include sampling, model runs and computation of sensitivity indices, as well as optional modules that support reliable and efficient GSA by means of convergence, robustness and validation analyses.
 
 Sampling methods
 * random

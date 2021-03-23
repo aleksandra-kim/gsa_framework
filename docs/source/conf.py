@@ -10,10 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
+# import os
+# import sys
 
-sys.path.insert(0, os.path.abspath("../../gsa_framework/"))
+# sys.path.insert(0, os.path.abspath("../../gsa_framework/"))
 
 
 # -- Project information -----------------------------------------------------
@@ -33,11 +33,8 @@ release = "0.1"
 extensions = [
     "sphinx.ext.napoleon",
     "sphinxcontrib.bibtex",
-    # "autoapi.extension",
+    "sphinx.ext.autodoc",
 ]
-
-autoapi_type = "python"
-autoapi_dirs = ["../../gsa_framework"]
 
 # Bibtex
 bibtex_bibfiles = ["refs.bib"]
