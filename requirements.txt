@@ -7,5 +7,6 @@ xgboost
 pre-commit
 sphinxcontrib-bibtex
 brightway2
+jenkspy
 
 # conda install -c plotly plotly-orca
