@@ -6,7 +6,7 @@ Convergence, robustness and validation
 Convergence of sensitivity indices
 ----------------------------------
 
-.. autoclass:: gsa_framework.Convergence
+.. autoclass:: gsa_framework.convergence_robustness_validation.convergence.Convergence
     :members:
 
 Robustness of GSA
