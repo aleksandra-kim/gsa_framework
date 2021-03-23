@@ -36,8 +36,8 @@ extensions = [
     "sphinx.ext.autodoc",
 ]
 
-autoapi_type = "python"
-autoapi_dirs = ["../../gsa_framework"]
+# autoapi_type = "python"
+# autoapi_dirs = ["../../gsa_framework"]
 
 # Bibtex
 bibtex_bibfiles = ["refs.bib"]
