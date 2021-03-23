@@ -33,6 +33,10 @@ class LCAModel(ModelBase):
         Tuple with an impact assessment method.
     write_dir : str
         Directory where intermediate results will be stored.
+    num_params : int
+        Number of parameters that can be influential, the rest are removed based on local sensitivity analysis.
+    lca : bw.LCA object
+        Instance of an LCA class from brightway library.
 
     Returns
     -------
@@ -94,7 +98,7 @@ class LCAModel(ModelBase):
         self.mc = MCRandomNumberGenerator(self.uncertain_tech_params)
 
     def make_dirs(self):
-        """Create subdirectories where intermediate results will be stored."""
+        """Create subdirectories where intermediate results can be stored."""
         dirs_list = [
             "arrays",
             "figures",

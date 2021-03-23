@@ -172,58 +172,58 @@ class Convergence:
         )
         return sa_convergence_dict
 
-    def plot_convergence(
-        self,
-        sa_convergence_dict,
-        parameter_inds=None,
-        fig_format=[],
-    ):
-        if parameter_inds is None:
-            parameter_inds = np.random.randint(
-                0, self.num_params, max(10, self.num_params // 10)
-            )
-        # Assign color to each parameter
-        colors = {}
-        for parameter in parameter_inds:
-            colors[parameter] = "rgb({0},{1},{2})".format(
-                np.random.randint(0, 256),
-                np.random.randint(0, 256),
-                np.random.randint(0, 256),
-            )
-        # Plot
-        x = sa_convergence_dict["iterations"]
-        sa_convergence_dict.pop("iterations")
-        fig = make_subplots(
-            rows=len(sa_convergence_dict),
-            cols=1,
-            subplot_titles=list(sa_convergence_dict.keys()),
-        )
-        for parameter in parameter_inds:
-            row = 1
-            for sa_index_name, sa_array in sa_convergence_dict.items():
-                showlegend = False
-                if row == 1:
-                    showlegend = True
-                fig.add_trace(
-                    go.Scatter(
-                        x=x,
-                        y=sa_array[:, parameter],
-                        mode="lines+markers",
-                        showlegend=showlegend,
-                        marker=dict(color=colors[parameter]),
-                        name="Parameter " + str(parameter),
-                        legendgroup=str(parameter),
-                    ),
-                    row=row,
-                    col=1,
-                )
-                row += 1
-        fig.show()
-        if "pdf" in fig_format:
-            fig.write_image(self.create_figure_convergence_filepath("pdf").as_posix())
-        if "html" in fig_format:
-            fig.write_html(self.create_figure_convergence_filepath("html").as_posix())
-        if "pickle" in fig_format:
-            filepath = self.create_figure_convergence_filepath("pickle").as_posix()
-            write_pickle(fig, filepath)
-        return fig
+    # def plot_convergence(
+    #     self,
+    #     sa_convergence_dict,
+    #     parameter_inds=None,
+    #     fig_format=[],
+    # ):
+    #     if parameter_inds is None:
+    #         parameter_inds = np.random.randint(
+    #             0, self.num_params, max(10, self.num_params // 10)
+    #         )
+    #     # Assign color to each parameter
+    #     colors = {}
+    #     for parameter in parameter_inds:
+    #         colors[parameter] = "rgb({0},{1},{2})".format(
+    #             np.random.randint(0, 256),
+    #             np.random.randint(0, 256),
+    #             np.random.randint(0, 256),
+    #         )
+    #     # Plot
+    #     x = sa_convergence_dict["iterations"]
+    #     sa_convergence_dict.pop("iterations")
+    #     fig = make_subplots(
+    #         rows=len(sa_convergence_dict),
+    #         cols=1,
+    #         subplot_titles=list(sa_convergence_dict.keys()),
+    #     )
+    #     for parameter in parameter_inds:
+    #         row = 1
+    #         for sa_index_name, sa_array in sa_convergence_dict.items():
+    #             showlegend = False
+    #             if row == 1:
+    #                 showlegend = True
+    #             fig.add_trace(
+    #                 go.Scatter(
+    #                     x=x,
+    #                     y=sa_array[:, parameter],
+    #                     mode="lines+markers",
+    #                     showlegend=showlegend,
+    #                     marker=dict(color=colors[parameter]),
+    #                     name="Parameter " + str(parameter),
+    #                     legendgroup=str(parameter),
+    #                 ),
+    #                 row=row,
+    #                 col=1,
+    #             )
+    #             row += 1
+    #     fig.show()
+    #     if "pdf" in fig_format:
+    #         fig.write_image(self.create_figure_convergence_filepath("pdf").as_posix())
+    #     if "html" in fig_format:
+    #         fig.write_html(self.create_figure_convergence_filepath("html").as_posix())
+    #     if "pickle" in fig_format:
+    #         filepath = self.create_figure_convergence_filepath("pickle").as_posix()
+    #         write_pickle(fig, filepath)
+    #     return fig

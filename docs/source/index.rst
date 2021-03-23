@@ -32,8 +32,10 @@ Bibliography
    api/sampling
    api/sensitivity_indices_computation
    api/sensitivity_analysis
-   api/models
    api/reliability
+   api/models
+   api/life_cycle_assessment
+   api/visualization
 
 Indices and tables
 ==================

@@ -13,15 +13,39 @@ from ..utils import read_hdf5_array, write_hdf5_array, write_pickle, read_pickle
 
 
 class SensitivityAnalysisMethod:
-    """Base class to define sensitivity analysis sensitivity_analysis. Should be subclassed.
+    """Base class to define sensitivity analysis. Should be subclassed to define specific sensitivity methods.
 
-    Sensitivity analysis sensitivity_analysis should have the following components:
+    Has the following components:
 
-    * A sampling strategy. Can be completely random, or structured, or whatever.
-    * A model execution step.
-    * An analysis function to calculate various indices.
+    * A sampling strategy.
+    * A model execution step computed in parallel.
+    * An analysis function to calculate sensitivity indices.
 
     This class provides a common interface for these components, and utility functions to save data at each step.
+
+    Parameters
+    ----------
+    model : object
+        Model should have __len__, __call__ and rescale methods, can be a child class of ModelBase.
+    write_dir : Path or str
+        Directory to store all generated data. It is advisable to have separate directories for each model.
+    iterations : int
+        Number of Monte Carlo simulations. If not specified, should be assigned automatically based on requirements of specific GSA methods.
+    seed : int
+        Random seed.
+    cpus : int
+        Number of cpus for parallel computations with ``multiprocessing`` library.
+    available_memory : int
+        Available RAM in GB.
+    bytes_per_entry : int
+        Desired precision of data, by default is 8 bytes per array entry, which corresponds to float64.
+    use_pararllel : Bool
+        Flag to use parallel computations.
+
+    Returns
+    -------
+    sa_dict : dict
+        Dictionary with sensitivity indices.
 
     """
 
@@ -57,7 +81,7 @@ class SensitivityAnalysisMethod:
         self.use_parallel = use_parallel
 
     def make_dirs(self):
-        """Create subdirectories where intermediate results will be stored."""
+        """Create subdirectories where intermediate results will be stored, such arrays and figures."""
         dirs_list = ["arrays", "figures"]  # TODO maybe add loggin later on
         for dir in dirs_list:
             dir_path = self.write_dir / dir
@@ -65,6 +89,7 @@ class SensitivityAnalysisMethod:
 
     def get_parallel_params(self, across_iterations):
         """Compute parameters necessary for parallel computations, eg chunk_sizes, num_chunks."""
+
         # 1. Chunk sizes are limited by available memory
         get_chunk_size = lambda constant_dim, dim_to_parallelize: min(
             int(
@@ -149,6 +174,7 @@ class SensitivityAnalysisMethod:
         return self.write_dir / "arrays" / self.create_gsa_results_filename()
 
     def generate_unitcube_samples(self, return_X=True):
+        """Geneate samples in [0,1] range and write ``X_unitcube`` to a file."""
         if self.filepath_X_unitcube.exists():
             if return_X:
                 X = read_hdf5_array(self.filepath_X_unitcube)
@@ -164,6 +190,7 @@ class SensitivityAnalysisMethod:
                 return self.filepath_X_unitcube
 
     def generate_unitcube_samples_based_on_method(self, iterations):
+        """Geneate samples in [0,1] range that follow sampling designs, redefined by specific sensitivity methods if needed."""
         np.random.seed(self.seed)
         X = np.random.rand(iterations, self.num_params)
         return X
@@ -301,8 +328,8 @@ class SensitivityAnalysisMethod:
 
         Returns
         -------
-        filename_y : str
-            Path where model outputs ``y`` are stored.
+        Y : np.array
+            Model outputs
 
         """
         if self.filepath_Y.exists():
@@ -345,6 +372,7 @@ class SensitivityAnalysisMethod:
         return S_dict
 
     def perform_gsa(self, **kwargs):
+        """Performs sensitivity analysis from sampling to model runs and computation of indices, and displays required time in seconds."""
         verbose = kwargs.get("verbose", True)
         t0 = time.time()
         self.generate_unitcube_samples(return_X=False)
@@ -371,18 +399,25 @@ class SensitivityAnalysisMethod:
         S_dict,
         S_boolean=None,
         S_dict_analytical=None,
-        fig_format=(),
+        fig_format=[],
     ):
-        """Simplistic plotting of GSA results of GSA indices vs parameters. Figure is saved in the ``write_dir``.
+        """Plotting of computed sensitivity indices vs parameters. Figure is saved in the ``write_dir``.
 
         Parameters
         ----------
         S_dict : dict
-            Keys are GSA indices names, values - sensitivity indices for all parameters.
-        influential_params : list
-            Parameters that are known to be influential, eg if the model is analytical. Ground truth for GSA validation.
-        filename : str
-            Filename for saving the plot, otherwise it will be saved under ``sensitivity_plot.pdf``.
+            Keys are GSA indices names, values - estimated sensitivity indices for all parameters.
+        S_boolean : boolean array
+            ``True`` values for known influential inputs, and ``False`` - for non-influential.
+        S_dict_analytical : dict
+            Keys are GSA indices names, values - analytical sensitivity indices for all parameters.
+        fig_format : list
+            List of formats to save figure, can be "pickle", "jpeg", "pdf", etc.
+
+        Returns
+        -------
+        fig : plotly go.Figure object
+            Graphical objects figure from plotly.
 
         """
         is_boolean_given = S_boolean is not None

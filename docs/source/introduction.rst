@@ -19,7 +19,7 @@ Sensitivity methods
 
 Models
 
-* test functions, such as Morris, borehole, wingweight, OTLcircuit, piston, Moon Sobol-Levitan, Sobol G and G star functions
+* test functions, such as Morris, borehole, wingweight, OTLcircuit, piston, Moon, Sobol-Levitan, Sobol G and G star functions
 * life cycle assessment model
 * custom models
 

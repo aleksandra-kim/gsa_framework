@@ -68,6 +68,8 @@ class Morris(ModelBase):
         return y
 
     def get_variance_Y(self):
+        """Computes analytical variance of the model output."""
+
         # Let $ summand1 = \alpha \sum_{i=1}^k x_i $
         # and $ summand2 = \beta \sum_{i=1}^{k-1} \sum_{j=i}^k x_i x_j $
         # Then Morris function $ Y = summand1 + summand2 $
@@ -110,6 +112,7 @@ class Morris(ModelBase):
         return Var_Y_
 
     def get_first_order(self, Var_Y_):
+        """Computes analytical first order Sobol index."""
         # Expectation of Y when Xi is fixed to some xi
         # E[Y|Xi=xi] = summand3 + constant*xi, where
         summand3 = 1 / 2 * self.alpha * (
@@ -133,6 +136,7 @@ class Morris(ModelBase):
         return S1
 
     def get_total_order(self, Var_Y_):
+        """Computes analytical total order Sobol index."""
         a = (
             1 / 2 * self.alpha ** 2
             + 1 / 12 * self.alpha * self.beta * (self.num_influential - 1)
@@ -152,6 +156,7 @@ class Morris(ModelBase):
         return ST
 
     def get_sensitivity_indices(self):
+        """Computes analytical first and total order Sobol indices."""
         Var_Y_ = self.get_variance_Y()
         first = self.get_first_order(Var_Y_)
         total = self.get_total_order(Var_Y_)
@@ -162,6 +167,7 @@ class Morris(ModelBase):
         return dict_
 
     def get_boolean_indices(self):
+        """Returns boolean array with ``True`` values for known influential inputs, and ``False`` - for non-influential."""
         S_boolean = np.hstack(
             [
                 np.ones(self.num_influential),
@@ -172,7 +178,7 @@ class Morris(ModelBase):
 
 
 class Morris4(ModelBase):
-    """Class that implements the Morris function.
+    """Class that implements the modified Morris function that can have 4 levels of input importances.
 
     Parameters
     ----------
@@ -192,6 +198,7 @@ class Morris4(ModelBase):
         Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
         Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
         https://doi.org/10.1016/j.jspi.2005.01.001
+        Robust high-dimensional screening. Kim A., Mutel C., Froemelt A., 2021
     Useful link:
         http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
 
@@ -231,6 +238,7 @@ class Morris4(ModelBase):
         return y
 
     def get_sensitivity_indices(self):
+        """Computes analytical first and total order Sobol indices."""
         Var_Y_ = self.morris.get_variance_Y() * (
             self.level0_const ** 2 + self.level1_const ** 2 + self.level2_const ** 2
         )
@@ -257,6 +265,7 @@ class Morris4(ModelBase):
         return dict_
 
     def get_boolean_indices(self):
+        """Returns boolean array with ``True`` values for known influential inputs, and ``False`` - for lowly- and non-influential."""
         S_boolean = np.hstack(
             [
                 np.ones(2 * self.num_influential),
@@ -813,6 +822,7 @@ class SobolG(ModelBase):
         return y
 
     def get_sensitivity_indices(self):
+        """Computes analytical first and total order Sobol indices."""
         V1 = 1 / 3 / (1 + self.a) ** 2
         product = np.tile(np.prod(1 + V1), self.num_params)
         VT = V1 * product / (1 + V1)
@@ -912,6 +922,7 @@ class SobolGstar(ModelBase):
         return y
 
     def get_sensitivity_indices(self):
+        """Computes analytical first and total order Sobol indices."""
         V1 = self.alpha ** 2 / (1 + 2 * self.alpha) / (1 + self.a) ** 2
         product = np.tile(np.prod(1 + V1), self.num_params)
         VT = V1 * product / (1 + V1)
@@ -925,6 +936,7 @@ class SobolGstar(ModelBase):
         return S_dict
 
     def get_boolean_indices(self):
+        """Returns boolean array with ``True`` values for known influential inputs, and ``False`` - for non-influential."""
         S_boolean = np.hstack(
             [
                 np.ones(self.num_influential),
@@ -948,15 +960,6 @@ class Nonlinear(ModelBase):
     -------
     y : np.array of size [iterations, 1]
         Model outputs.
-
-    References
-    ----------
-    Paper:
-        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
-        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
-        https://doi.org/10.1016/j.jspi.2005.01.001
-    Useful link:
-        http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
 
     """
 
