@@ -31,7 +31,7 @@ setup(
     ],
     url="https://github.com/aleksandra-kim/gsa_framework",
     long_description_content_type="text/markdown",
-    long_description=open("README.md").read(),
+    long_description=open("README.rst").read(),
     description="Generic framework for global sensitivity analysis",
     classifiers=[
         "Intended Audience :: End Users/Desktop",
