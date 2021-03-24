@@ -120,6 +120,8 @@ def compute_spearmanr(mat, vec):
 ### Robustness class ###
 #######################
 class Robustness:
+    """Class that computes statistics to monitor robustness and convergence of sensitivity indices and rankings."""
+
     def __init__(self, stability_dicts, write_dir, **kwargs):
 
         self.stability_dicts = self.remove_nans(stability_dicts)
@@ -139,7 +141,7 @@ class Robustness:
             self.iterations,
             self.bootstrap_data,
             self.sa_mean_results,
-        ) = self.get_data_from_stability_dicts(self.stability_dicts)
+        ) = self.get_data_from_robustness_dicts(self.stability_dicts)
         self.confidence_intervals = self.get_confidence_intervals(
             self.bootstrap_data, self.ci_type
         )
@@ -188,9 +190,10 @@ class Robustness:
         )
         return self.write_dir / "stability" / filename
 
-    def get_data_from_stability_dicts(self, stability_dicts):
+    def get_data_from_robustness_dicts(self, robustness_dicts):
+        """Extract sensitivity methods, iterations, bootstrap data and mean sensitivity results."""
         iterations, bootstrap_data, sa_mean_results = {}, {}, {}
-        for stability_dict in stability_dicts:
+        for stability_dict in robustness_dicts:
             sa_names_current = list(list(stability_dict.values())[0].keys())
             sa_iteration_steps = np.array(list(stability_dict.keys()))
             for sa_name in sa_names_current:
@@ -214,6 +217,7 @@ class Robustness:
         return sa_names, iterations, bootstrap_data, sa_mean_results
 
     def get_confidence_intervals(self, bootstrap_data, ci_type="student"):
+        """Compute confidence intervals of bootstrap sensitivity indices."""
         if ci_type == "normal":
             get_ci = ci_normal
         else:
@@ -230,6 +234,12 @@ class Robustness:
         return confidence_intervals
 
     def get_confidence_intervals_max(self, confidence_intervals):
+        """Compute statistic to monitor convergence of sensitivity indices.
+
+        The statistic is denoted as $Stat_{indices}$ in :cite:ps:`kim2021robust`, and is computed  as a maximum confidence
+        interval of sensitivity indices among all model inputs.
+
+        """
         confidence_intervals_max = {}
         for sa_name, data in confidence_intervals.items():
             confidence_intervals_max[sa_name] = np.max(data, axis=1)
@@ -238,6 +248,27 @@ class Robustness:
     def get_bootstrap_rankings(
         self, bootstrap_data, sa_mean_results, tag, num_ranks=10
     ):
+        """Get clustered rankings from bootstrap sensitivity indices.
+
+        Parameters
+        ----------
+        bootstrap_data : dict
+            Dictionary where keys are sensitivity methods names and values are arrays with sensitivity indices from
+            bootstrapping in rows for each model input in columns.
+        sa_mean_results : dict
+            Dictionary where keys are sensitivity methods names and values are mean results for each model input
+            over all bootstrap samples.
+        tag : str
+            Tag to save clustered rankings.
+        num_ranks : int
+            Number of clusters.
+
+        Returns
+        -------
+        bootstrap_rankings : dict
+            Dictionary where keys are sensitivity methods names and values are clustered ranks for all model inputs.
+
+        """
         bootstrap_rankings = {}
         for sa_name in self.sa_names:
             num_bootstrap = bootstrap_data[sa_name][0].shape[0]
@@ -252,6 +283,7 @@ class Robustness:
             else:
                 bootstrap_rankings_arr = np.zeros((0, num_bootstrap))
                 bootstrap_rankings_arr[:] = np.nan
+                # TODO  change smth  here
                 if sa_name == "total_gain":
                     means = self.bootstrap_data[sa_name][-1][0, :]
                 else:
@@ -277,6 +309,7 @@ class Robustness:
     def get_bootstrap_rankings_width_percentiles(
         self, bootstrap_rankings, q_min=5, q_max=95
     ):
+        """Get percentiles of $Stat_{ranking}$ with respect to ranking on the last convergence step for robustness results."""
         bootstrap_rankings_width_percentiles = {}
         for sa_name in self.sa_names:
             data = bootstrap_rankings[sa_name]
@@ -295,6 +328,7 @@ class Robustness:
         return bootstrap_rankings_width_percentiles
 
     def get_rankings_convergence_to_last(self, sa_mean_results, num_ranks=10):
+        """Get convergence of ranking statistic $Stat_{ranking}$ with respect to ranking on the last convergence step."""
         ranking_convergence = {}
         for sa_name in self.sa_names:
             means = sa_mean_results[sa_name]
@@ -312,6 +346,7 @@ class Robustness:
         return ranking_convergence
 
     def get_one_clustered_ranking(self, array, num_ranks, breaks=None):
+        """Compute clustered ranking of ``array`` given number of ranks (clusters) and, optionally, clusters themselves."""
         if breaks is None:
             breaks = jenkspy.jenks_breaks(array, nb_class=num_ranks)
         breaks = deepcopy(breaks)
@@ -333,6 +368,7 @@ class Robustness:
         return clustered_ranking
 
     def get_stat_medians(self, bootstrap_data):
+        """Get medians of statistics / metrics within sensitivity methods, such as $r^2$ in regression."""
         stat_medians = {}
         for k, v in bootstrap_data.items():
             if "stat." in k:

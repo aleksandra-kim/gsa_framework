@@ -8,11 +8,6 @@ Welcome to gsa_framework's documentation!
 
 .. include:: introduction.rst
 
-Bibliography
-============
-
-.. bibliography::
-
 .. toctree::
    :hidden:
    :maxdepth: 2
@@ -36,6 +31,14 @@ Bibliography
    api/models
    api/life_cycle_assessment
    api/visualization
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: References
+
+   bibliography
+
 
 Indices and tables
 ==================

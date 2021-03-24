@@ -5,7 +5,16 @@ from ..sensitivity_methods.delta import delta_indices
 from ..utils import write_pickle, read_pickle
 
 
-class DeltaMoment(SAM):
+class Delta(SAM):
+    """Global sensitivity analysis with delta moment independent indices and latin hypercube sampling.
+
+    References
+    ----------
+    Paper:
+        :cite:ts:`borgonovo2007new`
+
+    """
+
     sampling_label = "latinSampling"
     gsa_label = "deltaGsa"
 
@@ -35,10 +44,12 @@ class DeltaMoment(SAM):
         return filepath
 
     def generate_unitcube_samples_based_on_method(self, iterations):
+        """Generate samples in [0,1] range based on latin hypercube sampling design."""
         X = latin_hypercube_samples(iterations, self.num_params, seed=self.seed)
         return X
 
     def generate_gsa_indices_based_on_method(self, **kwargs):
+        """Uses latin hypercube samples to compute Borgonovo delta indices."""
         flag_convergence = kwargs.get("flag_convergence", False)
         if not flag_convergence:
             S_dict = delta_indices(

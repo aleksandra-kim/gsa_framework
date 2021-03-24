@@ -12,11 +12,11 @@ Convergence of sensitivity indices
 Robustness of GSA
 -----------------
 
-.. autoclass:: gsa_framework.Robustness
+.. autoclass:: gsa_framework.convergence_robustness_validation.robustness.Robustness
     :members:
 
 Validation of GSA results
 -------------------------
 
-.. autoclass:: gsa_framework.Validation
+.. autoclass:: gsa_framework.convergence_robustness_validation.validation.Validation
     :members:

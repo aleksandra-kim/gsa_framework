@@ -3,10 +3,12 @@ from ..sensitivity_methods.correlations import *
 from ..utils import write_pickle, read_pickle
 
 
-# TODO add possibility to pass X or filepath_X or filepath_X_rescaled as an argumemt
+# TODO add possibility to pass X or filepath_X or filepath_X_rescaled as an argument
 
 
-class CorrelationCoefficients(SAM):
+class Correlations(SAM):
+    """Global sensitivity analysis with correlation coefficients."""
+
     gsa_label = "correlationsGsa"
 
     def __init__(self, **kwargs):
@@ -17,11 +19,12 @@ class CorrelationCoefficients(SAM):
         )  # TODO
         self.write_dir_convergence.mkdir(parents=True, exist_ok=True)
 
-    def calculate_iterations(self):
-        corrcoeff_constants = get_corrcoef_num_iterations()
+    def calculate_iterations(self, interval_width=0.01):
+        """Computes minimum number of iterations to obtain confidence intervals of width ``interval_width``."""
+        iterations_dict = get_corrcoef_num_iterations(interval_width=interval_width)
         iterations = max(
-            corrcoeff_constants["pearson"]["iterations"],
-            corrcoeff_constants["spearman"]["iterations"],
+            iterations_dict["pearson"],
+            iterations_dict["spearman"],
         )
         return max(iterations, self.iterations)
 
@@ -37,6 +40,7 @@ class CorrelationCoefficients(SAM):
         return filepath
 
     def generate_gsa_indices_based_on_method(self, **kwargs):
+        """Uses random samples to compute correlation coefficients."""
         flag_convergence = kwargs.get("flag_convergence", False)
         if not flag_convergence:
             S_dict = correlation_coefficients(

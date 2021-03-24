@@ -126,8 +126,7 @@ def delta_indices(
     References
     ----------
     Paper:
-        A new uncertainty importance measure. Borgonovo E., 2007.
-         https://doi.org/10.1016/j.ress.2006.04.015
+        :cite:ts:`borgonovo2007new`
     Link to the original implementation:
         https://github.com/SALib/SALib/blob/master/src/SALib/analyze/delta.py
 

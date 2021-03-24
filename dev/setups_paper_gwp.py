@@ -1,8 +1,8 @@
 from gsa_framework.models import LCAModel
 from gsa_framework.test_functions import Morris4
-from gsa_framework.sensitivity_analysis.correlations import CorrelationCoefficients
+from gsa_framework.sensitivity_analysis.correlations import Correlations
 from gsa_framework.sensitivity_analysis.saltelli_sobol import SaltelliSobol
-from gsa_framework.sensitivity_analysis.delta_moment import DeltaMoment
+from gsa_framework.sensitivity_analysis.delta import Delta
 from gsa_framework.sensitivity_analysis.gradient_boosting import GradientBoosting
 import brightway2 as bw
 import numpy as np
@@ -88,7 +88,7 @@ def setup_morris4_model(path_base, num_params):
 def setup_corr(num_params, iterations, setup_model, path_base):
     model, write_dir, gsa_seed = setup_model(path_base, num_params)
     # Setup GSA
-    gsa = CorrelationCoefficients(
+    gsa = Correlations(
         iterations=iterations,
         model=model,
         write_dir=write_dir,
@@ -106,7 +106,7 @@ def setup_salt(num_params, iterations, setup_model, path_base):
 def setup_delt(num_params, iterations, setup_model, path_base):
     model, write_dir, gsa_seed = setup_model(path_base, num_params)
     num_resamples = 0
-    gsa = DeltaMoment(
+    gsa = Delta(
         iterations=iterations,
         model=model,
         write_dir=write_dir,

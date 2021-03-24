@@ -7,6 +7,8 @@ from gsa_framework.utils import read_hdf5_array, read_pickle, write_pickle
 
 
 class Convergence:
+    """Class that computes iteration steps and sensitivity indices to monitor their convergence."""
+
     def __init__(
         self,
         filepath_Y,
@@ -80,6 +82,7 @@ class Convergence:
         return iterations_min, iterations_least_common_multiple
 
     def generate_iterations_for_convergence(self):
+        """Computes iteration steps, accounts for block design of some sampling methods."""
         factor = max(
             (self.iterations - self.iterations_min)
             // (self.num_steps - 1)
@@ -116,6 +119,7 @@ class Convergence:
         return filepath
 
     def run_convergence(self, parameter_inds=None, fig_format=()):
+        """Calls function that computes converging indices, saves them and plots for model inputs ``parameter_inds``."""
         t0 = time.time()
         filepath_convergence_dict = self.create_convergence_dict_filepath()
         if filepath_convergence_dict.exists():
@@ -129,11 +133,20 @@ class Convergence:
         fig = self.plot_convergence(sa_convergence_dict, parameter_inds, fig_format)
         return fig
 
-    def generate_converging_gsa_indices(self):
-        """
+    def generate_converging_gsa_indices(self, gsa_func):
+        """Computes sensitivity indices at each convergence step.
+
+        Parameters
+        ----------
         gsa_func : function or method
             Corresponds to generate_gsa_indices_based_on_method from the class SensitivityAnalysisMethod.
-            Needs to accept an argument ``selected_iterations``
+            Needs to accept an argument ``selected_iterations``.
+
+        Returns
+        -------
+        sa_convergence_dict : dict
+            Dictionary with sensitivity indices at each convergence step.
+
         """
 
         sa_convergence_dict_temp = {}
@@ -146,7 +159,7 @@ class Convergence:
                 "flag_convergence": True,
             }
             t0 = time.time()
-            gsa_indices_dict = self.gsa_func(**parameters_convergence_dict)
+            gsa_indices_dict = gsa_func(**parameters_convergence_dict)
             t1 = time.time()
             print(
                 "{0:4d}. {1:8d} iterations -> {2:8.3f} s".format(
@@ -172,58 +185,59 @@ class Convergence:
         )
         return sa_convergence_dict
 
-    # def plot_convergence(
-    #     self,
-    #     sa_convergence_dict,
-    #     parameter_inds=None,
-    #     fig_format=[],
-    # ):
-    #     if parameter_inds is None:
-    #         parameter_inds = np.random.randint(
-    #             0, self.num_params, max(10, self.num_params // 10)
-    #         )
-    #     # Assign color to each parameter
-    #     colors = {}
-    #     for parameter in parameter_inds:
-    #         colors[parameter] = "rgb({0},{1},{2})".format(
-    #             np.random.randint(0, 256),
-    #             np.random.randint(0, 256),
-    #             np.random.randint(0, 256),
-    #         )
-    #     # Plot
-    #     x = sa_convergence_dict["iterations"]
-    #     sa_convergence_dict.pop("iterations")
-    #     fig = make_subplots(
-    #         rows=len(sa_convergence_dict),
-    #         cols=1,
-    #         subplot_titles=list(sa_convergence_dict.keys()),
-    #     )
-    #     for parameter in parameter_inds:
-    #         row = 1
-    #         for sa_index_name, sa_array in sa_convergence_dict.items():
-    #             showlegend = False
-    #             if row == 1:
-    #                 showlegend = True
-    #             fig.add_trace(
-    #                 go.Scatter(
-    #                     x=x,
-    #                     y=sa_array[:, parameter],
-    #                     mode="lines+markers",
-    #                     showlegend=showlegend,
-    #                     marker=dict(color=colors[parameter]),
-    #                     name="Parameter " + str(parameter),
-    #                     legendgroup=str(parameter),
-    #                 ),
-    #                 row=row,
-    #                 col=1,
-    #             )
-    #             row += 1
-    #     fig.show()
-    #     if "pdf" in fig_format:
-    #         fig.write_image(self.create_figure_convergence_filepath("pdf").as_posix())
-    #     if "html" in fig_format:
-    #         fig.write_html(self.create_figure_convergence_filepath("html").as_posix())
-    #     if "pickle" in fig_format:
-    #         filepath = self.create_figure_convergence_filepath("pickle").as_posix()
-    #         write_pickle(fig, filepath)
-    #     return fig
+    def plot_convergence(
+        self,
+        sa_convergence_dict,
+        parameter_inds=None,
+        fig_format=[],
+    ):
+        """Plots sensitivity indices for model inputs ``parameter_inds`` for all convergence steps."""
+        if parameter_inds is None:
+            parameter_inds = np.random.randint(
+                0, self.num_params, max(10, self.num_params // 10)
+            )
+        # Assign color to each parameter
+        colors = {}
+        for parameter in parameter_inds:
+            colors[parameter] = "rgb({0},{1},{2})".format(
+                np.random.randint(0, 256),
+                np.random.randint(0, 256),
+                np.random.randint(0, 256),
+            )
+        # Plot
+        x = sa_convergence_dict["iterations"]
+        sa_convergence_dict.pop("iterations")
+        fig = make_subplots(
+            rows=len(sa_convergence_dict),
+            cols=1,
+            subplot_titles=list(sa_convergence_dict.keys()),
+        )
+        for parameter in parameter_inds:
+            row = 1
+            for sa_index_name, sa_array in sa_convergence_dict.items():
+                showlegend = False
+                if row == 1:
+                    showlegend = True
+                fig.add_trace(
+                    go.Scatter(
+                        x=x,
+                        y=sa_array[:, parameter],
+                        mode="lines+markers",
+                        showlegend=showlegend,
+                        marker=dict(color=colors[parameter]),
+                        name="Parameter " + str(parameter),
+                        legendgroup=str(parameter),
+                    ),
+                    row=row,
+                    col=1,
+                )
+                row += 1
+        fig.show()
+        if "pdf" in fig_format:
+            fig.write_image(self.create_figure_convergence_filepath("pdf").as_posix())
+        if "html" in fig_format:
+            fig.write_html(self.create_figure_convergence_filepath("html").as_posix())
+        if "pickle" in fig_format:
+            filepath = self.create_figure_convergence_filepath("pickle").as_posix()
+            write_pickle(fig, filepath)
+        return fig

@@ -82,7 +82,7 @@ def plot_histogram_Y1_Y2(
     xaxes_title_text="Values",
     showlegend=True,
 ):
-    """Function that plots histograms of ``Y1`` and ``Y2``, used by Validation class."""
+    """Function that overlays histograms of ``Y1`` and ``Y2`` in one figure, used by Validation class."""
     if bin_min is None:
         bin_min = min(np.hstack([Y1, Y2]))
     if bin_max is None:
@@ -570,44 +570,45 @@ def plot_correlation_Y1_Y2(
 #     return fig
 #
 #
-# def plot_S(data_dict):
-#     nrows = len(list(data_dict.values())[0])
-#     ncols = len(data_dict)
-#     fig = make_subplots(
-#         rows=nrows,
-#         cols=ncols,
-#         shared_yaxes=False,
-#         shared_xaxes=False,
-#         vertical_spacing=0.05,
-#         subplot_titles=list(data_dict.keys()),
-#     )
-#     col = 1
-#     for model_name, S_dicts in data_dict.items():
-#         row = 1
-#         for sa_name, S_array in S_dicts.items():
-#             l = len(S_array)
-#             use = int(0.1 * l)
-#             x = np.arange(l)[:use]
-#             y = S_array[:use]
-#             fig.add_trace(
-#                 go.Scatter(
-#                     x=x,
-#                     y=y,
-#                     mode="markers",
-#                     showlegend=False,
-#                     marker=dict(size=4, color="#636EFA"),
-#                 ),
-#                 row=row,
-#                 col=col,
-#             )
-#             if col == 1:
-#                 fig.update_yaxes(title_text=sa_name.lower(), row=row, col=col)
-#             row += 1
-#         fig.update_xaxes(title_text="model inputs", row=row - 1, col=col)
-#         col += 1
-#     fig.update_layout(
-#         width=800 * ncols,
-#         height=200 * nrows,
-#     )
-#     fig.show()
-#     return fig
+def plot_S(data_dict):
+    """Function that plots sensitivity indices for all methods in ``data_dict``."""
+    nrows = len(list(data_dict.values())[0])
+    ncols = len(data_dict)
+    fig = make_subplots(
+        rows=nrows,
+        cols=ncols,
+        shared_yaxes=False,
+        shared_xaxes=False,
+        vertical_spacing=0.05,
+        subplot_titles=list(data_dict.keys()),
+    )
+    col = 1
+    for model_name, S_dicts in data_dict.items():
+        row = 1
+        for sa_name, S_array in S_dicts.items():
+            l = len(S_array)
+            use = int(0.1 * l)
+            x = np.arange(l)[:use]
+            y = S_array[:use]
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="markers",
+                    showlegend=False,
+                    marker=dict(size=4, color="#636EFA"),
+                ),
+                row=row,
+                col=col,
+            )
+            if col == 1:
+                fig.update_yaxes(title_text=sa_name.lower(), row=row, col=col)
+            row += 1
+        fig.update_xaxes(title_text="model inputs", row=row - 1, col=col)
+        col += 1
+    fig.update_layout(
+        width=800 * ncols,
+        height=200 * nrows,
+    )
+    fig.show()
+    return fig

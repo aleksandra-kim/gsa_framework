@@ -5,6 +5,26 @@ from ..utils import write_pickle, read_pickle
 
 
 class GradientBoosting(SAM):
+    """Global sensitivity analysis with feature importance measures from gradient boosted trees.
+
+    Computed sensitivity indices include:
+
+    * ``weight``: the number of times a feature is used to split the data across all trees.
+    * ``gain``: the average gain across all splits the feature is used in.
+    * ``cover``: the average coverage across all splits the feature is used in.
+    * ``total_gain``: the total gain across all splits the feature is used in.
+    * ``total_cover``: the total coverage across all splits the feature is used in.
+    * ``fscore``: how many times each feature is split on.
+
+    References
+    ----------
+    Paper:
+        :cite:ts:`chen2016xgboost`
+    Useful links:
+        https://xgboost.readthedocs.io/en/latest/python/python_api.html
+
+    """
+
     gsa_label = "xgboostGsa"
 
     def __init__(self, tuning_parameters=None, test_size=0.2, xgb_model=None, **kwargs):
@@ -51,6 +71,8 @@ class GradientBoosting(SAM):
         return gsa_label
 
     def generate_gsa_indices_based_on_method(self, **kwargs):
+        """Uses XGBoost gradient boosted trees and random samples to compute feature importances."""
+
         # flag_convergence = kwargs.get("flag_convergence", False)
         # if not flag_convergence:
         flag_return_xgb_model = kwargs.get("flag_return_xgb_model", True)

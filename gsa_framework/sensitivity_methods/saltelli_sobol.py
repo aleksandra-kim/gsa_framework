@@ -57,9 +57,7 @@ def sobol_indices(filepath_Y, num_params, selected_iterations=None):
     References
     ----------
     Paper:
-        Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index
-        Saltelli A., Annoni P., Azzini I., Campolongo F., Ratto M., Tarantola S., 2010
-        https://doi.org/10.1016/j.cpc.2009.09.018
+        :cite:ts:`saltelli2010variance`
     Link to the original implementation:
         https://github.com/SALib/SALib/blob/master/src/SALib/analyze/sobol.py
 

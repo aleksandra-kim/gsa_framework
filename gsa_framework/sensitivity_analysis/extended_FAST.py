@@ -7,6 +7,15 @@ import numpy as np
 
 
 class eFAST(SAM):
+    """Global sensitivity analysis with Sobol indices estimated by extended Fourier Amplitude Sensitivity Test.
+
+    References
+    ----------
+    Paper:
+        :cite:ts:`saltelli1999quantitative`
+
+    """
+
     sampling_label = "eFastSampling"
     gsa_label = "eFastGsa"
 

@@ -13,6 +13,14 @@ COLORS_DICT = {
 
 
 class Validation:
+    """Class to validate sensitivity analysis results with histograms and correlation plots.
+
+    References
+    ----------
+    Paper:
+        :cite:ts:`kim2021robust`
+    """
+
     def __init__(
         self,
         model,
@@ -36,8 +44,8 @@ class Validation:
         self.default_x_rescaled = default_x_rescaled
         self.model_output_name = model_output_name
         #         self.X_rescaled, self.Y_all = self.generate_X_rescaled_Y_all_parameters_vary()
-        self.X_rescaled = self.generate_X_rescaled_all_parameters_vary()
-        self.Y_all = self.generate_Y_all_parameters_vary()
+        self.X_rescaled = self.generate_X_rescaled_all_inputs_vary()
+        self.Y_all = self.generate_Y_all_inputs_vary()
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored."""
@@ -46,8 +54,8 @@ class Validation:
             dir_path = self.write_dir / dir
             dir_path.mkdir(parents=True, exist_ok=True)
 
-    def generate_X_rescaled_all_parameters_vary(self):
-        # Rescaled samples
+    def generate_X_rescaled_all_inputs_vary(self):
+        """Rescale unitcube samples when all model inputs vary."""
         if not self.filepath_X_rescaled_all.exists():
             # Unitcube samples
             np.random.seed(self.seed)
@@ -58,7 +66,8 @@ class Validation:
             X_rescaled = read_hdf5_array(self.filepath_X_rescaled_all)
         return X_rescaled
 
-    def generate_Y_all_parameters_vary(self):
+    def generate_Y_all_inputs_vary(self):
+        """Run model when all inputs vary."""
         # Model output
         if not self.filepath_Y_all.exists():
             Y = self.model(self.X_rescaled)
@@ -68,26 +77,43 @@ class Validation:
             Y = read_hdf5_array(self.filepath_Y_all).flatten()
         return Y
 
-    def get_fraction_identified_correctly(self, gsa_indices, influential_params_true):
-        num_influential = len(influential_params_true)
-        influential_params_gsa = np.argsort(gsa_indices)[::-1][:num_influential]
-        influential_params_true.sort(), influential_params_gsa.sort()
-        non_influential_params_gsa = np.argsort(gsa_indices)[::-1][num_influential:]
-        non_influential_params_gsa.sort()
-        non_influential_params_true = np.setdiff1d(
-            np.arange(self.num_params), influential_params_true
-        )
-        non_influential_params_true.sort()
-        frac_inf = (
-            len(np.intersect1d(influential_params_gsa, influential_params_true))
-            / num_influential
-        )
-        frac_non_inf = len(
-            np.intersect1d(non_influential_params_gsa, non_influential_params_true)
-        ) / len(non_influential_params_true)
-        return frac_inf, frac_non_inf
+    # def get_fraction_identified_correctly(self, gsa_indices, influential_params_true):
+    #     num_influential = len(influential_params_true)
+    #     influential_params_gsa = np.argsort(gsa_indices)[::-1][:num_influential]
+    #     influential_params_true.sort(), influential_params_gsa.sort()
+    #     non_influential_params_gsa = np.argsort(gsa_indices)[::-1][num_influential:]
+    #     non_influential_params_gsa.sort()
+    #     non_influential_params_true = np.setdiff1d(
+    #         np.arange(self.num_params), influential_params_true
+    #     )
+    #     non_influential_params_true.sort()
+    #     frac_inf = (
+    #         len(np.intersect1d(influential_params_gsa, influential_params_true))
+    #         / num_influential
+    #     )
+    #     frac_non_inf = len(
+    #         np.intersect1d(non_influential_params_gsa, non_influential_params_true)
+    #     ) / len(non_influential_params_true)
+    #     return frac_inf, frac_non_inf
 
     def get_influential_Y_from_gsa(self, gsa_indices, num_influential, tag=None):
+        """Run model when only influential inputs vary based on sensitivity indices values.
+
+        Parameters
+        ----------
+        gsa_indices : array
+            Array with sensitivity indices values for all model inputs.
+        num_influential : int
+            Number of first most influential inputs to vary.
+        tag : str
+            Tag to save results.
+
+        Returns
+        -------
+        influential_Y : array
+            Model outputs when only influential inputs vary.
+
+        """
         assert num_influential <= self.num_params
         assert len(gsa_indices) == self.num_params
         filepath = self.create_model_output_inf_filepath(num_influential, tag)
@@ -105,9 +131,9 @@ class Validation:
             write_hdf5_array(influential_Y, filepath)
         return influential_Y
 
-    def get_influential_Y_from_parameter_choice(self, parameter_choice, tag=None):
-        """Variable ``parameter_choice`` is the indices of influential parameters."""
-        num_influential = len(parameter_choice)
+    def get_influential_Y_from_parameter_choice(self, influential_inputs, tag=None):
+        """Run model when only influential inputs vary based on chosen influential inputs."""
+        num_influential = len(influential_inputs)
         assert num_influential <= self.num_params
         filepath = self.create_model_output_inf_filepath(num_influential, tag)
         if filepath.exists():
@@ -115,7 +141,7 @@ class Validation:
             influential_Y = read_hdf5_array(filepath).flatten()
         else:
             non_influential_inds = np.setdiff1d(
-                np.arange(self.num_params), parameter_choice
+                np.arange(self.num_params), influential_inputs
             )
             non_influential_inds.sort()
             X_rescaled_inf = deepcopy(self.X_rescaled)

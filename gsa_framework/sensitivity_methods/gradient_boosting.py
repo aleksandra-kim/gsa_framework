@@ -67,10 +67,7 @@ def xgboost_indices(
     References
     ----------
     Paper:
-        XGBoost: A Scalable Tree Boosting System.
-        Tianqi Chen, Carlos Guestrin.
-        http://dx.doi.org/10.1145/2939672.2939785
-
+        :cite:ts:`chen2016xgboost`
     Link to XGBoost library:
         https://xgboost.readthedocs.io/en/latest/index.html
 
@@ -141,11 +138,21 @@ def xgboost_indices_base(
 
     # 6. Save importance scores
     if importance_types is None:
-        importance_types = ["weight", "gain", "cover", "total_gain", "total_cover"]
+        importance_types = [
+            "weight",
+            "gain",
+            "cover",
+            "total_gain",
+            "total_cover",
+            "fscore",
+        ]
     for importance_type in importance_types:
-        importance_scores_ = xgb_model_current.get_score(
-            importance_type=importance_type
-        )
+        if importance_type == "fscore":
+            importance_scores_ = xgb_model_current.get_fscore()
+        else:
+            importance_scores_ = xgb_model_current.get_score(
+                importance_type=importance_type
+            )
         importance_scores = {
             int(key[1:]): val for key, val in importance_scores_.items()
         }

@@ -1,4 +1,7 @@
-% GSA book
+%%% GSA methods
+%%%%%%%%%%%%%%%
+
+%%% GSA book
 @book{saltelli2008global,
   title={Global sensitivity analysis: the primer},
   author={Saltelli, Andrea and Ratto, Marco and Andres, Terry and Campolongo, Francesca and Cariboni, Jessica and Gatelli, Debora and Saisana, Michaela and Tarantola, Stefano},
@@ -6,19 +9,32 @@
   publisher={John Wiley \& Sons}
 }
 
-% Sobol indices with Saltelli estimators
+%%% Sobol indices with Saltelli estimators
 @article{saltelli2010variance,
-  title={Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index},
+  title={{Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index}},
   author={Saltelli, Andrea and Annoni, Paola and Azzini, Ivano and Campolongo, Francesca and Ratto, Marco and Tarantola, Stefano},
   journal={Computer physics communications},
   volume={181},
   number={2},
   pages={259--270},
   year={2010},
-  publisher={Elsevier}
+  publisher={Elsevier},
+  doi={10.1016/j.cpc.2009.09.018},
 }
 
-% Delta method
+@article{sobol1999use,
+  title={On the use of variance reducing multipliers in Monte Carlo computations of a global sensitivity index},
+  author={Sobol, IM and Levitan, Yu L},
+  journal={Computer Physics Communications},
+  volume={117},
+  number={1},
+  pages={52--61},
+  year={1999},
+  publisher={Amsterdam: North-Holland Pub. Co., 1969-},
+  doi={10.1016/S0010-4655(98)00156-8},
+}
+
+%%% Delta method
 @article{borgonovo2007new,
   title={A new uncertainty importance measure},
   author={Borgonovo, Emanuele},
@@ -27,19 +43,21 @@
   number={6},
   pages={771--784},
   year={2007},
-  publisher={Elsevier}
+  publisher={Elsevier},
+  doi={10.1016/j.ress.2006.04.015},
 }
 
-% XGBoost
+%%% XGBoost
 @inproceedings{chen2016xgboost,
   title={Xgboost: A scalable tree boosting system},
   author={Chen, Tianqi and Guestrin, Carlos},
   booktitle={Proceedings of the 22nd acm sigkdd international conference on knowledge discovery and data mining},
   pages={785--794},
-  year={2016}
+  year={2016},
+  doi={10.1145/2939672.2939785},
 }
 
-% eFAST
+%%% eFAST
 @article{saltelli1999quantitative,
   title={A quantitative model-independent method for global sensitivity analysis of model output},
   author={Saltelli, Andrea and Tarantola, Stefano and Chan, KP-S},
@@ -48,5 +66,86 @@
   number={1},
   pages={39--56},
   year={1999},
-  publisher={Taylor \& Francis}
+  publisher={Taylor \& Francis},
+  doi={10.1080/00401706.1999.10485594},
+}
+
+%%% Correlation coefficients
+@article{bonett2000sample,
+  title={{Sample size requirements for estimating Pearson, Kendall and Spearman correlations}},
+  author={Bonett, Douglas G and Wright, Thomas A},
+  journal={Psychometrika},
+  volume={65},
+  number={1},
+  pages={23--28},
+  year={2000},
+  publisher={Springer},
+  doi={10.1007/BF02294183},
+}
+
+
+%%% Test functions
+%%%%%%%%%%%%%%%%%%
+
+@article{morris2006sampling,
+  title={Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs},
+  author={Morris, Max D and Moore, Leslie M and McKay, Michael D},
+  journal={Journal of Statistical Planning and Inference},
+  volume={136},
+  number={9},
+  pages={3203--3220},
+  year={2006},
+  publisher={Elsevier},
+  doi={10.1016/j.jspi.2005.01.001},
+}
+
+@book{harper1983sensitivity,
+  title={Sensitivity/uncertainty analysis of a borehole scenario comparing Latin hypercube sampling and deterministic sensitivity approaches},
+  author={Harper, William V and Gupta, Sumant K},
+  year={1983},
+  publisher={Office of Nuclear Waste Isolation, Battelle Memorial Institute}
+}
+
+@article{moon2012two,
+  title={Two-stage sensitivity-based group screening in computer experiments},
+  author={Moon, Hyejung and Dean, Angela M and Santner, Thomas J},
+  journal={Technometrics},
+  volume={54},
+  number={4},
+  pages={376--387},
+  year={2012},
+  publisher={Taylor \& Francis},
+  doi={10.1080/00401706.2012.725994}
+}
+
+@book{forrester2008engineering,
+  title={Engineering design via surrogate modelling: a practical guide},
+  author={Forrester, Alexander and Sobester, Andras and Keane, Andy},
+  year={2008},
+  publisher={John Wiley \& Sons},
+  doi={10.1002/9780470770801},
+}
+
+@article{ben2007modeling,
+  title={Modeling data from computer experiments: an empirical comparison of kriging with MARS and projection pursuit regression},
+  author={Ben-Ari, Einat Neumann and Steinberg, David M},
+  journal={Quality Engineering},
+  volume={19},
+  number={4},
+  pages={327--338},
+  year={2007},
+  publisher={Taylor \& Francis},
+  doi={10.1080/08982110701580930},
+}
+
+
+%%% Our paper
+%%%%%%%%%%%%%
+% TODO
+
+@article{kim2021robust,
+  title={Robust high-dimensional screening},
+  author={Kim, Aleksandra and Mutel, Chris and Froemelt, Andreas},
+  journal={},
+  year={2021},
 }

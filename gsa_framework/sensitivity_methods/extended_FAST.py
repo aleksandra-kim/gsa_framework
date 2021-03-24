@@ -1,7 +1,7 @@
 import numpy as np
 from ..utils import read_hdf5_array
 
-# from ..sampling import eFAST_omega
+from ..sampling import eFAST_omega
 
 
 def eFAST_first_order(Y, M, omega):
@@ -50,9 +50,7 @@ def eFAST_indices(filepath_Y, num_params, M=4, selected_iterations=None):
     References
     ----------
     Paper:
-        A Quantitative Model-Independent Method for Global Sensitivity Analysis of Model Output.
-        Saltelli A., Tarantola S., Chan K. P.-S.
-        https://doi.org/10.1080/00401706.1999.10485594
+        :cite:ts:`saltelli1999quantitative`
     Link to the original implementation:
         https://github.com/SALib/SALib/blob/master/src/SALib/analyze/fast.py
 
@@ -65,8 +63,7 @@ def eFAST_indices(filepath_Y, num_params, M=4, selected_iterations=None):
     iterations = len(y)
     iterations_per_param = iterations // num_params
     # Recreate the vector omega used in the sampling
-    # omega = eFAST_omega(iterations_per_param, num_params, M)
-    omega = 0
+    omega = eFAST_omega(iterations_per_param, num_params, M)
     # Calculate and Output the First and Total Order Values
     first = np.zeros(num_params)
     total = np.zeros(num_params)

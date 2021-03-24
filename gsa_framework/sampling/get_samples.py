@@ -112,9 +112,7 @@ def saltelli_samples(iterations, num_params, skip_iterations=1000):
     References
     ----------
     Paper:
-        Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index
-        Saltelli A., Annoni P., Azzini I., Campolongo F., Ratto M., Tarantola S., 2010
-        https://doi.org/10.1016/j.cpc.2009.09.018
+        :cite:ts:`saltelli2010variance`
     Link to the original implementation:
         https://github.com/SALib/SALib/blob/master/src/SALib/sample/saltelli.py
 
@@ -254,14 +252,12 @@ def eFAST_samples(iterations, num_params, M=4, seed=None, cpus=None):
     Returns
     -------
     samples : array
-        eFASTT samples of size ``iterations x num_params``.
+        eFAST samples of size ``iterations x num_params``.
 
     References
     ----------
     Paper:
-        A Quantitative Model-Independent Method for Global Sensitivity Analysis of Model Output.
-        Saltelli A., Tarantola S., Chan K. P.-S.
-        https://doi.org/10.1080/00401706.1999.10485594
+        :cite:ts:`saltelli1999quantitative`
     Link to the original implementation:
         https://github.com/SALib/SALib/blob/master/src/SALib/sample/fast_sampler.py
 

@@ -28,9 +28,7 @@ class Morris(ModelBase):
     References
     ----------
     Paper:
-        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
-        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
-        https://doi.org/10.1016/j.jspi.2005.01.001
+        :cite:ts:`morris2006sampling`
     Useful link:
         http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
 
@@ -194,11 +192,8 @@ class Morris4(ModelBase):
 
     References
     ----------
-    Paper:
-        Sampling plans based on balanced incomplete block designs for evaluating the importance of computer model inputs
-        Max D. Morris, Leslie M. Moore, Michael D.McKay, 2006
-        https://doi.org/10.1016/j.jspi.2005.01.001
-        Robust high-dimensional screening. Kim A., Mutel C., Froemelt A., 2021
+    Papers:
+        :cite:ts:`kim2021robust`
     Useful link:
         http://www.sfu.ca/~ssurjano/morretal06.html (there is a typo in the formula, trust the paper)
 
@@ -286,14 +281,9 @@ class Borehole(ModelBase):
     References
     ----------
     Original paper:
-        Sensitivity/uncertainty analysis of a borehole scenario comparing
-        Latin Hypercube Sampling and deterministic sensitivity approaches.
-        Harper, W. V., Gupta, S. K., 1983
-        - here the function is slightly different than in the below paper
+        :cite:ts:`harper1983sensitivity` -> here the function is slightly different than in the below paper
     Other paper:
-        Two-stage sensitivity-based group screening in computer experiments.
-        Moon, H., Dean, A. M., & Santner, T. J., 2012
-        https://doi.org/10.1080/00401706.2012.725994
+        :cite:ts:`moon2012two`
     Useful link:
         http://www.sfu.ca/~ssurjano/borehole.html
 
@@ -355,9 +345,7 @@ class Wingweight(ModelBase):
     References
     ----------
     Original paper:
-        Engineering Design via Surrogate Modelling.
-        Forrester, 2008
-        https://doi.org/10.1002/9780470770801
+        :cite:ts:`forrester2008engineering`
     Useful link:
         http://www.sfu.ca/~ssurjano/wingweight.html
 
@@ -425,10 +413,7 @@ class OTLcircuit(ModelBase):
     References
     ----------
     Original paper:
-        Modeling Data from Computer Experiments: An Empirical Comparison of Kriging with
-        MARS and Projection Pursuit Regression
-        Einat Neumann Ben-Ari, David M. Steinberg, 2008
-        https://doi.org/10.1080/08982110701580930
+        :cite:ts:`ben2007modeling`
     Useful link:
         http://www.sfu.ca/~ssurjano/otlcircuit.html
 
@@ -485,10 +470,7 @@ class Piston(ModelBase):
     References
     ----------
     Original paper:
-        Modeling Data from Computer Experiments: An Empirical Comparison of Kriging with
-        MARS and Projection Pursuit Regression
-        Einat Neumann Ben-Ari, David M. Steinberg, 2008
-        https://doi.org/10.1080/08982110701580930
+        :cite:ts:`ben2007modeling`
     Useful link:
         http://www.sfu.ca/~ssurjano/piston.html
 
@@ -543,9 +525,7 @@ class Moon(ModelBase):
     References
     ----------
     Original paper:
-        Two-stage sensitivity-based group screening in computer experiments.
-        Moon, H., Dean, A. M., & Santner, T. J., 2012
-        https://doi.org/10.1080/00401706.2012.725994
+        :cite:ts:`moon2012two`
     Useful link:
         http://www.sfu.ca/~ssurjano/moonetal12.html
 
@@ -691,13 +671,9 @@ class SobolLevitan(ModelBase):
     References
     ----------
     Original paper:
-        On the use of variance reducing multipliers in Monte Carlo computations of a global sensitivity index
-        Sobol' I., Levitan Yu.
-        https://doi.org/10.1016/S0010-4655(98)00156-8
+        :cite:ts:`sobol1999use`
     Other paper:
-        Two-stage sensitivity-based group screening in computer experiments.
-        Moon, H., Dean, A. M., & Santner, T. J., 2012
-        https://doi.org/10.1080/00401706.2012.725994
+        :cite:ts:`moon2012two`
     Useful link:
         http://www.sfu.ca/~ssurjano/soblev99.html
 
@@ -786,11 +762,7 @@ class SobolG(ModelBase):
     References
     ----------
     Paper:
-        Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index.
-        Saltelli A., Annoni P., Azzini I., Campolongo F., Ratto M., Tarantola S.
-        https://doi.org/10.1016/j.cpc.2009.09.018
-
-
+        :cite:ts:`saltelli2010variance`
     Useful link:
         http://www.sfu.ca/~ssurjano/gfunc.html
         https://www.gdr-mascotnum.fr/media/impec07_crestaux.pdf - default ``a`` values
@@ -862,11 +834,7 @@ class SobolGstar(ModelBase):
     References
     ----------
     Paper:
-        Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index.
-        Saltelli A., Annoni P., Azzini I., Campolongo F., Ratto M., Tarantola S.
-        https://doi.org/10.1016/j.cpc.2009.09.018
-
-
+        :cite:ts:`saltelli2010variance`
     Useful link:
         http://www.sfu.ca/~ssurjano/gfunc.html
         https://www.gdr-mascotnum.fr/media/impec07_crestaux.pdf - default ``a`` values

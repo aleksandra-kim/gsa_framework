@@ -192,7 +192,7 @@ def correlation_coefficients(
     return sa_dict
 
 
-def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level=0.95):
+def get_corrcoef_num_iterations(theta=None, interval_width=0.01, confidence_level=0.95):
     """Computes number of iterations for confident estimation of correlation coefficient with true value equal to ``theta``.
 
     Parameters
@@ -212,9 +212,7 @@ def get_corrcoef_num_iterations(theta=None, interval_width=0.1, confidence_level
     References
     ----------
     Paper:
-        Sample size requirements for estimating Pearson, Kendall and Spearman correlations.
-        Bonett, Douglas G and Wright, Thomas A, 2000
-        http://doi.org/10.1007/BF02294183
+        :cite:ts:`bonett2000sample`
     Remark for testing:
         ``num_iterations`` should agree with the values from Table 1 of the paper. Part of the table is tested in tests.
         Sometimes there is a difference of +-1 iteration. I think this is due to minor numerical imprecision.
@@ -290,12 +288,7 @@ def get_corrcoef_interval_width(theta=None, iterations=100, confidence_level=0.9
     References
     ----------
     Paper:
-        Sample size requirements for estimating Pearson, Spearman and Kendall correlations.
-        Bonett, Douglas G and Wright, Thomas A, 2000
-        http://doi.org/10.1007/BF02294183
-    Remark for testing:
-        ``num_iterations`` should agree with the values from Table 1 of the paper. Part of the table is tested in tests.
-        Sometimes there is a difference of +-1 iteration. I think this is due to minor numerical imprecision.
+        :cite:ts:`bonett2000sample`
 
     """
 
