@@ -1,6 +1,6 @@
 import numpy as np
-from gsa_framework.models.model_base import ModelBase
-from gsa_framework.utils import uniform_rescale
+from .model_base import ModelBase
+from ..utils import uniform_rescale
 
 # TODO should we keep self.num_params in each model?
 # TODO implement K-function, also called Bratley: http://www.sfu.ca/~ssurjano/bratleyetal92.html

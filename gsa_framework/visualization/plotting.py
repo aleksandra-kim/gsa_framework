@@ -58,10 +58,10 @@ def plot_histogram_Y(
         # width=600,
         # height=300,
         margin=dict(l=20, r=20, t=20, b=20),
-        legend=dict(x=0.6, y=0.96),
+        legend=dict(x=0.55, y=0.96),
         # legend=dict(x=1.0, y=1),
     )
-    fig.update_yaxes(title_text="Frequency")
+    fig.update_yaxes(title_text=r"$\text{Frequency}$")
     fig.update_xaxes(title_text=xaxes_title_text)
     return fig
 
@@ -138,10 +138,10 @@ def plot_histogram_Y1_Y2(
         # width=600,
         # height=300,
         margin=dict(l=20, r=20, t=20, b=20),
-        legend=dict(x=0.6, y=0.96),
+        legend=dict(x=0.55, y=0.96),
         # legend=dict(x=1.0, y=1),
     )
-    fig.update_yaxes(title_text="Frequency")
+    fig.update_yaxes(title_text=r"$\text{Frequency}$")
     fig.update_xaxes(title_text=xaxes_title_text)
     return fig
 
@@ -221,9 +221,8 @@ def plot_correlation_Y1_Y2(
         margin=dict(l=20, r=20, t=20, b=20),
     )
     if xaxes1_title_text is None:
-        xaxes1_title_text = "Subset of {0}/{1} datapoints".format(
-            end - start, Y1.shape[0]
-        )
+        text = "Subset of {0}/{1} datapoints".format(end - start, Y1.shape[0])
+        xaxes1_title_text = text
     fig.update_xaxes(
         title_text=xaxes1_title_text,
         row=1,

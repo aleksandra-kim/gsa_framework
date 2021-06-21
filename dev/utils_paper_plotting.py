@@ -30,25 +30,29 @@ def save_fig(
 
 sa_plot = {
     "corr": {
-        "name": r"$\text{Spearman correlation coefficients}$",
+        # "name": r"$\text{Spearman correlation coefficients}$",
+        "name": r"$\text{Spearman}$",
         "notation": r"$\hat{\rho}$",
         "stat_indices": r"$Stat_{indices}(\hat{\rho})$",
         "stat_ranking": r"$Stat_{ranking}(\hat{\rho})$",
     },
     "salt": {
-        "name": r"$\text{Sobol total order indices}$",
+        # "name": r"$\text{Sobol total order indices}$",
+        "name": r"$\text{Sobol}$",
         "notation": r"$\hat{S}^T$",
         "stat_indices": r"$Stat_{indices}(\hat{S}^T)$",
         "stat_ranking": r"$Stat_{ranking}(\hat{S}^T)$",
     },
     "delt": {
-        "name": r"$\text{Delta indices}$",
+        # "name": r"$\text{Delta indices}$",
+        "name": r"$\text{Delta}$",
         "notation": r"$\hat{\delta}$",
         "stat_indices": r"$Stat_{indices}(\hat{\delta})$",
         "stat_ranking": r"$Stat_{ranking}(\hat{\delta})$",
     },
     "xgbo": {
-        "name": r"$\text{XGBoost importances}$",
+        # "name": r"$\text{XGBoost importances}$",
+        "name": r"$\text{XGBoost}$",
         "notation": r"$\hat{I}^2$",
         "stat_indices": r"$Stat_{indices}(\hat{I}^2)$",
         "stat_ranking": r"$Stat_{ranking}(\hat{I}^2)$",

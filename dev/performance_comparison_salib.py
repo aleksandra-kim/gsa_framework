@@ -472,105 +472,219 @@ if __name__ == "__main__":
         },
     }
 
-    nrows = 2
-    ncols = 2
-    fig = make_subplots(
-        rows=nrows,
-        cols=ncols,
-        shared_xaxes=False,
-        subplot_titles=["Vary inputs", "Vary iterations"],
-    )
-
-    for k, v in data.items():
-        if "vary_inputs" in k:
-            col = 1
-        else:
-            col = 2
-        if ".sampling." in k:
-            row = 1
-        else:
-            row = 2
-        for implementation, dict_ in v.items():
-            x = list(dict_.keys())
-            y = list(dict_.values())
-            if implementation == "salib":
-                symbol = "circle"
-                dash = "solid"
-                if col == 1:
-                    showlegend = True
-                else:
-                    showlegend = False
-            else:
-                symbol = "x"
-                dash = "dot"
-                showlegend = False
-            fig.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=y,
-                    mode="lines+markers",
-                    marker=dict(color=plotting_dict[k]["color"], symbol=symbol),
-                    line=dict(
-                        dash=dash,
-                    ),
-                    showlegend=showlegend,
-                    name=plotting_dict[k]["name"],
-                ),
-                row=row,
-                col=col,
-            )
-
-    fig.update_yaxes(title=r"$\text{Time, [s]}$")
-    fig.update_xaxes(title=r"$\text{Number of inputs}$", col=1)
-    fig.update_xaxes(title=r"$\text{Number of iterations}$", col=2)
-
-    fig.update_xaxes(
-        showgrid=True,
-        gridwidth=1,
-        gridcolor=color_gray_hex,
-        zeroline=True,
-        zerolinewidth=1,
-        zerolinecolor=color_gray_hex,
-        showline=True,
-        linewidth=1,
-        linecolor=color_gray_hex,
-    )
-    fig.update_yaxes(
-        showgrid=True,
-        gridwidth=1,
-        gridcolor=color_gray_hex,
-        zeroline=True,
-        zerolinewidth=1,
-        zerolinecolor=color_black_hex,
-        showline=True,
-        linewidth=1,
-        linecolor=color_gray_hex,
-    )
-    fig.update_layout(
-        width=800,
-        height=nrows * 400,
-        paper_bgcolor="rgba(255,255,255,1)",
-        plot_bgcolor="rgba(255,255,255,1)",
-        margin=dict(l=0, r=0, t=20, b=0),
-        legend=dict(
-            x=0.5,
-            y=-0.22,
-            xanchor="center",
-            font_size=14,
-            orientation="h",
-            itemsizing="constant",
-        ),
-    )
+    # nrows = 2
+    # ncols = 2
+    # fig = make_subplots(
+    #     rows=nrows,
+    #     cols=ncols,
+    #     shared_xaxes=False,
+    #     subplot_titles=["Vary inputs", "Vary iterations"],
+    # )
+    #
+    # for k, v in data.items():
+    #     if "vary_inputs" in k:
+    #         col = 1
+    #     else:
+    #         col = 2
+    #     if ".sampling." in k:
+    #         row = 1
+    #     else:
+    #         row = 2
+    #     for implementation, dict_ in v.items():
+    #         x = list(dict_.keys())
+    #         y = list(dict_.values())
+    #         if implementation == "salib":
+    #             symbol = "circle"
+    #             dash = "solid"
+    #             if col == 1:
+    #                 showlegend = True
+    #             else:
+    #                 showlegend = False
+    #         else:
+    #             symbol = "x"
+    #             dash = "dot"
+    #             showlegend = False
+    #         fig.add_trace(
+    #             go.Scatter(
+    #                 x=x,
+    #                 y=y,
+    #                 mode="lines+markers",
+    #                 marker=dict(color=plotting_dict[k]["color"], symbol=symbol),
+    #                 line=dict(
+    #                     dash=dash,
+    #                 ),
+    #                 showlegend=showlegend,
+    #                 name=plotting_dict[k]["name"],
+    #             ),
+    #             row=row,
+    #             col=col,
+    #         )
+    #
+    # fig.update_yaxes(title=r"$\text{Time, [s]}$")
+    # fig.update_xaxes(title=r"$\text{Number of inputs}$", col=1)
+    # fig.update_xaxes(title=r"$\text{Number of iterations}$", col=2)
+    #
+    # fig.update_xaxes(
+    #     showgrid=True,
+    #     gridwidth=1,
+    #     gridcolor=color_gray_hex,
+    #     zeroline=True,
+    #     zerolinewidth=1,
+    #     zerolinecolor=color_gray_hex,
+    #     showline=True,
+    #     linewidth=1,
+    #     linecolor=color_gray_hex,
+    # )
+    # fig.update_yaxes(
+    #     showgrid=True,
+    #     gridwidth=1,
+    #     gridcolor=color_gray_hex,
+    #     zeroline=True,
+    #     zerolinewidth=1,
+    #     zerolinecolor=color_black_hex,
+    #     showline=True,
+    #     linewidth=1,
+    #     linecolor=color_gray_hex,
+    # )
+    # fig.update_layout(
+    #     width=800,
+    #     height=nrows * 400,
+    #     paper_bgcolor="rgba(255,255,255,1)",
+    #     plot_bgcolor="rgba(255,255,255,1)",
+    #     margin=dict(l=0, r=0, t=20, b=0),
+    #     legend=dict(
+    #         x=0.5,
+    #         y=-0.22,
+    #         xanchor="center",
+    #         font_size=14,
+    #         orientation="h",
+    #         itemsizing="constant",
+    #     ),
+    # )
     # fig.show()
 
-    # Speed up gains
-    nrows = 1
-    ncols = 2
+    # # Speed up gains horizontal
+    # nrows = 1
+    # ncols = 2
+    # fig = make_subplots(
+    #     rows=nrows,
+    #     cols=ncols,
+    #     # subplot_titles=[r"$\text{Varying number of model inputs}$", r"$\text{Varying number of iterations}$"],
+    #     shared_yaxes=True,
+    # )
+    # showlegend = True
+    # for k, v in data.items():
+    #     if ".vary_inputs" in k:
+    #         col = 1
+    #         xx1 = np.array(list(v["salib"].keys()))
+    #         showlegend = True
+    #     else:
+    #         col = 2
+    #         xx2 = np.array(list(v["salib"].keys()))
+    #         showlegend = False
+    #     x1 = np.array(list(v["salib"].keys()))
+    #     x2 = np.array(list(v["gsafr"].keys()))
+    #     y1 = np.array(list(v["salib"].values()))
+    #     y2 = np.array(list(v["gsafr"].values()))
+    #     ratio = y1 / y2
+    #     assert np.all(x1 == x2)
+    #     fig.add_trace(
+    #         go.Scatter(
+    #             x=x1,
+    #             y=ratio,
+    #             name=plotting_dict[k]["name"],
+    #             mode="markers + lines",
+    #             marker=dict(
+    #                 color=plotting_dict[k]["color"],
+    #                 symbol=plotting_dict[k]["symbol"],
+    #             ),
+    #             legendgroup=plotting_dict[k]["name"],
+    #             showlegend=showlegend,
+    #             line=dict(
+    #                 dash=plotting_dict[k]["dash"],
+    #             ),
+    #         ),
+    #         row=1,
+    #         col=col,
+    #     )
+    # fig.add_trace(
+    #     go.Scatter(
+    #         x=xx1[[0, -1]],
+    #         y=[1, 1],
+    #         name=plotting_dict[k]["name"],
+    #         mode="lines",
+    #         marker=dict(color="black"),
+    #         showlegend=False,
+    #     ),
+    #     row=1,
+    #     col=1,
+    # )
+    # fig.add_trace(
+    #     go.Scatter(
+    #         x=xx2[[0, -1]],
+    #         y=[1, 1],
+    #         name=plotting_dict[k]["name"],
+    #         mode="lines",
+    #         marker=dict(color="black"),
+    #         showlegend=False,
+    #     ),
+    #     row=1,
+    #     col=2,
+    # )
+    #
+    # fig.update_yaxes(type="log")
+    # fig.update_yaxes(title=r"$\text{Performance gain}$", col=1)
+    # fig.update_xaxes(title=r"$\text{Number of model inputs}$", col=1)
+    # fig.update_xaxes(title=r"$\text{Number of iterations}$", col=2)
+    #
+    # fig.update_xaxes(
+    #     showgrid=True,
+    #     gridwidth=1,
+    #     gridcolor=color_gray_hex,
+    #     zeroline=True,
+    #     zerolinewidth=1,
+    #     zerolinecolor=color_gray_hex,
+    #     showline=True,
+    #     linewidth=1,
+    #     linecolor=color_gray_hex,
+    # )
+    # fig.update_yaxes(
+    #     showgrid=True,
+    #     gridwidth=1,
+    #     gridcolor=color_gray_hex,
+    #     zeroline=True,
+    #     zerolinewidth=1,
+    #     zerolinecolor=color_black_hex,
+    #     showline=True,
+    #     linewidth=1,
+    #     linecolor=color_gray_hex,
+    # )
+    # fig.update_layout(
+    #     width=ncols * 300,
+    #     height=nrows * 300,
+    #     paper_bgcolor="rgba(255,255,255,1)",
+    #     plot_bgcolor="rgba(255,255,255,1)",
+    #     margin=dict(l=0, r=0, t=20, b=0),
+    #     legend=dict(
+    #         x=0.5,
+    #         y=-0.28,
+    #         xanchor="center",
+    #         font_size=14,
+    #         orientation="h",
+    #         itemsizing="constant",
+    #     ),
+    # )
+    # fig.show()
+    # # save_fig(fig, "performance_comparison_gsafr_salib", fig_format, write_dir_fig)
+
+    # Speed up gains vertical
+    nrows = 2
+    ncols = 1
     fig = make_subplots(
         rows=nrows,
         cols=ncols,
         # subplot_titles=[r"$\text{Varying number of model inputs}$", r"$\text{Varying number of iterations}$"],
-        shared_yaxes=True,
+        shared_yaxes=False,
     )
     showlegend = True
     for k, v in data.items():
@@ -578,10 +692,12 @@ if __name__ == "__main__":
             col = 1
             xx1 = np.array(list(v["salib"].keys()))
             showlegend = True
+            row = 1
         else:
-            col = 2
+            col = 1
             xx2 = np.array(list(v["salib"].keys()))
             showlegend = False
+            row = 2
         x1 = np.array(list(v["salib"].keys()))
         x2 = np.array(list(v["gsafr"].keys()))
         y1 = np.array(list(v["salib"].values()))
@@ -604,8 +720,8 @@ if __name__ == "__main__":
                     dash=plotting_dict[k]["dash"],
                 ),
             ),
-            row=1,
-            col=col,
+            row=row,
+            col=1,
         )
     fig.add_trace(
         go.Scatter(
@@ -628,14 +744,14 @@ if __name__ == "__main__":
             marker=dict(color="black"),
             showlegend=False,
         ),
-        row=1,
-        col=2,
+        row=2,
+        col=1,
     )
 
     fig.update_yaxes(type="log")
-    fig.update_yaxes(title=r"$\text{Performance gain}$", col=1)
-    fig.update_xaxes(title=r"$\text{Number of model inputs}$", col=1)
-    fig.update_xaxes(title=r"$\text{Number of iterations}$", col=2)
+    fig.update_yaxes(title=r"$\text{Performance gain}$")
+    fig.update_xaxes(title=r"$\text{Number of model inputs}$", row=1)
+    fig.update_xaxes(title=r"$\text{Number of iterations}$", row=2)
 
     fig.update_xaxes(
         showgrid=True,
@@ -660,19 +776,20 @@ if __name__ == "__main__":
         linecolor=color_gray_hex,
     )
     fig.update_layout(
-        width=ncols * 300,
-        height=nrows * 300,
+        width=ncols * 500,
+        height=nrows * 220,
         paper_bgcolor="rgba(255,255,255,1)",
         plot_bgcolor="rgba(255,255,255,1)",
         margin=dict(l=0, r=0, t=20, b=0),
         legend=dict(
-            x=0.5,
-            y=-0.28,
+            x=1.5,
+            y=1.0,
             xanchor="center",
             font_size=14,
             orientation="h",
             itemsizing="constant",
         ),
     )
-    fig.show()
+    # fig.show()
+    write_dir_fig = Path("write_files/df77_figures")
     save_fig(fig, "performance_comparison_gsafr_salib", fig_format, write_dir_fig)

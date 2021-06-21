@@ -5,7 +5,7 @@ from plotly.subplots import make_subplots
 
 from gsa_framework.utils import read_pickle
 from dev.utils_paper_plotting import *
-from gsa_framework.test_functions import Morris4
+from gsa_framework.models import Morris4
 
 
 def get_files_dict_sorted(files):
@@ -27,8 +27,11 @@ def get_files_dict_sorted(files):
 
 if __name__ == "__main__":
 
-    path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files/")
-    write_dir_fig = path_base / "paper_figures"
+    path_base = Path(
+        "/Users/akim/PycharmProjects/gsa-framework-master/dev/write_files/"
+    )
+    # write_dir_fig = path_base / "paper_figures"
+    write_dir_fig = path_base / "lea_figures"
     nums_params = [1000, 5000, 10000]
     num_ranks = 4
     morris_model_names = {
@@ -123,7 +126,7 @@ if __name__ == "__main__":
     ###################################################
     # region
     #
-    # option = "nzoomed_in"
+    # option = "zoomed_in"
     # if option=="zoomed_in":
     #     shared_yaxes=False
     # else:
@@ -232,6 +235,7 @@ if __name__ == "__main__":
     #     save_fig(fig, "morris_all_gsa_results_zoomed_in", fig_format, write_dir_fig)
     # else:
     #     save_fig(fig, "morris_all_gsa_results", fig_format, write_dir_fig)
+
     # endregion
 
     ### 2. Convergence and stability of confidence intervals
@@ -774,19 +778,19 @@ if __name__ == "__main__":
     }
 
     fig = make_subplots(
-        rows=4,
-        cols=1,
+        rows=2,
+        cols=2,
         shared_xaxes=True,
-        horizontal_spacing=0.2,
-        vertical_spacing=0.05,
+        horizontal_spacing=0.22,
+        vertical_spacing=0.12,
         specs=[
-            [{"secondary_y": True}],
-            [{"secondary_y": True}],
-            [{"secondary_y": True}],
-            [{"secondary_y": True}],
+            [{"secondary_y": True}, {"secondary_y": True}],
+            [{"secondary_y": True}, {"secondary_y": True}],
         ],
+        subplot_titles=[v["name"] for v in sa_plot.values()],
     )
     row = 1
+    col = 1
     showlegend = True
     for sa_name in sa_names.keys():
         data = data_dict[sa_name]
@@ -801,7 +805,7 @@ if __name__ == "__main__":
                 # line=dict(dash='dot'),
             ),
             row=row,
-            col=1,
+            col=col,
             secondary_y=False,
         )
         fig.add_trace(
@@ -815,7 +819,7 @@ if __name__ == "__main__":
                 # line=dict(dash='dot'),
             ),
             row=row,
-            col=1,
+            col=col,
             secondary_y=False,
         )
         fig.add_trace(
@@ -829,11 +833,15 @@ if __name__ == "__main__":
                 line=dict(dash="dash"),
             ),
             row=row,
-            col=1,
+            col=col,
             secondary_y=True,
         )
         showlegend = False
-        row += 1
+        col += 1
+        if col == 3:
+            col = 1
+            row = 2
+
     # fig.update_yaxes(type="log")
     fig.update_xaxes(
         showgrid=True,
@@ -857,34 +865,33 @@ if __name__ == "__main__":
         linewidth=1,
         linecolor=color_gray_hex,
     )
-    fig.update_xaxes(title_text=r"$\text{Number of inputs}$", row=4, title_standoff=5)
+    fig.update_xaxes(title_text=r"$\text{Number of inputs}$", row=2, title_standoff=5)
     fig.update_yaxes(
         title_text=r"$\text{Time, [s]}$",
         col=1,
-        row=1,
         title_standoff=5,
         secondary_y=False,
     )
     fig.update_yaxes(color=color_pink_rgb, secondary_y=True)
     fig.update_yaxes(
         title_text=r"$\text{Memory, [MB]}$",
-        col=1,
-        row=1,
+        col=2,
         title_standoff=5,
         secondary_y=True,
     )
     fig.update_layout(
-        width=250,
-        height=520,
+        width=650,
+        height=500,
         paper_bgcolor="rgba(255,255,255,1)",
         plot_bgcolor="rgba(255,255,255,1)",
         legend=dict(
             x=0.5,
-            y=1.22,
+            y=-0.12,
             xanchor="center",
             font_size=14,
+            orientation="h",
         ),
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin=dict(l=0, r=0, t=20, b=0),
     )
     save_fig(fig, "morris_scalability", fig_format, write_dir_fig)
     fig.show()

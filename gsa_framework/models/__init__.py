@@ -12,3 +12,4 @@ from .test_functions import (
     SobolG,
 )
 from .model_base import ModelBase
+from .test_functions import Morris4
