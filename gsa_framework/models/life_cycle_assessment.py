@@ -75,27 +75,27 @@ class LCAModel(ModelBase):
         else:
             self.num_params = num_params
             self.scores_dict = self.get_lsa_scores_pickle(self.write_dir / "LSA_scores")
-            (
-                self.uncertain_tech_params_where,
-                _,
-            ) = self.get_nonzero_params_from_num_params(
-                self.scores_dict, self.num_params
-            )
-            self.uncertain_tech_params = self.lca.tech_params[
-                self.uncertain_tech_params_where
-            ]
-        self.default_uncertain_amounts = get_amounts_shift(
-            self.uncertain_tech_params, shift_median=False
-        )
-        self.static_output = get_score_shift(
-            self.default_uncertain_amounts, self.uncertain_tech_params_where, self.lca
-        )
-        self.adjusted_score = self.static_output - self.lca.score  # 2675.372419737564
-        method_unit = bw.Method(self.method).metadata["unit"]
-        self.output_name = "LCIA scores, [{}]".format(method_unit)
-        self.influential_params = []
-        self.choices = uncertainty_choices
-        self.mc = MCRandomNumberGenerator(self.uncertain_tech_params)
+        #     (
+        #         self.uncertain_tech_params_where,
+        #         _,
+        #     ) = self.get_nonzero_params_from_num_params(
+        #         self.scores_dict, self.num_params
+        #     )
+        #     self.uncertain_tech_params = self.lca.tech_params[
+        #         self.uncertain_tech_params_where
+        #     ]
+        # self.default_uncertain_amounts = get_amounts_shift(
+        #     self.uncertain_tech_params, shift_median=False
+        # )
+        # self.static_output = get_score_shift(
+        #     self.default_uncertain_amounts, self.uncertain_tech_params_where, self.lca
+        # )
+        # self.adjusted_score = self.static_output - self.lca.score  # 2675.372419737564
+        # method_unit = bw.Method(self.method).metadata["unit"]
+        # self.output_name = "LCIA scores, [{}]".format(method_unit)
+        # self.influential_params = []
+        # self.choices = uncertainty_choices
+        # self.mc = MCRandomNumberGenerator(self.uncertain_tech_params)
 
     def make_dirs(self):
         """Create subdirectories where intermediate results can be stored."""
@@ -107,6 +107,140 @@ class LCAModel(ModelBase):
         for dir in dirs_list:
             dir_path = self.write_dir / dir
             dir_path.mkdir(parents=True, exist_ok=True)
+
+    def get_scores_dict_from_params(self, exchanges_type, scores, inputs, outputs=None):
+
+        assert len(inputs) == len(scores)
+
+        if exchanges_type == "tech":
+            inputs_dict = self.lca.activity_dict
+            outputs_dict = self.lca.activity_dict
+            input_params = self.lca.tech_params
+        elif exchanges_type == "bio":
+            inputs_dict = self.lca.biosphere_dict
+            outputs_dict = self.lca.activity_dict
+            input_params = self.lca.bio_params
+        elif exchanges_type == "cf":
+            inputs_dict = self.lca.biosphere_dict
+            input_params = self.lca.cf_params
+
+        num_exchanges = len(inputs)
+        input_row_dict = {}
+        for input_ in list(set(inputs)):
+            input_row_dict[input_] = inputs_dict[input_]
+        if exchanges_type != "cf":
+            output_col_dict = {}
+            for output_ in list(set(outputs)):
+                output_col_dict[output_] = outputs_dict[output_]
+
+        scores_dict = {}
+        for i in range(num_exchanges):
+            row = input_row_dict[inputs[i]]
+            if exchanges_type != "cf":
+                col = output_col_dict[outputs[i]]
+                where_temp = np.where(
+                    np.logical_and(
+                        np.logical_and(
+                            input_params["row"] == row,
+                            input_params["col"] == col,
+                        ),
+                        input_params["uncertainty_type"] > 1,
+                    )
+                )[0]
+            else:
+                where_temp = np.where(
+                    np.logical_and(
+                        input_params["row"] == row,
+                        input_params["uncertainty_type"] > 1,
+                    )
+                )[0]
+            if len(where_temp) == 1:
+                scores_dict[where_temp[0]] = scores[i]
+            elif len(where_temp) > 1:
+                temp_params = input_params[where_temp]
+                flag_all_excs_same = all_exc_same(temp_params)
+                if flag_all_excs_same:
+                    scores_dict[where_temp[0]] = scores[
+                        i
+                    ]  # so we can take any exchange
+                else:
+                    ind = np.where(temp_params["scale"] == max(temp_params["scale"]))[
+                        0
+                    ]  # take max scale
+                    if (
+                        len(ind) == 1
+                    ):  # if only one exc with max scale, then just take it
+                        scores_dict[where_temp[ind[0]]] = scores[i]
+                    elif len(ind) > 1 and all_exc_same(
+                        temp_params[ind]
+                    ):  # if multiple, but they're all the same, take any
+                        scores_dict[where_temp[ind[0]]] = scores[i]
+                    else:
+                        ind = np.where(temp_params["loc"] == max(temp_params["loc"]))[
+                            0
+                        ]  # take max loc
+                        if (
+                            len(ind) == 1
+                        ):  # if only one exc with max loc, then just take it
+                            scores_dict[where_temp[ind[0]]] = scores[i]
+                        elif len(ind) > 1 and all_exc_same(
+                            temp_params[ind]
+                        ):  # if multiple, but all the same, take any
+                            scores_dict[where_temp[ind[0]]] = scores[i]
+                        else:
+                            print(temp_params)
+            else:
+                print("exchange was not found")
+
+        return scores_dict
+
+    def get_inputs_outputs_scores_from_files(self, path, files_sorted):
+        scores, inputs, outputs = [], [], []
+        for file in files_sorted:
+            filepath = path / file
+            temp = read_pickle(filepath)
+            inputs += [vals["input"] for vals in temp.values()]
+            outputs += [vals.get("output") for vals in temp.values()]
+            scores += [vals["scores"] for vals in temp.values()]
+        return scores, inputs, outputs
+
+    def get_lsa_scores_tech_files(self, path):
+        files = [
+            filepath.name
+            for filepath in path.iterdir()
+            if "LSA_scores_" in filepath.name and filepath.is_file()
+        ]
+        starts = [int(filepath.split("_")[2]) for filepath in files]
+        ind_sort = np.argsort(starts)
+        files_sorted = [files[i] for i in ind_sort]
+        return files_sorted
+
+    def get_lsa_scores_dict(self, path, exchanges_type):
+        filepath_scores_dict = path / "scores_dict_{}.pickle".format(exchanges_type)
+        if filepath_scores_dict.exists():
+            scores_dict = read_pickle(filepath_scores_dict)
+        else:
+            if exchanges_type == "tech":
+                path_tech = path / "tech"
+                files = self.get_lsa_scores_tech_files(path_tech)
+                scores, inputs, outputs = self.get_inputs_outputs_scores_from_files(
+                    path_tech, files
+                )
+            else:
+                files = ["LSA_scores_{}.pickle".format(exchanges_type)]
+                scores, inputs, outputs = self.get_inputs_outputs_scores_from_files(
+                    path, files
+                )
+            if exchanges_type == "cf":
+                scores_dict = self.get_scores_dict_from_params(
+                    exchanges_type, scores, inputs
+                )
+            else:
+                scores_dict = self.get_scores_dict_from_params(
+                    exchanges_type, scores, inputs, outputs
+                )
+            write_pickle(scores_dict, filepath_scores_dict)
+        return scores_dict
 
     def get_lsa_scores_pickle(self, path):
         """Get LCIA scores stored in the ``path``, where each parameter was sampled only few (eg 3-10) times.
@@ -131,87 +265,11 @@ class LCAModel(ModelBase):
         if filepath_scores_dict.exists():
             scores_dict = read_pickle(filepath_scores_dict)
         else:
-            files = [
-                filepath.name
-                for filepath in path.iterdir()
-                if "LSA_scores_" in filepath.name and filepath.is_file()
-            ]
-            starts = [int(filepath.split("_")[2]) for filepath in files]
-            ind_sort = np.argsort(starts)
-            files_sorted = [files[i] for i in ind_sort]
-
-            scores, inputs, outputs = [], [], []
-            for file in files_sorted:
-                filepath = path / file
-                temp = read_pickle(filepath)
-                inputs += [vals["input"] for vals in temp.values()]
-                outputs += [vals["output"] for vals in temp.values()]
-                scores += [vals["scores"] for vals in temp.values()]
-            num_exchanges = len(inputs)
-
-            input_row_dict = {}
-            for input_ in list(set(inputs)):
-                input_row_dict[input_] = self.lca.activity_dict[input_]
-            output_col_dict = {}
-            for output_ in list(set(outputs)):
-                output_col_dict[output_] = self.lca.activity_dict[output_]
-
-            scores_dict = {}
-            for i in range(num_exchanges):
-                row = input_row_dict[inputs[i]]
-                col = output_col_dict[outputs[i]]
-                where_temp = np.where(
-                    np.logical_and(
-                        np.logical_and(
-                            self.lca.tech_params["row"] == row,
-                            self.lca.tech_params["col"] == col,
-                        ),
-                        self.lca.tech_params["uncertainty_type"] > 1,
-                    )
-                )[0]
-                if len(where_temp) == 1:
-                    scores_dict[where_temp[0]] = scores[i]
-                elif len(where_temp) > 1:
-                    temp_tech_params = self.lca.tech_params[where_temp]
-                    flag_all_excs_same = all_exc_same(temp_tech_params)
-                    if flag_all_excs_same:
-                        scores_dict[where_temp[0]] = scores[
-                            i
-                        ]  # so we can take any exchange
-                    else:
-                        ind = np.where(
-                            temp_tech_params["scale"] == max(temp_tech_params["scale"])
-                        )[
-                            0
-                        ]  # take max scale
-                        if (
-                            len(ind) == 1
-                        ):  # if only one exc with max scale, then just take it
-                            scores_dict[where_temp[ind[0]]] = scores[i]
-                        elif len(ind) > 1 and all_exc_same(
-                            temp_tech_params[ind]
-                        ):  # if multiple, but they're all the same, take any
-                            scores_dict[where_temp[ind[0]]] = scores[i]
-                        else:
-                            ind = np.where(
-                                temp_tech_params["loc"] == max(temp_tech_params["loc"])
-                            )[
-                                0
-                            ]  # take max loc
-                            if (
-                                len(ind) == 1
-                            ):  # if only one exc with max loc, then just take it
-                                scores_dict[where_temp[ind[0]]] = scores[i]
-                            elif len(ind) > 1 and all_exc_same(
-                                temp_tech_params[ind]
-                            ):  # if multiple, but all the same, take any
-                                scores_dict[where_temp[ind[0]]] = scores[i]
-                            else:
-                                print(temp_tech_params)
-                else:
-                    print(
-                        "{} row and {} column exchange was not found".format(row, col)
-                    )
+            scores_dict = {
+                "tech": self.get_lsa_scores_dict(path, "tech"),
+                "bio": self.get_lsa_scores_dict(path, "bio"),
+                "cf": self.get_lsa_scores_dict(path, "cf"),
+            }
             write_pickle(scores_dict, filepath_scores_dict)
         return scores_dict
 

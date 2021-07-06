@@ -61,10 +61,10 @@ def uniform_rescale(X, inputs):
     return X_rescaled
 
 
-def all_exc_same(tech_params):
-    flag=True # means that all exchanges are exactly the same, including scale, loc, amount
-    for p in tech_params[1:]:
-        if p[["amount","loc", "scale"]] != tech_params[0][["amount","loc", "scale"]]:
-            flag=False
+def all_exc_same(params):
+    flag = True  # means that all exchanges are exactly the same, including scale, loc, amount
+    for p in params[1:]:
+        if p[["amount", "loc", "scale"]] != params[0][["amount", "loc", "scale"]]:
+            flag = False
             break
     return flag
