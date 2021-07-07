@@ -75,18 +75,25 @@ class LCAModel(ModelBase):
         else:
             self.num_params = num_params
             self.scores_dict = self.get_lsa_scores_pickle(self.write_dir / "LSA_scores")
-        #     (
-        #         self.uncertain_tech_params_where,
-        #         _,
-        #     ) = self.get_nonzero_params_from_num_params(
-        #         self.scores_dict, self.num_params
-        #     )
-        #     self.uncertain_tech_params = self.lca.tech_params[
-        #         self.uncertain_tech_params_where
-        #     ]
-        # self.default_uncertain_amounts = get_amounts_shift(
-        #     self.uncertain_tech_params, shift_median=False
-        # )
+            self.uncertain_params_selected_where_dict = (
+                self.get_nonzero_params_from_num_params(
+                    self.scores_dict, self.num_params
+                )
+            )
+            self.uncertain_tech_params = self.lca.tech_params[
+                self.uncertain_params_selected_where_dict["tech"]
+            ]
+            self.uncertain_bio_params = self.lca.bio_params[
+                self.uncertain_params_selected_where_dict["bio"]
+            ]
+            self.uncertain_cf_params = self.lca.cf_params[
+                self.uncertain_params_selected_where_dict["cf"]
+            ]
+        # TODO
+
+        self.default_uncertain_amounts = get_amounts_shift(
+            self.uncertain_tech_params, shift_median=False
+        )
         # self.static_output = get_score_shift(
         #     self.default_uncertain_amounts, self.uncertain_tech_params_where, self.lca
         # )
@@ -109,6 +116,7 @@ class LCAModel(ModelBase):
             dir_path.mkdir(parents=True, exist_ok=True)
 
     def get_scores_dict_from_params(self, exchanges_type, scores, inputs, outputs=None):
+        """Get scores_dict where keys are indices of exchanges in tech_params/bio_params/cf_params, and values are LSA scores."""
 
         assert len(inputs) == len(scores)
 
@@ -195,6 +203,7 @@ class LCAModel(ModelBase):
         return scores_dict
 
     def get_inputs_outputs_scores_from_files(self, path, files_sorted):
+        """Get inputs, outputs and scores from multiple LSA_scores files."""
         scores, inputs, outputs = [], [], []
         for file in files_sorted:
             filepath = path / file
@@ -205,6 +214,7 @@ class LCAModel(ModelBase):
         return scores, inputs, outputs
 
     def get_lsa_scores_tech_files(self, path):
+        """Function that finds all `LSA_scores*` files"""
         files = [
             filepath.name
             for filepath in path.iterdir()
@@ -216,6 +226,7 @@ class LCAModel(ModelBase):
         return files_sorted
 
     def get_lsa_scores_dict(self, path, exchanges_type):
+        """Retrieve scores_dict for tech, bio and cf exchanges."""
         filepath_scores_dict = path / "scores_dict_{}.pickle".format(exchanges_type)
         if filepath_scores_dict.exists():
             scores_dict = read_pickle(filepath_scores_dict)
@@ -274,17 +285,38 @@ class LCAModel(ModelBase):
         return scores_dict
 
     def get_nonzero_params_from_num_params(self, scores_dict, num_params):
-        keys = np.array(list(scores_dict.keys()))
-        vals = np.array(list(scores_dict.values()))
-        vals = np.hstack([vals, np.tile(self.lca.score, (len(vals), 1))])
+
+        vals = np.zeros([0, 3])
+        for scores_dict_exchange_type in scores_dict.values():
+            vals_temp = np.array(list(scores_dict_exchange_type.values()))
+            vals_temp = np.hstack(
+                [vals_temp, np.tile(self.lca.score, (len(vals_temp), 1))]
+            )
+            vals = np.vstack([vals, vals_temp])
         # Variance of LSA scores for each input / parameter
         var = np.var(vals, axis=1)
         where_high_var = np.argsort(var)[::-1][:num_params]
         assert np.all(var[where_high_var] > 0)
-        params_yes = keys[where_high_var]
-        params_no = np.setdiff1d(keys, params_yes)
-        params_yes.sort(), params_no.sort()
-        return params_yes, params_no
+        where_high_var = np.sort(where_high_var)
+
+        len_curr, len_next = 0, 0
+        params_selected_where_dict = {}
+        for exchange_type, scores_dict_exchange_type in scores_dict.items():
+            params_inds = np.array(list(scores_dict_exchange_type.keys()))
+            len_next += len(params_inds)
+            where = (
+                where_high_var[
+                    np.logical_and(
+                        where_high_var >= len_curr, where_high_var < len_next  # TODO
+                    )
+                ]
+                - len_curr
+            )
+            len_curr = len_next
+            params_selected_where = params_inds[where]
+            params_selected_where_dict[exchange_type] = np.sort(params_selected_where)
+
+        return params_selected_where_dict
 
     def get_nonzero_params_from_var_threshold(self, scores_dict, var_threshold):
         """Given a dictionary of LSA scores, finds parameters that have variance below and above the threshold.
