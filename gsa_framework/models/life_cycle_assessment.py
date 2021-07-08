@@ -65,32 +65,28 @@ class LCAModel(ModelBase):
         self.write_dir = Path(write_dir)
         self.make_dirs()
         if num_params is None:
-            self.uncertain_tech_params_where = np.where(
-                self.lca.tech_params["uncertainty_type"] > 1
-            )[0]
-            self.uncertain_tech_params = self.lca.tech_params[
-                self.uncertain_tech_params_where
-            ]
-            self.num_params = len(self.uncertain_tech_params)
+            self.uncertain_params_selected_where_dict = {
+                "tech": np.where(self.lca.tech_params["uncertainty_type"] > 1)[0],
+                "bio": np.where(self.lca.bio_params["uncertainty_type"] > 1)[0],
+                "cf": np.where(self.lca.cf_params["uncertainty_type"] > 1)[0],
+            }
         else:
-            self.num_params = num_params
             self.scores_dict = self.get_lsa_scores_pickle(self.write_dir / "LSA_scores")
             self.uncertain_params_selected_where_dict = (
-                self.get_nonzero_params_from_num_params(
-                    self.scores_dict, self.num_params
-                )
+                self.get_nonzero_params_from_num_params(self.scores_dict, num_params)
             )
-            self.uncertain_exchange_types = list(
-                self.uncertain_params_selected_where_dict.keys()
-            )
-            self.uncertain_exchange_lengths = {
-                k: len(v) for k, v in self.uncertain_params_selected_where_dict.items()
-            }
-            self.uncertain_params = {}
-            for uncertain_exchange_type in self.uncertain_exchange_types:
-                self.uncertain_params[uncertain_exchange_type] = self.get_params(
-                    uncertain_exchange_type
-                )[self.uncertain_params_selected_where_dict[uncertain_exchange_type]]
+        self.num_params = len(self)
+        self.uncertain_exchange_types = list(
+            self.uncertain_params_selected_where_dict.keys()
+        )
+        self.uncertain_exchange_lengths = {
+            k: len(v) for k, v in self.uncertain_params_selected_where_dict.items()
+        }
+        self.uncertain_params = {}
+        for uncertain_exchange_type in self.uncertain_exchange_types:
+            self.uncertain_params[uncertain_exchange_type] = self.get_params(
+                uncertain_exchange_type
+            )[self.uncertain_params_selected_where_dict[uncertain_exchange_type]]
 
         self.default_uncertain_amounts = get_amounts_shift(
             self.uncertain_params, shift_median=False
@@ -386,7 +382,7 @@ class LCAModel(ModelBase):
         return params_yes
 
     def __len__(self):
-        return sum([len(v) for v in self.uncertain_params.values()])
+        return sum([len(v) for v in self.uncertain_params_selected_where_dict.values()])
 
     def rescale(self, X):
         iterations, num_params = X.shape[0], X.shape[1]
@@ -433,7 +429,6 @@ class LCAModel(ModelBase):
                 params_offset_next = (
                     params_offset + self.uncertain_exchange_lengths[exchange_type]
                 )
-                print(params_offset, params_offset_next)
                 amounts[self.uncertain_params_selected_where_dict[exchange_type]] = x[
                     params_offset:params_offset_next
                 ]
