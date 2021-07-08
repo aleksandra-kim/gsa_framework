@@ -22,8 +22,12 @@ if __name__ == "__main__":
 
     # Define some variables
     write_dir = path_base
+    iterations = 10
     num_params = 10000
 
     model = LCAModel(demand, method, write_dir, num_params=num_params)
+    X = np.random.rand(iterations, num_params)
+    X_rescaled = model.rescale(X)
+    lca_scores = model(X_rescaled)
 
     print(model)
