@@ -5,6 +5,8 @@ import numpy as np
 import bw2data as bd
 import bw2calc as bc
 
+from .setups_paper_gwp import *
+
 
 def setup_lca_model_protocol(path_base, num_params=None, write_dir=None):
     # LCA model
@@ -62,5 +64,9 @@ if __name__ == "__main__":
     X = np.random.rand(iterations, num_params)
     X_rescaled = model.rescale(X)
     lca_scores = model(X_rescaled)
+
+    num_params = 20000
+    iter_corr = 4 * num_params
+    gsa_corr = setup_corr(num_params, iter_corr, setup_lca_model_protocol, path_base)
 
     print(model)
