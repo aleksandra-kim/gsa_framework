@@ -289,9 +289,8 @@ class LCAModel(ModelBase):
             }
             write_pickle(scores_dict, filepath_scores_dict)
         return scores_dict
-
-    def get_nonzero_params_from_num_params(self, scores_dict, num_params):
-
+    
+    def get_where_high_var(self,scores_dict,num_params):
         vals = np.zeros([0, 3])
         for scores_dict_exchange_type in scores_dict.values():
             vals_temp = np.array(list(scores_dict_exchange_type.values()))
@@ -304,7 +303,10 @@ class LCAModel(ModelBase):
         where_high_var = np.argsort(var)[::-1][:num_params]
         assert np.all(var[where_high_var] > 0)
         where_high_var = np.sort(where_high_var)
+        return where_high_var
 
+    def get_nonzero_params_from_num_params(self, scores_dict, num_params):
+        where_high_var = self.get_where_high_var(scores_dict, num_params)
         len_curr, len_next = 0, 0
         params_selected_where_dict = {}
         for exchange_type, scores_dict_exchange_type in scores_dict.items():
@@ -321,7 +323,6 @@ class LCAModel(ModelBase):
             len_curr = len_next
             params_selected_where = params_inds[where]
             params_selected_where_dict[exchange_type] = np.sort(params_selected_where)
-
         return params_selected_where_dict
 
     def get_nonzero_params_from_var_threshold(self, scores_dict, var_threshold):

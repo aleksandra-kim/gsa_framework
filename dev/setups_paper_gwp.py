@@ -1,16 +1,51 @@
 from gsa_framework.models import LCAModel
-from gsa_framework.test_functions import Morris4
+from gsa_framework.models import Morris4
 from gsa_framework.sensitivity_analysis.correlations import Correlations
 from gsa_framework.sensitivity_analysis.saltelli_sobol import SaltelliSobol
 from gsa_framework.sensitivity_analysis.delta import Delta
 from gsa_framework.sensitivity_analysis.gradient_boosting import GradientBoosting
 import brightway2 as bw
+import bw2data as bd
+import bw2calc as bc
 import numpy as np
 from gsa_framework.utils import (
     read_pickle,
     write_hdf5_array,
     write_pickle,
 )
+
+
+def setup_lca_model_protocol(path_base, num_params=None, write_dir=None):
+    # LCA model
+    bd.projects.set_current("GSA for protocol")
+    co = bd.Database("CH consumption 1.0")
+    demand_act = [act for act in co if "Food" in act["name"]]
+    assert len(demand_act) == 1
+    demand_act = demand_act[0]
+    demand = {demand_act: 1}
+    method = ("IPCC 2013", "climate change", "GWP 100a", "uncertain")
+    # num_params
+    if num_params is None:
+        lca = bc.LCA(demand, method)
+        lca.lci()
+        lca.lcia()
+        print("LCA score is {}".format(lca.score))
+        n_uncertain_tech = len(lca.tech_params[lca.tech_params["uncertainty_type"] > 1])
+        n_uncertain_bio = len(lca.bio_params[lca.bio_params["uncertainty_type"] > 1])
+        n_uncertain_cf = len(lca.cf_params[lca.cf_params["uncertainty_type"] > 1])
+        num_params_stats = n_uncertain_tech + n_uncertain_bio + n_uncertain_cf
+        print("Total number of uncertain exchanges is {}".format(num_params_stats))
+        print(
+            "   tech={}, bio={}, cf={}".format(
+                n_uncertain_tech, n_uncertain_bio, n_uncertain_cf
+            )
+        )
+    # Define some variables
+    if write_dir is None:
+        write_dir = path_base / "protocol_gsa"
+    model = LCAModel(demand, method, write_dir, num_params=num_params)
+    gsa_seed = 4000238
+    return model, write_dir, gsa_seed
 
 
 def setup_lca_model_oases(
