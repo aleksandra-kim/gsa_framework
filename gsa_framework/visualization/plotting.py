@@ -81,6 +81,7 @@ def plot_histogram_Y1_Y2(
     opacity=0.65,
     xaxes_title_text="Values",
     showlegend=True,
+    showtitle=False,
 ):
     """Function that overlays histograms of ``Y1`` and ``Y2`` in one figure, used by Validation class."""
     if bin_min is None:
@@ -130,6 +131,15 @@ def plot_histogram_Y1_Y2(
                 showlegend=True,
             ),
         )
+    if showtitle:
+        from scipy.stats import wasserstein_distance
+        wdist = wasserstein_distance(Y1,Y2)
+        fig.update_layout(
+            title = dict(
+                text="Wasserstein distance = {:7.3f}".format(wdist),
+                font = dict(size=14,),
+            )
+        )
 
     fig.update_layout(
         barmode="overlay",
@@ -137,7 +147,7 @@ def plot_histogram_Y1_Y2(
         height=220,
         # width=600,
         # height=300,
-        margin=dict(l=20, r=20, t=20, b=20),
+        margin=dict(l=20, r=20, t=40, b=20),
         legend=dict(x=0.55, y=0.96),
         # legend=dict(x=1.0, y=1),
     )
@@ -161,6 +171,7 @@ def plot_correlation_Y1_Y2(
     yaxes1_title_text="Values",
     xaxes2_title_text="Values",
     yaxes2_title_text="Values",
+    showtitle=True,
 ):
     """Function that plots subset of datapoints of ``Y1`` and ``Y2``, used by Validation class."""
     x = np.arange(start, end)
@@ -218,7 +229,7 @@ def plot_correlation_Y1_Y2(
         legend=dict(x=0.4, y=1.0),  # on top
         xaxis1=dict(domain=[0.0, 0.63]),
         xaxis2=dict(domain=[0.78, 1.0]),
-        margin=dict(l=20, r=20, t=20, b=20),
+        margin=dict(l=20, r=20, t=40, b=20),
     )
     if xaxes1_title_text is None:
         text = "Subset of {0}/{1} datapoints".format(end - start, Y1.shape[0])
@@ -246,6 +257,17 @@ def plot_correlation_Y1_Y2(
         row=1,
         col=2,
     )
+    if showtitle:
+        from scipy.stats import spearmanr
+        pearson_coef  = np.corrcoef([Y1, Y2])[0,-1]
+        spearman_coef, _ = spearmanr(Y1, Y2)
+        fig.update_layout(
+            title = dict(
+                text="Pearson = {:4.3f}, Spearman = {:4.3f}".format(pearson_coef, spearman_coef),
+                font = dict(size=14,),
+            )
+        )
+    
     return fig
 
 

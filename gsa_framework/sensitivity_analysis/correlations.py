@@ -19,7 +19,7 @@ class Correlations(SAM):
         )  # TODO
         self.write_dir_convergence.mkdir(parents=True, exist_ok=True)
 
-    def calculate_iterations(self, interval_width=0.01):
+    def calculate_iterations(self, interval_width=0.1):
         """Computes minimum number of iterations to obtain confidence intervals of width ``interval_width``."""
         iterations_dict = get_corrcoef_num_iterations(interval_width=interval_width)
         iterations = max(

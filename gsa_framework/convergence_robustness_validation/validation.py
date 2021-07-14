@@ -251,6 +251,7 @@ class Validation:
         bin_min=None,
         bin_max=None,
         num_bins=60,
+        showtitle=True,
     ):
         fig = plot_histogram_Y1_Y2(
             self.Y_all,
@@ -266,6 +267,7 @@ class Validation:
             color_default_Y="red",
             opacity=0.65,
             xaxes_title_text=self.model_output_name,
+            showtitle=showtitle,
         )
         if "pdf" in fig_format:
             fig.write_image(
@@ -292,6 +294,7 @@ class Validation:
         num_influential,
         tag=None,
         fig_format=(),
+        showtitle=True,
     ):
         fig = plot_correlation_Y1_Y2(
             Y1=self.Y_all,
@@ -300,6 +303,10 @@ class Validation:
             end=80,
             trace_name1="All parameters vary",
             trace_name2="Only influential vary",
+            yaxes1_title_text=self.model_output_name,
+            xaxes2_title_text=self.model_output_name,
+            yaxes2_title_text=self.model_output_name,
+            showtitle=showtitle,
         )
         if "pdf" in fig_format:
             fig.write_image(
