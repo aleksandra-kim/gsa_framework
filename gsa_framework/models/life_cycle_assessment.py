@@ -53,6 +53,7 @@ class LCAModel(ModelBase):
         # var_threshold=0, #TODO should be either var_threshold or num_params
         num_params=None,
         lca=None,
+        uncertain_exchanges_types=("tech", "bio", "cf"),
     ):
         self.func_unit = func_unit
         self.method = method
@@ -64,26 +65,32 @@ class LCAModel(ModelBase):
             self.lca = deepcopy(lca)
         self.write_dir = Path(write_dir)
         self.make_dirs()
+        self.uncertain_exchanges_types = uncertain_exchanges_types
         if num_params is None:
-            self.uncertain_params_selected_where_dict = {
-                "tech": np.where(self.lca.tech_params["uncertainty_type"] > 1)[0],
-                "bio": np.where(self.lca.bio_params["uncertainty_type"] > 1)[0],
-                "cf": np.where(self.lca.cf_params["uncertainty_type"] > 1)[0],
-            }
+            self.uncertain_params_selected_where_dict = {}
+            for exchanges_type in self.uncertain_exchanges_types:
+                params = self.get_params(exchanges_type)
+                self.uncertain_params_selected_where_dict.update(
+                    {
+                        exchanges_type: np.where(params["uncertainty_type"] > 1)[0],
+                    }
+                )
         else:
-            self.scores_dict = self.get_lsa_scores_pickle(self.write_dir / "LSA_scores")
+            self.scores_dict_raw = self.get_lsa_scores_pickle(
+                self.write_dir / "LSA_scores"
+            )
+            self.scores_dict = {}
+            for exchanges_type in self.uncertain_exchanges_types:
+                self.scores_dict[exchanges_type] = self.scores_dict_raw[exchanges_type]
             self.uncertain_params_selected_where_dict = (
                 self.get_nonzero_params_from_num_params(self.scores_dict, num_params)
             )
         self.num_params = len(self)
-        self.uncertain_exchange_types = list(
-            self.uncertain_params_selected_where_dict.keys()
-        )
         self.uncertain_exchange_lengths = {
             k: len(v) for k, v in self.uncertain_params_selected_where_dict.items()
         }
         self.uncertain_params = {}
-        for uncertain_exchange_type in self.uncertain_exchange_types:
+        for uncertain_exchange_type in self.uncertain_exchanges_types:
             self.uncertain_params[uncertain_exchange_type] = self.get_params(
                 uncertain_exchange_type
             )[self.uncertain_params_selected_where_dict[uncertain_exchange_type]]
@@ -282,15 +289,15 @@ class LCAModel(ModelBase):
         if filepath_scores_dict.exists():
             scores_dict = read_pickle(filepath_scores_dict)
         else:
-            scores_dict = {
-                "tech": self.get_lsa_scores_dict(path, "tech"),
-                "bio": self.get_lsa_scores_dict(path, "bio"),
-                "cf": self.get_lsa_scores_dict(path, "cf"),
-            }
+            scores_dict = {}
+            for uncertain_exchange_type in self.uncertain_exchanges_types:
+                scores_dict[uncertain_exchange_type] = self.get_lsa_scores_dict(
+                    path, uncertain_exchange_type
+                )
             write_pickle(scores_dict, filepath_scores_dict)
         return scores_dict
-    
-    def get_where_high_var(self,scores_dict,num_params):
+
+    def get_where_high_var(self, scores_dict, num_params):
         vals = np.zeros([0, 3])
         for scores_dict_exchange_type in scores_dict.values():
             vals_temp = np.array(list(scores_dict_exchange_type.values()))
