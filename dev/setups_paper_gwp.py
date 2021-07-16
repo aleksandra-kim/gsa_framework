@@ -116,7 +116,8 @@ def setup_morris4_model(path_base, num_params):
     num_influential = num_params // 100
     write_dir = path_base / "{}_morris4".format(num_params)
     model = Morris4(num_params=num_params, num_influential=num_influential)
-    gsa_seed = 3407
+#     gsa_seed = 3407
+    gsa_seed = 6000814
     return model, write_dir, gsa_seed
 
 
