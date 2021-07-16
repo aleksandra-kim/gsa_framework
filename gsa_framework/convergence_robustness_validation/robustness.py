@@ -18,6 +18,7 @@ def ci_student(B_array, confidence_level=0.95):
 
     """
     num_resamples = B_array.shape[0]
+    print(num_resamples)
     degrees_of_freedom = num_resamples - 1
     t_alpha_2 = stats.t.ppf(1 - (1 - confidence_level) / 2, degrees_of_freedom)
     interval_width = t_alpha_2 * np.std(B_array, axis=0)
@@ -26,8 +27,9 @@ def ci_student(B_array, confidence_level=0.95):
 
 def ci_normal(B_array, confidence_level=0.95):
     """Normal confidence interval."""
+    num_resamples = B_array.shape[0]
     z_alpha_2 = get_z_alpha_2(confidence_level)
-    interval_width = z_alpha_2 * np.std(B_array, axis=0)
+    interval_width = 2 * z_alpha_2 * np.std(B_array, axis=0) / np.sqrt(num_resamples)
     return interval_width
 
 
@@ -111,6 +113,7 @@ def compute_spearmanr(mat, vec):
     incl_inds = np.setdiff1d(np.arange(len(mat)), skip_inds)
     if len(incl_inds) > 0:
         rho_temp, _ = spearmanr(mat[incl_inds, :].T, vec)
+        print(rho_temp)
         rho_temp = rho_temp[-1, :-1]
         rho[incl_inds] = rho_temp
     return rho
@@ -149,19 +152,19 @@ class Robustness:
             self.confidence_intervals
         )
         # self.rankings_convergence = self.get_rankings_convergence_to_last(self.sa_mean_results, num_ranks=self.num_ranks)
-        self.bootstrap_rankings = self.get_bootstrap_rankings(
-            self.bootstrap_data,
-            self.sa_mean_results,
-            self.bootstrap_ranking_tag,
-            self.num_ranks,
-        )
-        self.bootstrap_rankings_width_percentiles = (
-            self.get_bootstrap_rankings_width_percentiles(
-                self.bootstrap_rankings,
-                q_min=self.q_min,
-                q_max=self.q_max,
-            )
-        )
+        # self.bootstrap_rankings = self.get_bootstrap_rankings(
+        #     self.bootstrap_data,
+        #     self.sa_mean_results,
+        #     self.bootstrap_ranking_tag,
+        #     self.num_ranks,
+        # )
+        # self.bootstrap_rankings_width_percentiles = (
+        #     self.get_bootstrap_rankings_width_percentiles(
+        #         self.bootstrap_rankings,
+        #         q_min=self.q_min,
+        #         q_max=self.q_max,
+        #     )
+        # )
         self.stat_medians = self.get_stat_medians(self.bootstrap_data)
 
     def remove_nans(self, stability_dicts):
