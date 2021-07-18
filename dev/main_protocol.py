@@ -20,10 +20,7 @@ if __name__ == "__main__":
     demand = {demand_act: 1}
     method = ("IPCC 2013", "climate change", "GWP 100a")
     num_params = 10000
-    uncertain_exchanges_types = [
-        "tech",
-        "bio",
-    ]
+    uncertain_exchanges_types = ["tech", "bio", "cf"]
     model = LCAModel(
         demand,
         method,
