@@ -285,7 +285,10 @@ class LCAModel(ModelBase):
 
         """
         path = Path(path)
-        filepath_scores_dict = self.write_dir / "scores_dict.pickle"
+        exchanges_types = "_".join(self.uncertain_exchanges_types)
+        filepath_scores_dict = self.write_dir / "scores_dict_{}.pickle".format(
+            exchanges_types
+        )
         if filepath_scores_dict.exists():
             scores_dict = read_pickle(filepath_scores_dict)
         else:
