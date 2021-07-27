@@ -43,7 +43,13 @@ def setup_lca_model_protocol(path_base, num_params=None, write_dir=None):
     # Define some variables
     if write_dir is None:
         write_dir = path_base / "protocol_gsa"
-    model = LCAModel(demand, method, write_dir, num_params=num_params)
+    model = LCAModel(
+        demand, 
+        method, 
+        write_dir, 
+        num_params=num_params,
+        uncertain_exchanges_types=["tech", "bio", "cf"],
+    )
     gsa_seed = 4000238
     return model, write_dir, gsa_seed
 
@@ -107,8 +113,15 @@ def setup_lca_model_paper(
     if flag_generate_scores_dict:
         model = LCAModel(demand, method, write_dir)  # generate scores_dict
         del model
-    model = LCAModel(demand, method, write_dir, num_params=num_params)
-    gsa_seed = 92374523
+    model = LCAModel(
+        demand, 
+        method, 
+        write_dir, 
+        num_params=num_params, 
+        uncertain_exchanges_types=["tech"],
+    )
+#     gsa_seed = 92374523
+    gsa_seed = 6000814
     return model, write_dir, gsa_seed
 
 

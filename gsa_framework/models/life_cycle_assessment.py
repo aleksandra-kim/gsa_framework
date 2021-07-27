@@ -400,7 +400,7 @@ class LCAModel(ModelBase):
         assert num_params == len(self)
         params_offset = 0
         X_rescaled_all = np.zeros((iterations, 0))
-        for exchange_type in self.uncertain_exchange_types:
+        for exchange_type in self.uncertain_exchanges_types:
             mc = MCRandomNumberGenerator(self.uncertain_params[exchange_type])
             X_reordered = X[:, mc.ordering + params_offset]
 
@@ -435,7 +435,7 @@ class LCAModel(ModelBase):
         scores[:] = np.nan
         for i, x in enumerate(X):
             params_offset = 0
-            for exchange_type in self.uncertain_exchange_types:
+            for exchange_type in self.uncertain_exchanges_types:
                 amounts = deepcopy(self.get_params(exchange_type)["amount"])
                 params_offset_next = (
                     params_offset + self.uncertain_exchange_lengths[exchange_type]
