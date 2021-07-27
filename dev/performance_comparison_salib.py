@@ -24,7 +24,7 @@ if __name__ == "__main__":
     skip_values = 1000
 
     path_base = Path("write_files/paper_figures/salib_gsafr")
-    write_dir_fig = Path("write_files/paper_figures")
+    write_dir_fig = Path("write_files/paper_figures_review1")
     fig_format = ["pdf"]
 
     color_dict = {"salib": color_blue_rgb, "gsa_framework": color_orange_rgb}
@@ -563,119 +563,135 @@ if __name__ == "__main__":
     # )
     # fig.show()
 
-    # # Speed up gains horizontal
-    # nrows = 1
-    # ncols = 2
-    # fig = make_subplots(
-    #     rows=nrows,
-    #     cols=ncols,
-    #     # subplot_titles=[r"$\text{Varying number of model inputs}$", r"$\text{Varying number of iterations}$"],
-    #     shared_yaxes=True,
-    # )
-    # showlegend = True
-    # for k, v in data.items():
-    #     if ".vary_inputs" in k:
-    #         col = 1
-    #         xx1 = np.array(list(v["salib"].keys()))
-    #         showlegend = True
-    #     else:
-    #         col = 2
-    #         xx2 = np.array(list(v["salib"].keys()))
-    #         showlegend = False
-    #     x1 = np.array(list(v["salib"].keys()))
-    #     x2 = np.array(list(v["gsafr"].keys()))
-    #     y1 = np.array(list(v["salib"].values()))
-    #     y2 = np.array(list(v["gsafr"].values()))
-    #     ratio = y1 / y2
-    #     assert np.all(x1 == x2)
-    #     fig.add_trace(
-    #         go.Scatter(
-    #             x=x1,
-    #             y=ratio,
-    #             name=plotting_dict[k]["name"],
-    #             mode="markers + lines",
-    #             marker=dict(
-    #                 color=plotting_dict[k]["color"],
-    #                 symbol=plotting_dict[k]["symbol"],
-    #             ),
-    #             legendgroup=plotting_dict[k]["name"],
-    #             showlegend=showlegend,
-    #             line=dict(
-    #                 dash=plotting_dict[k]["dash"],
-    #             ),
-    #         ),
-    #         row=1,
-    #         col=col,
-    #     )
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=xx1[[0, -1]],
-    #         y=[1, 1],
-    #         name=plotting_dict[k]["name"],
-    #         mode="lines",
-    #         marker=dict(color="black"),
-    #         showlegend=False,
-    #     ),
-    #     row=1,
-    #     col=1,
-    # )
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=xx2[[0, -1]],
-    #         y=[1, 1],
-    #         name=plotting_dict[k]["name"],
-    #         mode="lines",
-    #         marker=dict(color="black"),
-    #         showlegend=False,
-    #     ),
-    #     row=1,
-    #     col=2,
-    # )
-    #
-    # fig.update_yaxes(type="log")
-    # fig.update_yaxes(title=r"$\text{Performance gain}$", col=1)
-    # fig.update_xaxes(title=r"$\text{Number of model inputs}$", col=1)
-    # fig.update_xaxes(title=r"$\text{Number of iterations}$", col=2)
-    #
-    # fig.update_xaxes(
-    #     showgrid=True,
-    #     gridwidth=1,
-    #     gridcolor=color_gray_hex,
-    #     zeroline=True,
-    #     zerolinewidth=1,
-    #     zerolinecolor=color_gray_hex,
-    #     showline=True,
-    #     linewidth=1,
-    #     linecolor=color_gray_hex,
-    # )
-    # fig.update_yaxes(
-    #     showgrid=True,
-    #     gridwidth=1,
-    #     gridcolor=color_gray_hex,
-    #     zeroline=True,
-    #     zerolinewidth=1,
-    #     zerolinecolor=color_black_hex,
-    #     showline=True,
-    #     linewidth=1,
-    #     linecolor=color_gray_hex,
-    # )
-    # fig.update_layout(
-    #     width=ncols * 300,
-    #     height=nrows * 300,
-    #     paper_bgcolor="rgba(255,255,255,1)",
-    #     plot_bgcolor="rgba(255,255,255,1)",
-    #     margin=dict(l=0, r=0, t=20, b=0),
-    #     legend=dict(
-    #         x=0.5,
-    #         y=-0.28,
-    #         xanchor="center",
-    #         font_size=14,
-    #         orientation="h",
-    #         itemsizing="constant",
-    #     ),
-    # )
-    # fig.show()
-    # # save_fig(fig, "performance_comparison_gsafr_salib", fig_format, write_dir_fig)
+    # Speed up gains horizontal
+    nrows = 1
+    ncols = 2
+    fig = make_subplots(
+        rows=nrows,
+        cols=ncols,
+        # subplot_titles=[r"$\text{Varying number of model inputs}$", r"$\text{Varying number of iterations}$"],
+        shared_yaxes=True,
+    )
+    showlegend = True
+    for k, v in data.items():
+        if ".vary_inputs" in k:
+            col = 1
+            xx1 = np.array(list(v["salib"].keys()))
+            showlegend = True
+        else:
+            col = 2
+            xx2 = np.array(list(v["salib"].keys()))
+            showlegend = False
+        x1 = np.array(list(v["salib"].keys()))
+        x2 = np.array(list(v["gsafr"].keys()))
+        y1 = np.array(list(v["salib"].values()))
+        y2 = np.array(list(v["gsafr"].values()))
+        ratio = y1 / y2
+        assert np.all(x1 == x2)
+        fig.add_trace(
+            go.Scatter(
+                x=x1,
+                y=ratio,
+                name=plotting_dict[k]["name"],
+                mode="markers + lines",
+                marker=dict(
+                    color=plotting_dict[k]["color"],
+                    symbol=plotting_dict[k]["symbol"],
+                ),
+                legendgroup=plotting_dict[k]["name"],
+                showlegend=showlegend,
+                line=dict(
+                    dash=plotting_dict[k]["dash"],
+                ),
+            ),
+            row=1,
+            col=col,
+        )
+    fig.add_trace(
+        go.Scatter(
+            x=xx1[[0, -1]],
+            y=[1, 1],
+            name=plotting_dict[k]["name"],
+            mode="lines",
+            marker=dict(color="black"),
+            showlegend=False,
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=xx2[[0, -1]],
+            y=[1, 1],
+            name=plotting_dict[k]["name"],
+            mode="lines",
+            marker=dict(color="black"),
+            showlegend=False,
+        ),
+        row=1,
+        col=2,
+    )
+
+    fig.update_yaxes(type="log")
+    fig.update_yaxes(title=r"$\text{Performance gain}$", col=1)
+    fig.update_xaxes(title=r"$\text{Number of model inputs}$", col=1)
+    fig.update_xaxes(title=r"$\text{Number of iterations}$", col=2)
+
+    fig.update_xaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor=color_gray_hex,
+        zeroline=True,
+        zerolinewidth=1,
+        zerolinecolor=color_gray_hex,
+        showline=True,
+        linewidth=1,
+        linecolor=color_gray_hex,
+    )
+    tickvals = [0, 500, 1000]
+    ticktext = ["0", "500", "1'000"]
+    fig.update_xaxes(
+        tickvals=tickvals,
+        ticktext=ticktext,
+        row=1,
+        col=1,
+    )
+    tickvals = [5000, 10000, 15000, 20000]
+    ticktext = ["5'000", "10'000", "15'000", "20'000"]
+    fig.update_xaxes(
+        tickvals=tickvals,
+        ticktext=ticktext,
+        row=1,
+        col=2,
+    )
+    fig.update_yaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor=color_gray_hex,
+        zeroline=True,
+        zerolinewidth=1,
+        zerolinecolor=color_black_hex,
+        showline=True,
+        linewidth=1,
+        linecolor=color_gray_hex,
+    )
+    fig.update_layout(
+        width=ncols * 300,
+        height=nrows * 300,
+        paper_bgcolor="rgba(255,255,255,1)",
+        plot_bgcolor="rgba(255,255,255,1)",
+        margin=dict(l=0, r=0, t=20, b=0),
+        legend=dict(
+            x=0.5,
+            y=-0.28,
+            xanchor="center",
+            font_size=14,
+            orientation="h",
+            itemsizing="constant",
+        ),
+    )
+    fig.show()
+    save_fig(fig, "performance_comparison_gsafr_salib", fig_format, write_dir_fig)
 
     # Speed up gains vertical
     nrows = 2
@@ -790,6 +806,6 @@ if __name__ == "__main__":
             itemsizing="constant",
         ),
     )
-    # fig.show()
-    write_dir_fig = Path("write_files/df77_figures")
+    fig.show()
+    write_dir_fig = Path("write_files/paper_figures_review1")
     save_fig(fig, "performance_comparison_gsafr_salib", fig_format, write_dir_fig)

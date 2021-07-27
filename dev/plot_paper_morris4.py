@@ -34,7 +34,7 @@ if __name__ == "__main__":
     )
     write_dir_fig = path_base / "paper_figures_review1"
     # write_dir_fig = path_base / "lea_figures"
-    nums_params = [1000]  # , 5000, 10000]
+    nums_params = [1000, 5000, 10000]
     num_ranks = 4
     morris_model_names = {
         1000: r"$\underline{\text{Morris model, 1'000 inputs}}$",
@@ -102,13 +102,13 @@ if __name__ == "__main__":
         for k, v in filepath_stability_dict[num_params].items():
             stability_dict = read_pickle(v[0])
             stability_dicts.append(stability_dict)
-        st_classes[num_params] = Robustness(
-            stability_dicts,
-            write_dir,
-            num_ranks=num_ranks,
-            bootstrap_ranking_tag="paper1",
-            ci_type="normal",
-        )
+        # st_classes[num_params] = Robustness(
+        #     stability_dicts,
+        #     write_dir,
+        #     num_ranks=num_ranks,
+        #     bootstrap_ranking_tag="paper1",
+        #     ci_type="student",
+        # )
 
     fig_format = ["pdf"]
     opacity = 0.6
@@ -128,138 +128,21 @@ if __name__ == "__main__":
     ### 1. Scalability of sensitivity_analysis, results from all GSA
     ###################################################
     # region
-    #
-    # option = "zoomed_in"
-    # if option=="zoomed_in":
-    #     shared_yaxes=False
-    # else:
-    #     shared_yaxes=True
-    #
-    # fig = make_subplots(
-    #     rows=4,
-    #     cols=3,
-    #     shared_xaxes=True,
-    #     shared_yaxes=shared_yaxes,
-    #     vertical_spacing=0.12,
-    #     horizontal_spacing=0.05,
-    #     row_heights=[0.25,0.25,0.25,0.25],
-    #     subplot_titles=[
-    #         "", all_gsa_names[0], "",
-    #         "", all_gsa_names[1], "",
-    #         "", all_gsa_names[2], "",
-    #         "", all_gsa_names[3], "",
-    #     ]
-    # )
-    # col=1
-    # ipos = 0
-    # showlegend, showlegend2 = True, True
-    # for num_params in nums_params:
-    #     if option == "zoomed_in":
-    #         num_params_plot = num_params // 10
-    #         marker_size = 2
-    #     else:
-    #         num_params_plot = num_params
-    #         marker_size = 1
-    #
-    #     S_dict = S_dict_all[num_params]
-    #     row = 1
-    #     for k,v in S_dict.items():
-    #         fig.add_trace(
-    #             go.Scatter(
-    #                 x=np.arange(num_params)[:num_params_plot],
-    #                 y=v[:num_params_plot],
-    #                 mode="markers",
-    #                 opacity=1,
-    #                 marker=dict(size=2, color=color_blue_rgb),
-    #                 showlegend=showlegend,
-    #                 name=r"$\text{Estimates of sensitivity indices}$",
-    #             ),
-    #             row=row,
-    #             col=col,
-    #         )
-    #         showlegend = False
-    #         if k=='salt':
-    #             model = morris_models[num_params]
-    #             analytical_total = model.get_sensitivity_indices()['Total order']
-    #             fig.add_trace(
-    #                 go.Scatter(
-    #                     x=np.arange(num_params)[:num_params_plot],
-    #                     y=analytical_total[:num_params_plot],
-    #                     mode='markers',
-    #                     marker=dict(size=marker_size,color=color_orange_rgb,symbol="diamond-wide"),
-    #                     showlegend=showlegend2,
-    #                     name=r"$\text{Analytical sensitivity indices}$",
-    #                 ),
-    #             row = row,
-    #             col = col,
-    #             )
-    #             showlegend2=False
-    #         if col==1:
-    #             fig.update_yaxes(title_text=sa_plot[k]['notation'], row=row, col=col)
-    #         if row==1:
-    #             fig.add_annotation(
-    #                 x=1/6*(col+ipos),
-    #                 y=1.13,  # annotation point
-    #                 xref="paper",
-    #                 yref="paper",
-    #                 text=morris_model_names[num_params],
-    #                 showarrow=False,
-    #                 xanchor="center",
-    #                 font=dict(
-    #                     size=16,
-    #                 )
-    #             )
-    #             ipos += 1
-    #         row += 1
-    #     fig.update_xaxes(title_text=r"$\text{Model inputs}$", row=row-1, col=col)
-    #     col += 1
-    # fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor=color_gray_hex,
-    #                  zeroline=True, zerolinewidth=1, zerolinecolor=color_gray_hex,
-    #                  showline=True, linewidth=1, linecolor=color_gray_hex)
-    # fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor=color_gray_hex,
-    #                  zeroline=True, zerolinewidth=1, zerolinecolor=color_black_hex,
-    #                  showline=True, linewidth=1, linecolor=color_gray_hex)
-    # fig.update_layout(
-    #     width=1100, height=600,
-    #     paper_bgcolor='rgba(255,255,255,1)',
-    #     plot_bgcolor='rgba(255,255,255,1)',
-    #     margin=dict(l=0, r=0, t=70, b=10),
-    #     legend=dict(
-    #         x=0.5,
-    #         y=-0.12,
-    #         xanchor='center',
-    #         font_size=14,
-    #         orientation='h',
-    #         itemsizing='constant',
-    #     )
-    # )
-    # fig.show()
-    # if option == "zoomed_in":
-    #     save_fig(fig, "morris_all_gsa_results_zoomed_in", fig_format, write_dir_fig)
-    # else:
-    #     save_fig(fig, "morris_all_gsa_results", fig_format, write_dir_fig)
 
-    # endregion
-
-    ### 2. Convergence and stability of confidence intervals
-    ########################################################
-    # region
-
-    option = "zoomed_in"
+    option = "nzoomed_in"
     if option == "zoomed_in":
-        shared_xaxes = False
-        start_iterations = 1
+        shared_yaxes = False
     else:
-        shared_xaxes = True
-        start_iterations = 0
+        shared_yaxes = True
 
     fig = make_subplots(
         rows=4,
         cols=3,
-        shared_xaxes=shared_xaxes,
-        shared_yaxes=False,
+        shared_xaxes=True,
+        shared_yaxes=shared_yaxes,
         vertical_spacing=0.12,
         horizontal_spacing=0.05,
+        row_heights=[0.25, 0.25, 0.25, 0.25],
         subplot_titles=[
             "",
             all_gsa_names[0],
@@ -275,149 +158,56 @@ if __name__ == "__main__":
             "",
         ],
     )
-
     col = 1
     ipos = 0
-    showlegend = True
+    showlegend, showlegend2 = True, True
     for num_params in nums_params:
-        st = st_classes[num_params]
-        thetas = np.linspace(0.01, 0.95, 100)
-        all_iterations = st.iterations["spearman"]
-        analytical_spearman_ci = []
-        for iterations in all_iterations:
-            list_ = []
-            for theta in thetas:
-                list_.append(
-                    get_corrcoef_interval_width(theta, iterations=iterations)[
-                        "spearman"
-                    ]
-                )
-            analytical_spearman_ci.append(max(list_))
-        analytical_spearman_ci = np.array(analytical_spearman_ci)
+        if option == "zoomed_in":
+            num_params_plot = num_params // 10
+            marker_size = 2
+        else:
+            num_params_plot = num_params
+            marker_size = 1
 
+        S_dict = S_dict_all[num_params]
         row = 1
-        for sa_name in sa_names.keys():
-            if sa_name == "total" and option == "zoomed_in":
-                start_iterations_ = 6
-            elif sa_name == "total" and option == "nzoomed_in":
-                start_iterations_ = 1
-            else:
-                start_iterations_ = start_iterations
-            x = st.iterations[sa_name][start_iterations_:]
-            y = np.zeros(len(x))
-            if sa_name == "spearman":
-                color = color_orange_tuple
-                fig.add_trace(
-                    go.Scatter(
-                        x=x,
-                        y=analytical_spearman_ci[start_iterations_:] / 2,
-                        mode="lines",
-                        opacity=1,
-                        showlegend=showlegend,
-                        marker=dict(
-                            color="rgba({},{},{},{})".format(
-                                color[0],
-                                color[1],
-                                color[2],
-                                1,
-                            ),
-                        ),
-                        name=r"$\text{Analytical confidence intervals}$",
-                        line=dict(dash="dot"),
-                    ),
-                    row=row,
-                    col=col,
-                )
-                fig.add_trace(
-                    go.Scatter(
-                        x=x,
-                        y=-analytical_spearman_ci[start_iterations_:] / 2,
-                        mode="lines",
-                        opacity=1,
-                        showlegend=False,
-                        marker=dict(
-                            color="rgba({},{},{},{})".format(
-                                color[0],
-                                color[1],
-                                color[2],
-                                1,
-                            ),
-                        ),
-                        line=dict(dash="dot"),
-                    ),
-                    row=row,
-                    col=col,
-                )
-            width = st.confidence_intervals_max[sa_name][start_iterations_:]
-            lower = y - width / 2
-            upper = y + width / 2
-            color = color_blue_tuple
+        for k, v in S_dict.items():
             fig.add_trace(
                 go.Scatter(
-                    x=x,
-                    y=y,
-                    mode="lines",
+                    x=np.arange(num_params)[:num_params_plot],
+                    y=v[:num_params_plot],
+                    mode="markers",
                     opacity=1,
+                    marker=dict(size=2, color=color_blue_rgb),
                     showlegend=showlegend,
-                    marker=dict(
-                        color="rgba({},{},{},{})".format(
-                            color[0],
-                            color[1],
-                            color[2],
-                            1,
-                        ),
-                    ),
-                    name=r"$\text{Bootstrap confidence intervals}$",
+                    name=r"$\text{Estimates of sensitivity indices}$",
                 ),
                 row=row,
                 col=col,
             )
             showlegend = False
-            fig.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=lower,
-                    mode="lines",
-                    opacity=opacity,
-                    showlegend=False,
-                    marker=dict(
-                        color="rgba({},{},{},{})".format(
-                            color[0],
-                            color[1],
-                            color[2],
-                            opacity,
+            if k == "salt":
+                model = morris_models[num_params]
+                analytical_total = model.get_sensitivity_indices()["Total order"]
+                fig.add_trace(
+                    go.Scatter(
+                        x=np.arange(num_params)[:num_params_plot],
+                        y=analytical_total[:num_params_plot],
+                        mode="markers",
+                        marker=dict(
+                            size=marker_size,
+                            color=color_orange_rgb,
+                            symbol="diamond-wide",
                         ),
+                        showlegend=showlegend2,
+                        name=r"$\text{Analytical sensitivity indices}$",
                     ),
-                    line=dict(width=0),
-                ),
-                row=row,
-                col=col,
-            )
-            fig.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=upper,
-                    showlegend=False,
-                    line=dict(width=0),
-                    mode="lines",
-                    fillcolor="rgba({},{},{},{})".format(
-                        color[0],
-                        color[1],
-                        color[2],
-                        opacity,
-                    ),
-                    fill="tonexty",
-                ),
-                row=row,
-                col=col,
-            )
-
-            if col == 1:
-                fig.update_yaxes(
-                    title_text=sa_plot[sa_names[sa_name]]["stat_indices"],
                     row=row,
                     col=col,
                 )
+                showlegend2 = False
+            if col == 1:
+                fig.update_yaxes(title_text=sa_plot[k]["notation"], row=row, col=col)
             if row == 1:
                 fig.add_annotation(
                     x=1 / 6 * (col + ipos),
@@ -432,30 +222,40 @@ if __name__ == "__main__":
                     ),
                 )
                 ipos += 1
+
             row += 1
-        fig.update_xaxes(title_text=r"$\text{Iterations}$", row=row - 1, col=col)
+        fig.update_xaxes(title_text=r"$\text{Model inputs}$", row=row - 1, col=col)
+        if option == "nzoomed_in":
+            if num_params == 1000:
+                tickvals = [0, 500, 1000]
+                ticktext = ["0", "500", "1'000"]
+            elif num_params == 5000:
+                tickvals = [0, 2000, 4000]
+                ticktext = ["0", "2'000", "4'000"]
+            elif num_params == 10000:
+                tickvals = [0, 5000, 10000]
+                ticktext = ["0", "5'000", "10'000"]
+            fig.update_xaxes(
+                tickvals=tickvals,
+                ticktext=ticktext,
+                col=col,
+            )
+        elif option == "zoomed_in" and num_params == 10000:
+            tickvals = [0, 500, 1000]
+            ticktext = ["0", "500", "1'000"]
+            fig.update_xaxes(
+                tickvals=tickvals,
+                ticktext=ticktext,
+                col=col,
+            )
         col += 1
-    fig.update_layout(
-        legend=dict(
-            orientation="h",
-            x=0.5,
-            y=-0.12,
-            xanchor="center",
-            font_size=14,
-        ),
-        width=1100,
-        height=600,
-        margin=dict(l=0, r=0, t=70, b=10),
-        paper_bgcolor="rgba(255,255,255,1)",
-        plot_bgcolor="rgba(255,255,255,1)",
-    )
     fig.update_xaxes(
         showgrid=True,
         gridwidth=1,
         gridcolor=color_gray_hex,
         zeroline=True,
         zerolinewidth=1,
-        zerolinecolor=color_black_hex,
+        zerolinecolor=color_gray_hex,
         showline=True,
         linewidth=1,
         linecolor=color_gray_hex,
@@ -471,13 +271,318 @@ if __name__ == "__main__":
         linewidth=1,
         linecolor=color_gray_hex,
     )
+    fig.update_layout(
+        width=1100,
+        height=600,
+        paper_bgcolor="rgba(255,255,255,1)",
+        plot_bgcolor="rgba(255,255,255,1)",
+        margin=dict(l=0, r=0, t=70, b=10),
+        legend=dict(
+            x=0.5,
+            y=-0.12,
+            xanchor="center",
+            font_size=14,
+            orientation="h",
+            itemsizing="constant",
+        ),
+    )
+    if option == "zoomed_in":
+        save_fig(fig, "morris_all_gsa_results_zoomed_in", fig_format, write_dir_fig)
+    else:
+        save_fig(fig, "morris_all_gsa_results", fig_format, write_dir_fig)
     fig.show()
 
-    # fig.show()
-    if option == "zoomed_in":
-        save_fig(fig, "morris_stat_indices_zoomed_in", fig_format, write_dir_fig)
-    else:
-        save_fig(fig, "morris_stat_indices", fig_format, write_dir_fig)
+    # endregion
+
+    ### 2. Convergence and stability of confidence intervals
+    ########################################################
+    # region
+
+    # option = "zoomed_in"
+    # if option == "zoomed_in":
+    #     shared_xaxes = False
+    #     start_iterations = 1
+    # else:
+    #     shared_xaxes = True
+    #     start_iterations = 0
+    #
+    # fig = make_subplots(
+    #     rows=4,
+    #     cols=3,
+    #     shared_xaxes=shared_xaxes,
+    #     shared_yaxes=False,
+    #     vertical_spacing=0.12,
+    #     horizontal_spacing=0.05,
+    #     subplot_titles=[
+    #         "",
+    #         all_gsa_names[0],
+    #         "",
+    #         "",
+    #         all_gsa_names[1],
+    #         "",
+    #         "",
+    #         all_gsa_names[2],
+    #         "",
+    #         "",
+    #         all_gsa_names[3],
+    #         "",
+    #     ],
+    # )
+    #
+    # col = 1
+    # ipos = 0
+    # showlegend = True
+    # for num_params in nums_params:
+    #     st = st_classes[num_params]
+    #     thetas = np.linspace(0.01, 0.95, 100)
+    #     all_iterations = st.iterations["spearman"]
+    #     analytical_spearman_ci = []
+    #     for iterations in all_iterations:
+    #         list_ = []
+    #         for theta in thetas:
+    #             list_.append(
+    #                 get_corrcoef_interval_width(theta, iterations=iterations)[
+    #                     "spearman"
+    #                 ]
+    #             )
+    #         analytical_spearman_ci.append(max(list_))
+    #     analytical_spearman_ci = np.array(analytical_spearman_ci)
+    #
+    #     row = 1
+    #     for sa_name in sa_names.keys():
+    #         if sa_name == "total" and option == "zoomed_in":
+    #             start_iterations_ = 6
+    #         elif sa_name == "total" and option == "nzoomed_in":
+    #             start_iterations_ = 1
+    #         else:
+    #             start_iterations_ = start_iterations
+    #         x = st.iterations[sa_name][start_iterations_:]
+    #         y = np.zeros(len(x))
+    #         if sa_name == "spearman":
+    #             color = color_orange_tuple
+    #             fig.add_trace(
+    #                 go.Scatter(
+    #                     x=x,
+    #                     y=analytical_spearman_ci[start_iterations_:] / 2,
+    #                     mode="lines",
+    #                     opacity=1,
+    #                     showlegend=showlegend,
+    #                     marker=dict(
+    #                         color="rgba({},{},{},{})".format(
+    #                             color[0],
+    #                             color[1],
+    #                             color[2],
+    #                             1,
+    #                         ),
+    #                     ),
+    #                     name=r"$\text{Analytical confidence intervals}$",
+    #                     line=dict(dash="dot"),
+    #                 ),
+    #                 row=row,
+    #                 col=col,
+    #             )
+    #             fig.add_trace(
+    #                 go.Scatter(
+    #                     x=x,
+    #                     y=-analytical_spearman_ci[start_iterations_:] / 2,
+    #                     mode="lines",
+    #                     opacity=1,
+    #                     showlegend=False,
+    #                     marker=dict(
+    #                         color="rgba({},{},{},{})".format(
+    #                             color[0],
+    #                             color[1],
+    #                             color[2],
+    #                             1,
+    #                         ),
+    #                     ),
+    #                     line=dict(dash="dot"),
+    #                 ),
+    #                 row=row,
+    #                 col=col,
+    #             )
+    #         width = st.confidence_intervals_max[sa_name][start_iterations_:]
+    #         lower = y - width / 2
+    #         upper = y + width / 2
+    #         color = color_blue_tuple
+    #         fig.add_trace(
+    #             go.Scatter(
+    #                 x=x,
+    #                 y=y,
+    #                 mode="lines",
+    #                 opacity=1,
+    #                 showlegend=showlegend,
+    #                 marker=dict(
+    #                     color="rgba({},{},{},{})".format(
+    #                         color[0],
+    #                         color[1],
+    #                         color[2],
+    #                         1,
+    #                     ),
+    #                 ),
+    #                 name=r"$\text{Bootstrap confidence intervals}$",
+    #             ),
+    #             row=row,
+    #             col=col,
+    #         )
+    #         showlegend = False
+    #         fig.add_trace(
+    #             go.Scatter(
+    #                 x=x,
+    #                 y=lower,
+    #                 mode="lines",
+    #                 opacity=opacity,
+    #                 showlegend=False,
+    #                 marker=dict(
+    #                     color="rgba({},{},{},{})".format(
+    #                         color[0],
+    #                         color[1],
+    #                         color[2],
+    #                         opacity,
+    #                     ),
+    #                 ),
+    #                 line=dict(width=0),
+    #             ),
+    #             row=row,
+    #             col=col,
+    #         )
+    #         fig.add_trace(
+    #             go.Scatter(
+    #                 x=x,
+    #                 y=upper,
+    #                 showlegend=False,
+    #                 line=dict(width=0),
+    #                 mode="lines",
+    #                 fillcolor="rgba({},{},{},{})".format(
+    #                     color[0],
+    #                     color[1],
+    #                     color[2],
+    #                     opacity,
+    #                 ),
+    #                 fill="tonexty",
+    #             ),
+    #             row=row,
+    #             col=col,
+    #         )
+    #
+    #         if col == 1:
+    #             fig.update_yaxes(
+    #                 title_text=sa_plot[sa_names[sa_name]]["stat_indices"],
+    #                 row=row,
+    #                 col=col,
+    #             )
+    #         if row == 1:
+    #             fig.add_annotation(
+    #                 x=1 / 6 * (col + ipos),
+    #                 y=1.13,  # annotation point
+    #                 xref="paper",
+    #                 yref="paper",
+    #                 text=morris_model_names[num_params],
+    #                 showarrow=False,
+    #                 xanchor="center",
+    #                 font=dict(
+    #                     size=16,
+    #                 ),
+    #             )
+    #             ipos += 1
+    #         if option=='zoomed_in':
+    #             if sa_name=='spearman' or sa_name=="total_gain":
+    #                 if num_params==1000:
+    #                     tickvals = [1000,2000,3000]
+    #                     ticktext = ["1'000","2'000","3'000"]
+    #                 if num_params==5000:
+    #                     tickvals = [5000,10000,15000]
+    #                     ticktext = ["5'000","10'000","15'000"]
+    #                 if num_params==10000:
+    #                     tickvals = [10000,20000,30000]
+    #                     ticktext = ["10'000","20'000","30'000"]
+    #             if sa_name == 'total':
+    #                 if num_params == 1000:
+    #                     tickvals = [20000, 40000, 60000, 80000]
+    #                     ticktext = ["20'000", "40'000", "60'000", "80'000"]
+    #                 if num_params == 5000:
+    #                     tickvals = [100000, 200000, 300000, 400000]
+    #                     ticktext = ["100'000", "200'000", "300'000", "400'000"]
+    #                 if num_params == 10000:
+    #                     tickvals = [200000, 400000, 600000, 800000]
+    #                     ticktext = ["200'000", "400'000", "600'000", "800'000"]
+    #             if sa_name=='delta':
+    #                 if num_params==1000:
+    #                     tickvals = [2000,4000,6000]
+    #                     ticktext = ["2'000","4'000","6'000"]
+    #                 if num_params==5000:
+    #                     tickvals = [10000,20000,30000]
+    #                     ticktext = ["10'000","20'000","30'000"]
+    #                 if num_params==10000:
+    #                     tickvals = [20000,40000,60000]
+    #                     ticktext = ["20'000","40'000","60'000"]
+    #         if option=='nzoomed_in':
+    #             if num_params == 1000:
+    #                 tickvals = [20000, 40000, 60000, 80000]
+    #                 ticktext = ["20'000", "40'000", "60'000", "80'000"]
+    #             if num_params == 5000:
+    #                 tickvals = [100000, 200000, 300000, 400000]
+    #                 ticktext = ["100'000", "200'000", "300'000", "400'000"]
+    #             if num_params == 10000:
+    #                 tickvals = [200000, 400000, 600000, 800000]
+    #                 ticktext = ["200'000", "400'000", "600'000","800'000"]
+    #
+    #
+    #         fig.update_xaxes(
+    #             tickvals=tickvals,
+    #             ticktext=ticktext,
+    #             row=row,
+    #             col=col,
+    #         )
+    #         row += 1
+    #     fig.update_xaxes(
+    #         title_text=r"$\text{Iterations}$",
+    #         row=row - 1,
+    #         col=col,
+    #     )
+    #     col += 1
+    # fig.update_layout(
+    #     legend=dict(
+    #         orientation="h",
+    #         x=0.5,
+    #         y=-0.12,
+    #         xanchor="center",
+    #         font_size=14,
+    #     ),
+    #     width=1100,
+    #     height=600,
+    #     margin=dict(l=0, r=0, t=70, b=10),
+    #     paper_bgcolor="rgba(255,255,255,1)",
+    #     plot_bgcolor="rgba(255,255,255,1)",
+    # )
+    # fig.update_xaxes(
+    #     showgrid=True,
+    #     gridwidth=1,
+    #     gridcolor=color_gray_hex,
+    #     zeroline=True,
+    #     zerolinewidth=1,
+    #     zerolinecolor=color_black_hex,
+    #     showline=True,
+    #     linewidth=1,
+    #     linecolor=color_gray_hex,
+    # )
+    # fig.update_yaxes(
+    #     showgrid=True,
+    #     gridwidth=1,
+    #     gridcolor=color_gray_hex,
+    #     zeroline=True,
+    #     zerolinewidth=1,
+    #     zerolinecolor=color_black_hex,
+    #     showline=True,
+    #     linewidth=1,
+    #     linecolor=color_gray_hex,
+    # )
+    #
+    # # fig.show()
+    # if option == "zoomed_in":
+    #     save_fig(fig, "morris_stat_indices_zoomed_in", fig_format, write_dir_fig)
+    # else:
+    #     save_fig(fig, "morris_stat_indices", fig_format, write_dir_fig)
 
     # endregion
 
@@ -536,7 +641,7 @@ if __name__ == "__main__":
     ### 3. Convergence of ranking
     #############################
     # region
-    #
+
     # option = "nzoomed_in"
     # if option == "zoomed_in":
     #     shared_xaxes = False
@@ -550,7 +655,7 @@ if __name__ == "__main__":
     #     cols=3,
     #     shared_xaxes=shared_xaxes,
     #     shared_yaxes=False,
-    #     vertical_spacing=0.12,
+    #     vertical_spacing=0.14,
     #     horizontal_spacing=0.12,
     #     subplot_titles=[
     #         "", all_gsa_names[0], "",
@@ -579,7 +684,7 @@ if __name__ == "__main__":
     #         # lower = st.bootstrap_rankings_width_percentiles[sa_name]['min'][:-1]
     #         # upper = st.bootstrap_rankings_width_percentiles[sa_name]['max'][:-1]
     #         if sa_name == 'total_gain':
-    #             y=st.stat_medians["stat.r2"][:-1]
+    #             y=st.sa_mean_results["stat.r2"][:-1].flatten()
     #             width=st.confidence_intervals_max['stat.r2'][:-1]
     #             lower=y-width/2
     #             upper=y+width/2
@@ -650,7 +755,7 @@ if __name__ == "__main__":
     #                 elif num_params == 5000:
     #                     fig.update_yaxes(range=[0.2, 1.1], row=row, col=col)
     #                 elif num_params == 10000:
-    #                     fig.update_yaxes(range=[-0.85, 1.1], row=row, col=col)
+    #                     fig.update_yaxes(range=[-0.6, 1.1], row=row, col=col)
     #
     #         y = st.bootstrap_rankings_width_percentiles[sa_name]["mean"][:-1]
     #         cf_width = st.bootstrap_rankings_width_percentiles[sa_name]["confidence_interval"][:-1]
@@ -718,7 +823,7 @@ if __name__ == "__main__":
     #                 secondary_y=False,
     #             )
     #             if option == "nzoomed_in":
-    #                 fig.update_yaxes(range=[0, 1.1],)
+    #                 fig.update_yaxes(range=[0, 1.2],)
     #
     #             # fig.update_xaxes(
     #             #     range=[
@@ -755,6 +860,57 @@ if __name__ == "__main__":
     #                 )
     #             )
     #             ipos += 1
+    #         tickangle = 0
+    #         if option=='zoomed_in':
+    #             if sa_name=='spearman' or sa_name=="total_gain":
+    #                 if num_params==1000:
+    #                     tickvals = [1000,2000,3000]
+    #                     ticktext = ["1'000","2'000","3'000"]
+    #                 if num_params==5000:
+    #                     tickvals = [5000,10000,15000]
+    #                     ticktext = ["5'000","10'000","15'000"]
+    #                 if num_params==10000:
+    #                     tickvals = [10000,20000,30000]
+    #                     ticktext = ["10'000","20'000","30'000"]
+    #             if sa_name == 'total':
+    #                 tickangle = 30
+    #                 if num_params == 1000:
+    #                     tickvals = [20000, 40000, 60000, 80000]
+    #                     ticktext = ["20'000", "40'000", "60'000", "80'000"]
+    #                 if num_params == 5000:
+    #                     tickvals = [100000, 200000, 300000, 400000]
+    #                     ticktext = ["100'000", "200'000", "300'000", "400'000"]
+    #                 if num_params == 10000:
+    #                     tickvals = [200000, 400000, 600000, 800000]
+    #                     ticktext = ["200'000", "400'000", "600'000", "800'000"]
+    #             if sa_name=='delta':
+    #                 if num_params==1000:
+    #                     tickvals = [2000,4000,6000]
+    #                     ticktext = ["2'000","4'000","6'000"]
+    #                 if num_params==5000:
+    #                     tickvals = [10000,20000,30000]
+    #                     ticktext = ["10'000","20'000","30'000"]
+    #                 if num_params==10000:
+    #                     tickvals = [20000,40000,60000]
+    #                     ticktext = ["20'000","40'000","60'000"]
+    #         if option=='nzoomed_in':
+    #             tickangle = 30
+    #             if num_params == 1000:
+    #                 tickvals = [20000, 40000, 60000, 80000]
+    #                 ticktext = ["20'000", "40'000", "60'000", "80'000"]
+    #             if num_params == 5000:
+    #                 tickvals = [100000, 200000, 300000, 400000]
+    #                 ticktext = ["100'000", "200'000", "300'000", "400'000"]
+    #             if num_params == 10000:
+    #                 tickvals = [200000, 400000, 600000, 800000]
+    #                 ticktext = ["200'000", "400'000", "600'000","800'000"]
+    #         fig.update_xaxes(
+    #             tickangle=tickangle,
+    #             tickvals=tickvals,
+    #             ticktext=ticktext,
+    #             row=row,
+    #             col=col,
+    #         )
     #         row += 1
     #     fig.update_xaxes(title_text=r"$\text{Iterations}$", row=row - 1, col=col)
     #
@@ -764,6 +920,10 @@ if __name__ == "__main__":
     # fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor=color_gray_hex,
     #                  zeroline=True, zerolinewidth=1, zerolinecolor=color_black_hex,
     #                  showline=True, linewidth=1, linecolor=color_gray_hex, )
+    # if option == 'zoomed_in':
+    #     y_legend = -0.12
+    # else:
+    #     y_legend = -0.2
     # fig.update_layout(
     #     width=1000, height=600,
     #     paper_bgcolor='rgba(255,255,255,1)',
@@ -771,20 +931,19 @@ if __name__ == "__main__":
     #     margin=dict(l=0, r=0, t=70, b=10),
     #     legend=dict(
     #         x=0.5,
-    #         y=-0.12,
+    #         y=y_legend,
     #         xanchor='center',
     #         font_size=14,
     #         orientation='h',
     #         traceorder="normal",
     #     )
     # )
-    # fig.show()
+    # # fig.show()
     # if plot_robustness_ranking:
     #     save_fig(fig, "morris_stat_ranking_{}_robust_{}".format(num_ranks, option), fig_format, write_dir_fig)
     # else:
     #     save_fig(fig, "morris_stat_ranking_{}_{}".format(num_ranks, option), fig_format, write_dir_fig)
-    #
-    #
+
     # endregion
 
     ### 3. Scalability of GSA results visually
@@ -815,14 +974,16 @@ if __name__ == "__main__":
     # }
     #
     # fig = make_subplots(
-    #     rows=2,
-    #     cols=2,
+    #     rows=4,
+    #     cols=1,
     #     shared_xaxes=True,
     #     horizontal_spacing=0.22,
     #     vertical_spacing=0.12,
     #     specs=[
-    #         [{"secondary_y": True}, {"secondary_y": True}],
-    #         [{"secondary_y": True}, {"secondary_y": True}],
+    #         [{"secondary_y": True},],
+    #         [{"secondary_y": True},],
+    #         [{"secondary_y": True},],
+    #         [{"secondary_y": True},],
     #     ],
     #     subplot_titles=[v["name"] for v in sa_plot.values()],
     # )
@@ -831,6 +992,7 @@ if __name__ == "__main__":
     # showlegend = True
     # for sa_name in sa_names.keys():
     #     data = data_dict[sa_name]
+    #     print(sa_name)
     #     fig.add_trace(
     #         go.Scatter(
     #             x=nums_params,
@@ -874,10 +1036,10 @@ if __name__ == "__main__":
     #         secondary_y=True,
     #     )
     #     showlegend = False
-    #     col += 1
-    #     if col == 3:
-    #         col = 1
-    #         row = 2
+    #     row += 1
+    #     # if col == 3:
+    #     #     col = 1
+    #     #     row = 2
     #
     # # fig.update_yaxes(type="log")
     # fig.update_xaxes(
@@ -902,7 +1064,13 @@ if __name__ == "__main__":
     #     linewidth=1,
     #     linecolor=color_gray_hex,
     # )
-    # fig.update_xaxes(title_text=r"$\text{Number of inputs}$", row=2, title_standoff=5)
+    # fig.update_xaxes(
+    #     title_text=r"$\text{Number of inputs}$",
+    #     row=4,
+    #     title_standoff=5,
+    #     tickvals = [0,5000,10000],
+    #     ticktext = ["0","5'000", "10'000"],
+    # )
     # fig.update_yaxes(
     #     title_text=r"$\text{Time, [s]}$",
     #     col=1,
@@ -917,20 +1085,20 @@ if __name__ == "__main__":
     #     secondary_y=True,
     # )
     # fig.update_layout(
-    #     width=650,
-    #     height=500,
+    #     width=250,
+    #     height=520,
     #     paper_bgcolor="rgba(255,255,255,1)",
     #     plot_bgcolor="rgba(255,255,255,1)",
     #     legend=dict(
     #         x=0.5,
-    #         y=-0.12,
+    #         y=1.22,
     #         xanchor="center",
     #         font_size=14,
     #         orientation="h",
     #     ),
     #     margin=dict(l=0, r=0, t=20, b=0),
     # )
-    # save_fig(fig, "morris_scalability", fig_format, write_dir_fig)
+    # # save_fig(fig, "morris_scalability", fig_format, write_dir_fig)
     # fig.show()
 
     # endregion
