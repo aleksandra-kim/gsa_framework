@@ -106,13 +106,18 @@ if __name__ == "__main__":
             S_arr = np.vstack([S_arr, S_dict[k]])
             stability_dict = read_pickle(filepath_stability_dict[k][0])
             stability_dicts.append(stability_dict)
+
+    S_sorted = np.sort(np.abs(S_dict["xgbo"]))[-1::-1]
+    th = (S_sorted[99] - S_sorted[1000]) / 4
+
     bootstrap_ranking_tag = "paper1"
-    # st = Robustness(
-    #     stability_dicts,
-    #     write_dir,
-    #     num_ranks=num_ranks,
-    #     bootstrap_ranking_tag=bootstrap_ranking_tag,
-    # )
+    st = Robustness(
+        stability_dicts,
+        write_dir,
+        num_ranks=num_ranks,
+        bootstrap_ranking_tag=bootstrap_ranking_tag,
+        num_params_screening=int(0.90 * num_params),
+    )
 
     ### 1. Plot  GSA  results
     ######################
@@ -126,7 +131,7 @@ if __name__ == "__main__":
     #     # column_widths=[0.7, 0.3]
     # )
     # row = 1
-    # sort_inds = np.argsort(S_dict["corr"])[-1::-1]
+    # sort_inds = np.argsort(S_dict["xgbo"])[-1::-1]
     # option = "zoomed_in"
     # if option == "zoomed_in":
     #     inputs_show = len(sort_inds) // 10
@@ -181,14 +186,14 @@ if __name__ == "__main__":
     #     linecolor=color_gray_hex,
     # )
     # fig.update_layout(
-    #     width=500,
+    #     width=700,
     #     height=600,
     #     paper_bgcolor="rgba(255,255,255,1)",
     #     plot_bgcolor="rgba(255,255,255,1)",
     #     margin=dict(l=0, r=0, t=30, b=0),
     # )
     #
-    # save_fig(fig, "lca_all_gsa_results_{}".format(option), fig_format, write_dir_fig)
+    # # save_fig(fig, "lca_all_gsa_results_{}".format(option), fig_format, write_dir_fig)
     # fig.show()
     #
     # endregion
@@ -222,6 +227,21 @@ if __name__ == "__main__":
     #     "total_gain": "xgbo",
     # }
     #
+    # conf_int_choices = ['max', 'screening']
+    # conf_int_dict = {
+    #     'max': {
+    #         "data": st.confidence_intervals_max,
+    #         "color": color_blue_tuple,
+    #         "name": r"$Stat_{indices}$",
+    #     },
+    #     'screening': {
+    #         "data": st.confidence_intervals_screening,
+    #         "color": color_purple_tuple,
+    #         "name": r"$Stat_{screening}$",
+    #     }
+    # }
+    # # r"$\text{Bootstrap confidence intervals}$",
+    #
     # fig = make_subplots(
     #     rows=4,
     #     cols=2,
@@ -233,7 +253,8 @@ if __name__ == "__main__":
     # num_influential = 20
     # num_non_influential = 60
     #
-    # showlegend = True
+    # showlegend = False
+    # showlegend2 = False
     #
     # for col in [1,2]:
     #     if col==1:
@@ -268,13 +289,15 @@ if __name__ == "__main__":
     #         y = np.zeros(len(x))
     #         if sa_name == "spearman":
     #             color = color_orange_tuple
+    #             if row==1 and col==2:
+    #                 showlegend2=True
     #             fig.add_trace(
     #                 go.Scatter(
     #                     x=x,
     #                     y=analytical_spearman_ci[start_iterations_:] / 2,
     #                     mode="lines",
     #                     opacity=1,
-    #                     showlegend=showlegend,
+    #                     showlegend=showlegend2,
     #                     marker=dict(
     #                         color="rgba({},{},{},{})".format(
     #                             color[0],
@@ -289,6 +312,7 @@ if __name__ == "__main__":
     #                 row=row,
     #                 col=col,
     #             )
+    #             showlegend2 = False
     #             fig.add_trace(
     #                 go.Scatter(
     #                     x=x,
@@ -319,74 +343,80 @@ if __name__ == "__main__":
     #         #         color = color_blue_tuple
     #         #         y=sa_max_non_inf
     #         #         width = stat_screening
-    #         width = st.confidence_intervals_max[sa_name][start_iterations_:]
-    #         color = color_blue_tuple
-    #         print(sa_name)
-    #         lower = y - width / 2
-    #         upper = y + width / 2
-    #         fig.add_trace(
-    #             go.Scatter(
-    #                 x=x,
-    #                 y=y,
-    #                 mode="lines",
-    #                 opacity=1,
-    #                 showlegend=showlegend,
-    #                 marker=dict(
-    #                     color="rgba({},{},{},{})".format(
-    #                         color[0],
-    #                         color[1],
-    #                         color[2],
-    #                         1,
+    #
+    #         for conf_int_choice in conf_int_choices:
+    #             if row==1 and col==1:
+    #                 showlegend = True
+    #             width = conf_int_dict[conf_int_choice]['data'][sa_name][start_iterations_:]
+    #             lower = y - width / 2
+    #             upper = y + width / 2
+    #             color = conf_int_dict[conf_int_choice]['color']
+    #             fig.add_trace(
+    #                 go.Scatter(
+    #                     x=x,
+    #                     y=y,
+    #                     mode="lines",
+    #                     opacity=1,
+    #                     showlegend=showlegend,
+    #                     legendgroup=conf_int_choice,
+    #                     marker=dict(
+    #                         color="rgba({},{},{},{})".format(
+    #                             color[0],
+    #                             color[1],
+    #                             color[2],
+    #                             1,
+    #                         ),
     #                     ),
+    #                     name=conf_int_dict[conf_int_choice]['name'],
     #                 ),
-    #                 name=r"$\text{Bootstrap confidence intervals}$",
-    #             ),
-    #             row=row,
-    #             col=col,
-    #         )
-    #         showlegend = False
-    #         fig.add_trace(
-    #             go.Scatter(
-    #                 x=x,
-    #                 y=lower,
-    #                 mode="lines",
-    #                 opacity=opacity,
-    #                 showlegend=False,
-    #                 marker=dict(
-    #                     color="rgba({},{},{},{})".format(
+    #                 row=row,
+    #                 col=col,
+    #             )
+    #             showlegend = False
+    #             fig.add_trace(
+    #                 go.Scatter(
+    #                     x=x,
+    #                     y=lower,
+    #                     mode="lines",
+    #                     opacity=opacity,
+    #                     showlegend=False,
+    #                     legendgroup=conf_int_choice,
+    #                     marker=dict(
+    #                         color="rgba({},{},{},{})".format(
+    #                             color[0],
+    #                             color[1],
+    #                             color[2],
+    #                             opacity,
+    #                         ),
+    #                     ),
+    #                     line=dict(width=0),
+    #                 ),
+    #                 row=row,
+    #                 col=col,
+    #             )
+    #             fig.add_trace(
+    #                 go.Scatter(
+    #                     x=x,
+    #                     y=upper,
+    #                     showlegend=False,
+    #                     legendgroup=conf_int_choice,
+    #                     line=dict(width=0),
+    #                     mode="lines",
+    #                     fillcolor="rgba({},{},{},{})".format(
     #                         color[0],
     #                         color[1],
     #                         color[2],
     #                         opacity,
     #                     ),
+    #                     fill="tonexty",
     #                 ),
-    #                 line=dict(width=0),
-    #             ),
-    #             row=row,
-    #             col=col,
-    #         )
-    #         fig.add_trace(
-    #             go.Scatter(
-    #                 x=x,
-    #                 y=upper,
-    #                 showlegend=False,
-    #                 line=dict(width=0),
-    #                 mode="lines",
-    #                 fillcolor="rgba({},{},{},{})".format(
-    #                     color[0],
-    #                     color[1],
-    #                     color[2],
-    #                     opacity,
-    #                 ),
-    #                 fill="tonexty",
-    #             ),
-    #             row=row,
-    #             col=col,
-    #         )
+    #                 row=row,
+    #                 col=col,
+    #             )
     #
     #         if col == 1:
     #             fig.update_yaxes(
-    #                 title_text=sa_plot[sa_names[sa_name]]["stat_indices"],
+    #                 title_text=sa_plot[sa_names[sa_name]]["stat"],
     #                 row=row,
     #                 col=1,
     #             )
@@ -475,8 +505,11 @@ if __name__ == "__main__":
     #     ),
     #     margin=dict(l=0, r=0, t=30, b=0),
     # )
-    # # fig.show()
+    #
+    #
     # save_fig(fig, "lca_stat_indices", fig_format, write_dir_fig)
+    #
+    # fig.show()
     # print()
 
     # endregion
@@ -644,343 +677,234 @@ if __name__ == "__main__":
     # #############################
     # region
     #
-    # plot_robustness_ranking = True
-    # sa_names = {
-    #     "spearman": "corr",
-    #     "total": "salt",
-    #     "delta": "delt",
-    #     "total_gain": "xgbo"
-    # }
-    # fig = make_subplots(
-    #     rows=4,
-    #     cols=2,
-    #     shared_xaxes=False,
-    #     shared_yaxes=False,
-    #     vertical_spacing=0.12,
-    #     horizontal_spacing=0.12,
-    #     specs=[
-    #         [{"secondary_y": False}, {"secondary_y": False}],
-    #         [{"secondary_y": False}, {"secondary_y": False}],
-    #         [{"secondary_y": False}, {"secondary_y": False}],
-    #         [{"secondary_y": True}, {"secondary_y": True}],
-    #     ],
-    # )
-    #
-    # color = color_blue_tuple
-    # opacity = 0.6
-    # showlegend, showlegend2 = True, True
-    # for col in [1, 2]:
-    #     if col==1:
-    #         option = "nzoomed_in"
-    #     else:
-    #         option = "zoomed_in"
-    #     row = 1
-    #     for sa_name in sa_names.keys():
-    #         # y = st.bootstrap_rankings_width_percentiles[sa_name]['median'][:-1]
-    #         # lower = st.bootstrap_rankings_width_percentiles[sa_name]['min'][:-1]
-    #         # upper = st.bootstrap_rankings_width_percentiles[sa_name]['max'][:-1]
-    #         if sa_name == 'total_gain':
-    #             y=st.sa_mean_results["stat.r2"][:-1].flatten()
-    #             width=st.confidence_intervals_max['stat.r2'][:-1]
-    #             lower=y-width/2
-    #             upper=y+width/2
-    #             color = color_orange_tuple
-    #             fig.add_trace(
-    #                 go.Scatter(
-    #                     x=st.iterations[sa_name][:-1],
-    #                     y=y,
-    #                     mode="lines",
-    #                     marker=dict(color=color_orange_rgb),
-    #                     showlegend=showlegend2,
-    #                     name=r"$\text{Metrics within GSA sensitivity_analysis}$",
-    #                 ),
-    #                 col=col, row=row,
-    #                 secondary_y=True,
-    #             )
-    #             showlegend2=False
-    #             if plot_robustness_ranking:
-    #                 fig.add_trace(
-    #                     go.Scatter(
-    #                         x=st.iterations[sa_name][:-1],
-    #                         y=lower,
-    #                         mode="lines",
-    #                         opacity=opacity,
-    #                         showlegend=False,
-    #                         marker=dict(
-    #                             color="rgba({},{},{},{})".format(
-    #                                 color[0],
-    #                                 color[1],
-    #                                 color[2],
-    #                                 opacity,
-    #                             ),
-    #                         ),
-    #                         line=dict(width=0),
-    #                     ),
-    #                     row=row,
-    #                     col=col,
-    #                     secondary_y=True,
-    #                 )
-    #                 fig.add_trace(
-    #                     go.Scatter(
-    #                         x=st.iterations[sa_name][:-1],
-    #                         y=upper,
-    #                         showlegend=False,
-    #                         line=dict(width=0),
-    #                         mode="lines",
-    #                         fillcolor="rgba({},{},{},{})".format(
-    #                             color[0],
-    #                             color[1],
-    #                             color[2],
-    #                             opacity,
-    #                         ),
-    #                         fill="tonexty",
-    #                     ),
-    #                     row=row,
-    #                     col=col,
-    #                     secondary_y=True,
-    #                 )
-    #             fig.update_yaxes(
-    #                 title_text=r'$r^2$',
-    #                 row=row, col=col, secondary_y=True,
-    #                 color=color_orange_rgb,
-    #                 title_standoff=8,
-    #             )
-    #             if option == "zoomed_in":
-    #                 fig.update_yaxes(range=[0.2, 1.1], row=row, col=col)
-    #         y = st.bootstrap_rankings_width_percentiles[sa_name]["mean"][:-1]
-    #         cf_width = st.bootstrap_rankings_width_percentiles[sa_name]["confidence_interval"][:-1]
-    #         lower = y - cf_width/2
-    #         upper = y + cf_width/2
-    #         color=color_blue_tuple
-    #         fig.add_trace(
-    #             go.Scatter(
-    #                 x = st.iterations[sa_name][:-1],
-    #                 y = y,
-    #                 mode="lines",
-    #                 marker = dict(color=color_blue_rgb),
-    #                 showlegend=showlegend,
-    #                 name=r"$\text{Convergence of ranking}$",
-    #             ),
-    #             row=row,
-    #             col=col,
-    #             secondary_y=False,
-    #         )
-    #         showlegend=False
-    #         if plot_robustness_ranking:
-    #             fig.add_trace(
-    #                 go.Scatter(
-    #                     x=st.iterations[sa_name][:-1],
-    #                     y=lower,
-    #                     mode="lines",
-    #                     opacity=opacity,
-    #                     showlegend=False,
-    #                     marker=dict(
-    #                         color="rgba({},{},{},{})".format(
-    #                             color[0],
-    #                             color[1],
-    #                             color[2],
-    #                             opacity,
-    #                         ),
-    #                     ),
-    #                     line=dict(width=0),
-    #                 ),
-    #                 row=row,
-    #                 col=col,
-    #                 secondary_y=False,
-    #             )
-    #             fig.add_trace(
-    #                 go.Scatter(
-    #                     x=st.iterations[sa_name][:-1],
-    #                     y=upper,
-    #                     showlegend=False,
-    #                     line=dict(width=0),
-    #                     mode="lines",
-    #                     fillcolor="rgba({},{},{},{})".format(
-    #                         color[0],
-    #                         color[1],
-    #                         color[2],
-    #                         opacity,
-    #                     ),
-    #                     fill="tonexty",
-    #                 ),
-    #                 row=row,
-    #                 col=col,
-    #                 secondary_y=False,
-    #             )
-    #
-    #         if col == 1:
-    #             fig.update_yaxes(
-    #                 title_text=sa_plot[sa_names[sa_name]]['stat_ranking'],
-    #                 row=row, col=1, secondary_y=False,
-    #             )
-    #             fig.update_xaxes(
-    #                 range=[
-    #                     min(st.iterations['spearman']),
-    #                     max(st.iterations['total'])
-    #                 ],
-    #                 row=row,
-    #                 col=col,
-    #             )
-    #             fig.add_annotation(
-    #                 x=0.5,
-    #                 y=(1-0.16)/3*(4-row)+0.16 + 0.02,  # annotation point
-    #                 xref="paper",
-    #                 yref="paper",
-    #                 text=all_gsa_names[row-1],
-    #                 showarrow=False,
-    #                 xanchor="center",
-    #                 yanchor='bottom',
-    #                 font=dict(
-    #                     size=16,
-    #                 )
-    #             )
-    #         if option == "nzoomed_in":
-    #             fig.update_yaxes(range=[0, 1.1], row=row,col=col)
-    #         tickangle = 0
-    #         if option == 'zoomed_in':
-    #             if sa_name == 'spearman' or sa_name == "total_gain":
-    #                 tickvals = [10000, 20000, 30000]
-    #                 ticktext = ["10'000", "20'000", "30'000"]
-    #             elif sa_name == 'total':
-    #                 tickvals = [100000, 200000, 300000]
-    #                 ticktext = ["100'000", "200'000", "300'000"]
-    #             elif sa_name == 'delta':
-    #                 tickvals = [20000, 40000, 60000]
-    #                 ticktext = ["20'000", "40'000", "60'000"]
-    #         elif option == "nzoomed_in":
-    #             tickvals = [100000, 200000, 300000]
-    #             ticktext = ["100'000", "200'000", "300'000"]
-    #         fig.update_xaxes(
-    #             tickangle=tickangle,
-    #             tickvals=tickvals,
-    #             ticktext=ticktext,
-    #             row=row,
-    #             col=col,
-    #         )
-    #         row += 1
-    #     fig.update_xaxes(title_text=r"$\text{Iterations}$", row=row - 1, col=col)
-    #
-    # fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor=color_gray_hex,
-    #                  zeroline=True, zerolinewidth=1, zerolinecolor=color_black_hex,
-    #                  showline=True, linewidth=1, linecolor=color_gray_hex)
-    # fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor=color_gray_hex,
-    #                  zeroline=True, zerolinewidth=1, zerolinecolor=color_black_hex,
-    #                  showline=True, linewidth=1, linecolor=color_gray_hex,
-    #                  )
-    # fig.update_yaxes(title_standoff=20,secondary_y=False)
-    # fig.update_layout(
-    #     width=900, height=600,
-    #     paper_bgcolor='rgba(255,255,255,1)',
-    #     plot_bgcolor='rgba(255,255,255,1)',
-    #     margin=dict(l=0, r=0, t=30, b=0),
-    #     legend=dict(
-    #         x=0.5,
-    #         y=-0.12,
-    #         xanchor='center',
-    #         font_size=14,
-    #         orientation='h',
-    #         traceorder="normal",
-    #     )
-    # )
-    # # fig.show()
-    # if plot_robustness_ranking:
-    #     save_fig(fig, "lca_stat_ranking_{}_robust".format(num_ranks), fig_format, write_dir_fig)
-    # else:
-    #     save_fig(fig, "lca_stat_ranking_{}".format(num_ranks), fig_format, write_dir_fig)
-
-    # endregion
-
-    ### 5. Distances in high dimensions
-    ################################
-    # region
-
-    from sklearn.metrics.pairwise import (
-        euclidean_distances,
-        manhattan_distances,
-        cosine_distances,
-    )
-    from scipy.spatial import distance
-
-    get_diff = lambda arr: np.max(arr) / np.min(arr) - 1
-    step = 50
-    dims = np.arange(step, 2000 + step, step)
-    N = 1000
-    euclidean, manhattan, cosine, minkowski, correlation, chebyshev, mahalanobis = (
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-    )
-    for dim in dims:
-        x = np.random.rand(1, dim)
-        y = np.random.rand(N, dim)
-        euclidean.append(get_diff(euclidean_distances(x, y)))
-        manhattan.append(get_diff(manhattan_distances(x, y)))
-        cosine.append(get_diff(cosine_distances(x, y)))
-
-        minkowski_dist = np.zeros(N)
-        correlation_dist = np.zeros(N)
-        chebyshev_dist = np.zeros(N)
-        mahalanobis_dist = np.zeros(N)
-        for i, y_ in enumerate(y):
-            minkowski_dist[i] = distance.minkowski(x, y_, p=3)
-            correlation_dist[i] = distance.correlation(x, y_)
-            chebyshev_dist[i] = distance.chebyshev(x, y_)
-            # mahalanobis_dist[i] = distance.mahalanobis(x, y_)
-        minkowski.append(get_diff(minkowski_dist))
-        correlation.append(get_diff(correlation_dist))
-        chebyshev.append(get_diff(chebyshev_dist))
-        # mahalanobis.append(get_diff(mahalanobis_dist))
-
-    dist_dict = {
-        r"$\text{Euclidean}$": euclidean,
-        r"$\text{Minkowski, or p-norm}$": minkowski,
-        r"$\text{Manhattan}$": manhattan,
-        r"$\text{Correlation}$": correlation,
-        r"$\text{Cosine}$": cosine,
-        r"$\text{Chebyshev}$": chebyshev,
-        # r"$\text{Mahalanobis}$": mahalanobis,
+    plot_robustness_ranking = True
+    sa_names = {
+        "spearman": "corr",
+        "total": "salt",
+        "delta": "delt",
+        "total_gain": "xgbo",
     }
-    colors = [
-        color_blue_rgb,
-        color_purple_rgb,
-        color_orange_rgb,
-        color_green_rgb,
-        color_pink_rgb,
-        color_yellow_rgb,
-    ]
+    fig = make_subplots(
+        rows=4,
+        cols=2,
+        shared_xaxes=False,
+        shared_yaxes=False,
+        vertical_spacing=0.12,
+        horizontal_spacing=0.12,
+        specs=[
+            [{"secondary_y": False}, {"secondary_y": False}],
+            [{"secondary_y": False}, {"secondary_y": False}],
+            [{"secondary_y": False}, {"secondary_y": False}],
+            [{"secondary_y": True}, {"secondary_y": True}],
+        ],
+    )
 
-    fig = go.Figure()
-    i = 0
-    for k, v in dist_dict.items():
-        fig.add_trace(
-            go.Scatter(
-                x=dims, y=v, name=k, showlegend=True, mode="lines", line_color=colors[i]
+    color = color_blue_tuple
+    opacity = 0.6
+    showlegend, showlegend2 = True, True
+    for col in [1, 2]:
+        if col == 1:
+            option = "nzoomed_in"
+        else:
+            option = "zoomed_in"
+        row = 1
+        for sa_name in sa_names.keys():
+            # y = st.bootstrap_rankings_width_percentiles[sa_name]['median'][:-1]
+            # lower = st.bootstrap_rankings_width_percentiles[sa_name]['min'][:-1]
+            # upper = st.bootstrap_rankings_width_percentiles[sa_name]['max'][:-1]
+            # if sa_name == 'total_gain':
+            #     y=st.sa_mean_results["stat.r2"][:-1].flatten()
+            #     width=st.confidence_intervals_max['stat.r2'][:-1]
+            #     lower=y-width/2
+            #     upper=y+width/2
+            #     color = color_orange_tuple
+            #     fig.add_trace(
+            #         go.Scatter(
+            #             x=st.iterations[sa_name][:-1],
+            #             y=y,
+            #             mode="lines",
+            #             marker=dict(color=color_orange_rgb),
+            #             showlegend=showlegend2,
+            #             name=r"$\text{Metrics within GSA sensitivity_analysis}$",
+            #         ),
+            #         col=col, row=row,
+            #         secondary_y=True,
+            #     )
+            #     showlegend2=False
+            #     if plot_robustness_ranking:
+            #         fig.add_trace(
+            #             go.Scatter(
+            #                 x=st.iterations[sa_name][:-1],
+            #                 y=lower,
+            #                 mode="lines",
+            #                 opacity=opacity,
+            #                 showlegend=False,
+            #                 marker=dict(
+            #                     color="rgba({},{},{},{})".format(
+            #                         color[0],
+            #                         color[1],
+            #                         color[2],
+            #                         opacity,
+            #                     ),
+            #                 ),
+            #                 line=dict(width=0),
+            #             ),
+            #             row=row,
+            #             col=col,
+            #             secondary_y=True,
+            #         )
+            #         fig.add_trace(
+            #             go.Scatter(
+            #                 x=st.iterations[sa_name][:-1],
+            #                 y=upper,
+            #                 showlegend=False,
+            #                 line=dict(width=0),
+            #                 mode="lines",
+            #                 fillcolor="rgba({},{},{},{})".format(
+            #                     color[0],
+            #                     color[1],
+            #                     color[2],
+            #                     opacity,
+            #                 ),
+            #                 fill="tonexty",
+            #             ),
+            #             row=row,
+            #             col=col,
+            #             secondary_y=True,
+            #         )
+            #     fig.update_yaxes(
+            #         title_text=r'$r^2$',
+            #         row=row, col=col, secondary_y=True,
+            #         color=color_orange_rgb,
+            #         title_standoff=8,
+            #     )
+            #     if option == "zoomed_in":
+            #         fig.update_yaxes(range=[0.2, 1.1], row=row, col=col)
+            y = st.bootstrap_rankings_width_percentiles[sa_name]["mean"][:-1]
+            y = np.zeros(len(st.iterations[sa_name]) - 1)
+            cf_width = st.bootstrap_rankings_width_percentiles[sa_name][
+                "confidence_interval"
+            ][:-1]
+            lower = y - cf_width / 2
+            upper = y + cf_width / 2
+            color = color_blue_tuple
+            fig.add_trace(
+                go.Scatter(
+                    x=st.iterations[sa_name][:-1],
+                    y=y,
+                    mode="lines",
+                    marker=dict(color=color_blue_rgb),
+                    showlegend=showlegend,
+                    name=r"$\text{Convergence of ranking}$",
+                ),
+                row=row,
+                col=col,
+                secondary_y=False,
             )
-        )
-        i += 1
-    y_name = r"$\frac{dist^k_{\max} - dist^k_{\min}}{dist^k_{\min}}$"
-    fig.update_xaxes(title_text=r"$\text{Number of dimensions, }k$")
-    fig.update_yaxes(title_text=y_name, title_font_size=18)
+            showlegend = False
+            if plot_robustness_ranking:
+                fig.add_trace(
+                    go.Scatter(
+                        x=st.iterations[sa_name][:-1],
+                        y=lower,
+                        mode="lines",
+                        opacity=opacity,
+                        showlegend=False,
+                        marker=dict(
+                            color="rgba({},{},{},{})".format(
+                                color[0],
+                                color[1],
+                                color[2],
+                                opacity,
+                            ),
+                        ),
+                        line=dict(width=0),
+                    ),
+                    row=row,
+                    col=col,
+                    secondary_y=False,
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=st.iterations[sa_name][:-1],
+                        y=upper,
+                        showlegend=False,
+                        line=dict(width=0),
+                        mode="lines",
+                        fillcolor="rgba({},{},{},{})".format(
+                            color[0],
+                            color[1],
+                            color[2],
+                            opacity,
+                        ),
+                        fill="tonexty",
+                    ),
+                    row=row,
+                    col=col,
+                    secondary_y=False,
+                )
+
+            if col == 1:
+                fig.update_yaxes(
+                    title_text=sa_plot[sa_names[sa_name]]["stat_ranking"],
+                    row=row,
+                    col=1,
+                    secondary_y=False,
+                )
+                fig.update_xaxes(
+                    range=[min(st.iterations["spearman"]), max(st.iterations["total"])],
+                    row=row,
+                    col=col,
+                )
+                fig.add_annotation(
+                    x=0.5,
+                    y=(1 - 0.16) / 3 * (4 - row) + 0.16 + 0.02,  # annotation point
+                    xref="paper",
+                    yref="paper",
+                    text=all_gsa_names[row - 1],
+                    showarrow=False,
+                    xanchor="center",
+                    yanchor="bottom",
+                    font=dict(
+                        size=16,
+                    ),
+                )
+            if option == "nzoomed_in":
+                fig.update_yaxes(range=[0, 1.1], row=row, col=col)
+            tickangle = 0
+            if option == "zoomed_in":
+                if sa_name == "spearman" or sa_name == "total_gain":
+                    tickvals = [10000, 20000, 30000]
+                    ticktext = ["10'000", "20'000", "30'000"]
+                elif sa_name == "total":
+                    tickvals = [100000, 200000, 300000]
+                    ticktext = ["100'000", "200'000", "300'000"]
+                elif sa_name == "delta":
+                    tickvals = [20000, 40000, 60000]
+                    ticktext = ["20'000", "40'000", "60'000"]
+            elif option == "nzoomed_in":
+                tickvals = [100000, 200000, 300000]
+                ticktext = ["100'000", "200'000", "300'000"]
+            fig.update_xaxes(
+                tickangle=tickangle,
+                tickvals=tickvals,
+                ticktext=ticktext,
+                row=row,
+                col=col,
+            )
+            row += 1
+        fig.update_xaxes(title_text=r"$\text{Iterations}$", row=row - 1, col=col)
+
     fig.update_xaxes(
         showgrid=True,
         gridwidth=1,
         gridcolor=color_gray_hex,
         zeroline=True,
         zerolinewidth=1,
-        zerolinecolor=color_gray_hex,
+        zerolinecolor=color_black_hex,
         showline=True,
         linewidth=1,
         linecolor=color_gray_hex,
-    )
-    tickvals = [0, 500, 1000, 1500, 2000]
-    ticktext = ["0", "500", "1'000", "1'500", "2'000"]
-    fig.update_xaxes(
-        tickvals=tickvals,
-        ticktext=ticktext,
     )
     fig.update_yaxes(
         showgrid=True,
@@ -993,25 +917,159 @@ if __name__ == "__main__":
         linewidth=1,
         linecolor=color_gray_hex,
     )
+    fig.update_yaxes(title_standoff=20, secondary_y=False)
     fig.update_layout(
-        width=400,
-        height=250,
+        width=900,
+        height=600,
         paper_bgcolor="rgba(255,255,255,1)",
         plot_bgcolor="rgba(255,255,255,1)",
-        # font=dict(
-        #     size=16,
-        # ),
-        legend=dict(
-            x=0.53,
-            y=0.97,
-            xanchor="left",
-            yanchor="top",
-            font=dict(size=13),
-        ),
         margin=dict(l=0, r=0, t=30, b=0),
+        legend=dict(
+            x=0.5,
+            y=-0.12,
+            xanchor="center",
+            font_size=14,
+            orientation="h",
+            traceorder="normal",
+        ),
     )
-    save_fig(fig, "distances_in_high_dim", fig_format, write_dir_fig)
-    print()
+    # fig.show()
+    if plot_robustness_ranking:
+        save_fig(
+            fig,
+            "lca_stat_ranking_{}_robust".format(num_ranks),
+            fig_format,
+            write_dir_fig,
+        )
+    else:
+        save_fig(
+            fig, "lca_stat_ranking_{}".format(num_ranks), fig_format, write_dir_fig
+        )
+
+    # endregion
+
+    ### 5. Distances in high dimensions
+    ################################
+    # region
+
+    # from sklearn.metrics.pairwise import (
+    #     euclidean_distances,
+    #     manhattan_distances,
+    #     cosine_distances,
+    # )
+    # from scipy.spatial import distance
+    #
+    # get_diff = lambda arr: np.max(arr) / np.min(arr) - 1
+    # step = 50
+    # dims = np.arange(step, 2000 + step, step)
+    # N = 1000
+    # euclidean, manhattan, cosine, minkowski, correlation, chebyshev, mahalanobis = (
+    #     [],
+    #     [],
+    #     [],
+    #     [],
+    #     [],
+    #     [],
+    #     [],
+    # )
+    # for dim in dims:
+    #     x = np.random.rand(1, dim)
+    #     y = np.random.rand(N, dim)
+    #     euclidean.append(get_diff(euclidean_distances(x, y)))
+    #     manhattan.append(get_diff(manhattan_distances(x, y)))
+    #     cosine.append(get_diff(cosine_distances(x, y)))
+    #
+    #     minkowski_dist = np.zeros(N)
+    #     correlation_dist = np.zeros(N)
+    #     chebyshev_dist = np.zeros(N)
+    #     mahalanobis_dist = np.zeros(N)
+    #     for i, y_ in enumerate(y):
+    #         minkowski_dist[i] = distance.minkowski(x, y_, p=3)
+    #         correlation_dist[i] = distance.correlation(x, y_)
+    #         chebyshev_dist[i] = distance.chebyshev(x, y_)
+    #         # mahalanobis_dist[i] = distance.mahalanobis(x, y_)
+    #     minkowski.append(get_diff(minkowski_dist))
+    #     correlation.append(get_diff(correlation_dist))
+    #     chebyshev.append(get_diff(chebyshev_dist))
+    #     # mahalanobis.append(get_diff(mahalanobis_dist))
+    #
+    # dist_dict = {
+    #     r"$\text{Euclidean}$": euclidean,
+    #     r"$\text{Minkowski, or p-norm}$": minkowski,
+    #     r"$\text{Manhattan}$": manhattan,
+    #     r"$\text{Correlation}$": correlation,
+    #     r"$\text{Cosine}$": cosine,
+    #     r"$\text{Chebyshev}$": chebyshev,
+    #     # r"$\text{Mahalanobis}$": mahalanobis,
+    # }
+    # colors = [
+    #     color_blue_rgb,
+    #     color_purple_rgb,
+    #     color_orange_rgb,
+    #     color_green_rgb,
+    #     color_pink_rgb,
+    #     color_yellow_rgb,
+    # ]
+    #
+    # fig = go.Figure()
+    # i = 0
+    # for k, v in dist_dict.items():
+    #     fig.add_trace(
+    #         go.Scatter(
+    #             x=dims, y=v, name=k, showlegend=True, mode="lines", line_color=colors[i]
+    #         )
+    #     )
+    #     i += 1
+    # y_name = r"$\frac{dist^k_{\max} - dist^k_{\min}}{dist^k_{\min}}$"
+    # fig.update_xaxes(title_text=r"$\text{Number of dimensions, }k$")
+    # fig.update_yaxes(title_text=y_name, title_font_size=18)
+    # fig.update_xaxes(
+    #     showgrid=True,
+    #     gridwidth=1,
+    #     gridcolor=color_gray_hex,
+    #     zeroline=True,
+    #     zerolinewidth=1,
+    #     zerolinecolor=color_gray_hex,
+    #     showline=True,
+    #     linewidth=1,
+    #     linecolor=color_gray_hex,
+    # )
+    # tickvals = [0, 500, 1000, 1500, 2000]
+    # ticktext = ["0", "500", "1'000", "1'500", "2'000"]
+    # fig.update_xaxes(
+    #     tickvals=tickvals,
+    #     ticktext=ticktext,
+    # )
+    # fig.update_yaxes(
+    #     showgrid=True,
+    #     gridwidth=1,
+    #     gridcolor=color_gray_hex,
+    #     zeroline=True,
+    #     zerolinewidth=1,
+    #     zerolinecolor=color_black_hex,
+    #     showline=True,
+    #     linewidth=1,
+    #     linecolor=color_gray_hex,
+    # )
+    # fig.update_layout(
+    #     width=400,
+    #     height=250,
+    #     paper_bgcolor="rgba(255,255,255,1)",
+    #     plot_bgcolor="rgba(255,255,255,1)",
+    #     # font=dict(
+    #     #     size=16,
+    #     # ),
+    #     legend=dict(
+    #         x=0.53,
+    #         y=0.97,
+    #         xanchor="left",
+    #         yanchor="top",
+    #         font=dict(size=13),
+    #     ),
+    #     margin=dict(l=0, r=0, t=30, b=0),
+    # )
+    # save_fig(fig, "distances_in_high_dim", fig_format, write_dir_fig)
+    # print()
     # endregion
 
     ### 6. Agreement between results of GSA sensitivity_analysis

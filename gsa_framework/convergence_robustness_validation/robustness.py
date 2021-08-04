@@ -56,49 +56,68 @@ def get_ci_max_width(sb_dict):
 
 def rho1_jk(Rj, Rk):
     """Spearman correlation"""
-    rho = spearmanr(Rj, Rk)[0]
-    return rho
+    # rho = spearmanr(Rj, Rk)[0]
+    M = len(Rj)
+    Fi = 6 * (Rj - Rk) ** 2 / M / (M ** 2 - 1)
+    rho = 1 - np.sum(Fi)
+    return rho, Fi
 
 
 def rho2_jk(Rj, Rk):
     """Weighted Spearman correlation"""
-    numerator = (Rj - Rk) ** 2 * (1 / (Rj + 1) + 1 / (Rk + 1))
-    rho = 1 - 2 * np.sum(numerator) / np.max(numerator)
-    return rho
+    if min(Rj) == 0 and min(Rk) == 0:
+        Rj += 1
+        Rk += 1
+    Ftemp = (Rj - Rk) ** 2 * (1 / Rj + 1 / Rk)
+    Fi = 2 * Ftemp / np.max(Ftemp)
+    rho = 1 - np.sum(Fi)
+    return rho, Fi
 
 
 def rho3_jk(Rj, Rk):
     """Weighted Spearman correlation"""
-    numerator = (Rj - Rk) ** 2 / (Rj + 1) / (Rk + 1)
-    rho = 1 - 2 * np.sum(numerator) / np.max(numerator)
-    return rho
+    if min(Rj) == 0 and min(Rk) == 0:
+        Rj += 1
+        Rk += 1
+    Ftemp = (Rj - Rk) ** 2 * (1 / Rj / Rk)
+    Fi = 2 * Ftemp / np.max(Ftemp)
+    rho = 1 - np.sum(Fi)
+    return rho, Fi
 
 
 def rho4_jk(Rj, Rk):
     """Weighted Spearman correlation"""
-    numerator = (Rj - Rk) ** 2 / (Rj + 1 + Rk + 1)
-    rho = 1 - 2 * np.sum(numerator) / np.max(numerator)
-    return rho
+    if min(Rj) == 0 and min(Rk) == 0:
+        Rj += 1
+        Rk += 1
+    Ftemp = (Rj - Rk) ** 2 * (1 / (Rj + Rk))
+    Fi = 2 * Ftemp / np.max(Ftemp)
+    rho = 1 - np.sum(Fi)
+    return rho, Fi
 
 
 def rho5_jk(Rj, Rk):
     """Correlation coefficient computed on Savage scores"""
+    if min(Rj) == 1 and min(Rk) == 1:
+        Rj -= 1
+        Rk -= 1
     M = len(Rj)
     SSarr = 1 / np.arange(1, M + 1)
     SSsum = np.cumsum(SSarr[::-1])[::-1]
+    Rj = Rj.astype(int)
+    Rk = Rk.astype(int)
     SSj = SSsum[Rj]
     SSk = SSsum[Rk]
-    numerator = (SSj - SSk) ** 2
-    rho = 1 - np.sum(numerator) / 2 / (M - SSsum[0])
-    return rho
+    Fi = (SSj - SSk) ** 2 / 2 / (M - SSsum[0])
+    rho = 1 - np.sum(Fi)
+    return rho, Fi
 
 
 def rho6_jk(Rj, Rk, Sj, Sk):
-    diff = np.abs(Rj - Rk)
-    Sjk = np.vstack([Sj, Sk])
-    maxs2 = np.max(Sjk, axis=0) ** 2
-    rho = sum(diff * maxs2) / sum(maxs2)
-    return rho
+    maxS = np.max(np.vstack([Sj, Sk]), axis=0) ** 2
+    Fi = np.abs(Rj - Rk) * maxS / sum(maxS)
+    rho = np.sum(Fi)
+    return rho, Fi
 
 
 def compute_spearmanr(mat, vec):
@@ -112,9 +131,30 @@ def compute_spearmanr(mat, vec):
     incl_inds = np.setdiff1d(np.arange(len(mat)), skip_inds)
     if len(incl_inds) > 0:
         rho_temp, _ = spearmanr(mat[incl_inds, :].T, vec)
-        rho_temp = rho_temp[-1, :-1]
+        if len(mat) > 1:
+            rho_temp = rho_temp[-1, :-1]
         rho[incl_inds] = rho_temp
-    return rho
+    dummy_Fi = np.zeros(len(rho))
+    return rho, dummy_Fi
+
+
+def compute_rho_choice(matR, vecR, matS=None, vecS=None, rho_choice="spearmanr"):
+    if rho_choice == "spearmanr":
+        rho, Fi = compute_spearmanr(matR, vecR)
+    else:
+        rho = np.zeros(len(matR))
+        rho[:] = np.nan
+        if rho_choice != "rho6":
+            if rho_choice == "rho1":
+                rho_jk = rho1_jk
+            elif rho_choice == "rho5":
+                rho_jk = rho5_jk
+            for j, vecj in enumerate(matR):
+                rho[j], Fi = rho_jk(vecj, vecR)
+        else:
+            for j, vecj in enumerate(matR):
+                rho[j], Fi = rho6_jk(vecj, vecR, matS[j], vecS)
+    return rho, Fi
 
 
 #######################
@@ -134,9 +174,13 @@ class Robustness:
         self.bootstrap_ranking_tag = kwargs.get("bootstrap_ranking_tag")
         self.q_min = kwargs.get("q_min", 5)
         self.q_max = kwargs.get("q_max", 95)
+        self.rho_choice = kwargs.get("rho_choice", "spearmanr")
         self.num_params = list(list(self.stability_dicts[0].values())[0].values())[
             0
         ].shape[1]
+        self.num_params_screening = kwargs.get(
+            "num_params_screening", int(0.9 * self.num_params)
+        )
         (
             self.sa_names,
             self.iterations,
@@ -149,14 +193,19 @@ class Robustness:
         self.confidence_intervals_max = self.get_confidence_intervals_max(
             self.confidence_intervals
         )
+        self.confidence_intervals_screening = self.get_confidence_intervals_screening(
+            self.confidence_intervals,
+            self.num_params_screening,
+        )
         self.rankings_convergence = self.get_rankings_convergence_to_last(
             self.sa_mean_results, num_ranks=self.num_ranks
         )
-        self.bootstrap_rankings = self.get_bootstrap_rankings(
+        self.bootstrap_rankings = self.get_bootstrap_rankings_2(
             self.bootstrap_data,
             self.sa_mean_results,
             self.bootstrap_ranking_tag,
             self.num_ranks,
+            rho_choice=self.rho_choice,
         )
         self.bootstrap_rankings_width_percentiles = (
             self.get_bootstrap_rankings_width_percentiles(
@@ -188,8 +237,13 @@ class Robustness:
     def create_bootstrap_rankings_filepath(
         self, num_ranks, tag, sa_name, num_bootstrap
     ):
-        filename = "ranking{}.{}.{}.bootstrap{}.steps{}.pickle".format(
-            num_ranks, tag, sa_name, num_bootstrap, len(self.iterations[sa_name])
+        filename = "ranking{}.{}.{}.{}.bootstrap{}.steps{}.pickle".format(
+            num_ranks,
+            self.rho_choice,
+            tag,
+            sa_name,
+            num_bootstrap,
+            len(self.iterations[sa_name]),
         )
         return self.write_dir / "stability" / filename
 
@@ -248,8 +302,24 @@ class Robustness:
             confidence_intervals_max[sa_name] = np.max(data, axis=1)
         return confidence_intervals_max
 
+    def get_confidence_intervals_screening(
+        self, confidence_intervals, num_params_screening=None
+    ):
+        if num_params_screening is None:
+            num_params_screening = int(0.9 * self.num_params)
+        confidence_intervals_screening = {}
+        for sa_name, data in confidence_intervals.items():
+            if "stat" not in sa_name:
+                data_screening = np.array([])
+                for d in data:
+                    data_screening = np.hstack(
+                        [data_screening, np.sort(d)[num_params_screening]]
+                    )
+                confidence_intervals_screening[sa_name] = data_screening
+        return confidence_intervals_screening
+
     def get_bootstrap_rankings(
-        self, bootstrap_data, sa_mean_results, tag, num_ranks=10
+        self, bootstrap_data, sa_mean_results, tag, num_ranks=10, rho_choice="spearmanr"
     ):
         """Get clustered rankings from bootstrap sensitivity indices.
 
@@ -293,6 +363,7 @@ class Robustness:
                     means = sa_mean_results[sa_name][-1, :]
                 breaks = jenkspy.jenks_breaks(means, nb_class=num_ranks)
                 mean_ranking = self.get_one_clustered_ranking(means, num_ranks, breaks)
+                mean_ranking = mean_ranking.astype(int)
                 for i in range(len(self.iterations[sa_name])):
                     bootstrap_data_sa = bootstrap_data[sa_name][i]
                     rankings = np.zeros((0, self.num_params))
@@ -303,8 +374,89 @@ class Robustness:
                                 self.get_one_clustered_ranking(data, num_ranks, breaks),
                             ]
                         )
-                    rho = compute_spearmanr(rankings, mean_ranking)
+                    rankings = rankings.astype(int)
+                    rho, _ = compute_rho_choice(
+                        rankings,
+                        mean_ranking,
+                        bootstrap_data_sa,
+                        means,
+                        rho_choice=rho_choice,
+                    )
                     bootstrap_rankings_arr = np.vstack([bootstrap_rankings_arr, rho])
+                write_pickle(bootstrap_rankings_arr, filepath_bootstrap_rankings)
+            bootstrap_rankings[sa_name] = bootstrap_rankings_arr
+        return bootstrap_rankings
+
+    def get_bootstrap_rankings_2(
+        self, bootstrap_data, sa_mean_results, tag, num_ranks=10, rho_choice="spearmanr"
+    ):
+        """Get clustered rankings from bootstrap sensitivity indices.
+
+        Parameters
+        ----------
+        bootstrap_data : dict
+            Dictionary where keys are sensitivity methods names and values are arrays with sensitivity indices from
+            bootstrapping in rows for each model input in columns.
+        sa_mean_results : dict
+            Dictionary where keys are sensitivity methods names and values are mean results for each model input
+            over all bootstrap samples.
+        tag : str
+            Tag to save clustered rankings.
+        num_ranks : int
+            Number of clusters.
+
+        Returns
+        -------
+        bootstrap_rankings : dict
+            Dictionary where keys are sensitivity methods names and values are clustered ranks for all model inputs.
+
+        """
+        bootstrap_rankings = {}
+        for sa_name in self.sa_names:
+            num_bootstrap = bootstrap_data[sa_name][0].shape[0]
+            filepath_bootstrap_rankings = self.create_bootstrap_rankings_filepath(
+                num_ranks,
+                "{}_v2".format(tag),
+                sa_name,
+                num_bootstrap,
+            )
+            if filepath_bootstrap_rankings.exists():
+                bootstrap_rankings_arr = read_pickle(filepath_bootstrap_rankings)
+            else:
+                num_combinations = num_bootstrap * (num_bootstrap - 1) // 2
+                bootstrap_rankings_arr = np.zeros((0, num_combinations))
+                bootstrap_rankings_arr[:] = np.nan
+                # TODO  change smth  here
+                if sa_name == "total_gain":
+                    means = self.bootstrap_data[sa_name][-1][0, :]
+                else:
+                    means = sa_mean_results[sa_name][-1, :]
+                breaks = jenkspy.jenks_breaks(means, nb_class=num_ranks)
+                # mean_ranking = self.get_one_clustered_ranking(means, num_ranks, breaks)
+                # mean_ranking = mean_ranking.astype(int)
+                for i in range(len(self.iterations[sa_name])):
+                    bootstrap_data_sa = bootstrap_data[sa_name][i]
+                    rankings = np.zeros((0, self.num_params))
+                    for data in bootstrap_data_sa:
+                        rankings = np.vstack(
+                            [
+                                rankings,
+                                self.get_one_clustered_ranking(data, num_ranks, breaks),
+                            ]
+                        )
+                    rankings = rankings.astype(int)
+                    rho_arr = np.zeros(num_combinations)
+                    rho_arr[:] = np.nan
+                    k = 0
+                    for i, r1 in enumerate(rankings[:-1]):
+                        rho, _ = compute_rho_choice(
+                            rankings[i + 1 :, :], r1, rho_choice=rho_choice
+                        )
+                        rho_arr[k : k + num_bootstrap - i - 1] = rho
+                        k += num_bootstrap - i - 1
+                    bootstrap_rankings_arr = np.vstack(
+                        [bootstrap_rankings_arr, rho_arr]
+                    )
                 write_pickle(bootstrap_rankings_arr, filepath_bootstrap_rankings)
             bootstrap_rankings[sa_name] = bootstrap_rankings_arr
         return bootstrap_rankings
