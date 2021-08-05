@@ -221,11 +221,32 @@
 #         conv.run_convergence(parameter_inds=parameter_inds, fig_format=fig_format)
 
 
-from dev.setups_paper_gwp import *
+import bw2data as bd
+import bw2calc as bc
+import numpy as np
+from gsa_framework.models.life_cycle_assessment import LCAModelCall
 
-path_base = Path("/Users/akim/PycharmProjects/gsa_framework/dev/write_files/")
-num_params = 10000
-iter_xgbo = 4 * num_params
-gsa_xgbo = setup_xgbo_lca(num_params, iter_xgbo, setup_lca_model_paper, path_base)
+bd.projects.set_current("GSA for protocol")
+co = bd.Database("CH consumption 1.0")
+demand_act = [act for act in co if "Food" in act["name"]]
+assert len(demand_act) == 1
+demand_act = demand_act[0]
+demand = {demand_act: 1}
+method = ("IPCC 2013", "climate change", "GWP 100a", "uncertain")
+lca = bc.LCA(demand, method)
+lca.lci()
+lca.lcia()
 
-S_dict = gsa_xgbo.perform_gsa()
+model = LCAModelCall(
+    demand,
+    method,
+    {"tech": lca.tech_params},
+)
+
+iterations = 10
+num_params = len(model)
+X = np.random.rand(iterations, num_params)
+Xr = model.rescale(X)
+scores = model(Xr)
+
+print(scores)

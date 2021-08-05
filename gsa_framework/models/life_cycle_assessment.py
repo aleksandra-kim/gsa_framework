@@ -467,7 +467,7 @@ class LCAModel(ModelBase):
 #     pass
 
 
-class LCAModelSetac(ModelBase):
+class LCAModelCall(ModelBase):
     """Class that implements basic LCA model which uses uncertainty in the background database.
 
     Parameters
@@ -490,57 +490,96 @@ class LCAModelSetac(ModelBase):
         self,
         func_unit,
         method,
-        tech_params,
+        params_dict,
     ):
         self.func_unit = func_unit
         self.method = method
-        self.tech_params = tech_params
-        self.uncertain_tech_params_where = np.where(
-            self.tech_params["uncertainty_type"] > 1
-        )[0]
-        self.uncertain_tech_params = self.tech_params[self.uncertain_tech_params_where]
+        self.lca = bw.LCA(self.func_unit, self.method)
+        self.lca.lci()
+        self.lca.lcia()
+        self.params_dict = params_dict
+        self.uncertain_exchanges_types = list(self.params_dict.keys())
+        self.uncertain_params_selected_where_dict = {}
+        for uncertain_exchange_type in self.uncertain_exchanges_types:
+            params = params_dict[uncertain_exchange_type]
+            self.uncertain_params_selected_where_dict.update(
+                {
+                    uncertain_exchange_type: np.where(params["uncertainty_type"] > 1)[
+                        0
+                    ],
+                }
+            )
+        self.uncertain_params = {}
+        for uncertain_exchange_type in self.uncertain_exchanges_types:
+            self.uncertain_params[uncertain_exchange_type] = self.params_dict[
+                uncertain_exchange_type
+            ][self.uncertain_params_selected_where_dict[uncertain_exchange_type]]
         self.num_params = self.__len__()
+        self.uncertain_exchange_lengths = {
+            k: len(v) for k, v in self.uncertain_params_selected_where_dict.items()
+        }
         self.choices = uncertainty_choices
-        self.mc = MCRandomNumberGenerator(self.uncertain_tech_params)
         method_unit = bw.Method(self.method).metadata["unit"]
         self.output_name = "LCIA scores, [{}]".format(method_unit)
 
     def __len__(self):
-        return len(self.uncertain_tech_params)
+        return sum([len(v) for v in self.uncertain_params_selected_where_dict.values()])
 
     def rescale(self, X):
         iterations, num_params = X.shape[0], X.shape[1]
-        assert num_params == self.uncertain_tech_params.shape[0]
+        assert num_params == len(self)
+        params_offset = 0
+        X_rescaled_all = np.zeros((iterations, 0))
+        for exchange_type in self.uncertain_exchanges_types:
+            mc = MCRandomNumberGenerator(self.uncertain_params[exchange_type])
+            X_reordered = X[:, mc.ordering + params_offset]
 
-        X_reordered = X[:, self.mc.ordering]
-        X_rescaled = np.zeros((iterations, num_params))
-        X_rescaled[:] = np.nan
-
-        offset = 0
-        for uncertainty_type in self.choices:
-            num_uncertain_params = self.mc.positions[uncertainty_type]
-            if not num_uncertain_params:
-                continue
-            random_data = uncertainty_type.ppf(
-                params=self.mc.params[offset : num_uncertain_params + offset],
-                percentages=X_reordered[:, offset : num_uncertain_params + offset].T,
+            X_rescaled = np.zeros(
+                (iterations, self.uncertain_exchange_lengths[exchange_type])
             )
-            X_rescaled[:, offset : num_uncertain_params + offset] = random_data.T
-            offset += num_uncertain_params
+            X_rescaled[:] = np.nan
 
-        X_rescaled = X_rescaled[:, np.argsort(self.mc.ordering)]
-        return X_rescaled
+            offset = 0
+            for uncertainty_type in self.choices:
+                num_uncertain_params = mc.positions[uncertainty_type]
+                if not num_uncertain_params:
+                    continue
+                random_data = uncertainty_type.ppf(
+                    params=mc.params[offset : num_uncertain_params + offset],
+                    percentages=X_reordered[
+                        :, offset : num_uncertain_params + offset
+                    ].T,
+                )
+                X_rescaled[:, offset : num_uncertain_params + offset] = random_data.T
+                offset += num_uncertain_params
+
+            X_rescaled_all = np.hstack(
+                [X_rescaled_all, X_rescaled[:, np.argsort(mc.ordering)]]
+            )
+            params_offset += self.uncertain_exchange_lengths[exchange_type]
+        return X_rescaled_all
 
     def __call__(self, X):
-        lca = bw.LCA(self.func_unit, self.method)
-        lca.lci()
-        lca.lcia()
+        lca = deepcopy(self.lca)
         scores = np.zeros(X.shape[0])
         scores[:] = np.nan
         for i, x in enumerate(X):
-            amounts = deepcopy(self.tech_params["amount"])
-            amounts[self.uncertain_tech_params_where] = x
-            lca.rebuild_technosphere_matrix(amounts)
+            params_offset = 0
+            for exchange_type in self.uncertain_exchanges_types:
+                amounts = deepcopy(self.params_dict[exchange_type]["amount"])
+                params_offset_next = (
+                    params_offset + self.uncertain_exchange_lengths[exchange_type]
+                )
+                amounts[self.uncertain_params_selected_where_dict[exchange_type]] = x[
+                    params_offset:params_offset_next
+                ]
+                params_offset = params_offset_next
+                if exchange_type == "tech":
+                    lca.rebuild_technosphere_matrix(amounts)
+                elif exchange_type == "bio":
+                    lca.rebuild_biosphere_matrix(amounts)
+                elif exchange_type == "cf":
+                    lca.rebuild_characterization_matrix(amounts)
             lca.redo_lci()
             lca.redo_lcia()
             scores[i] = lca.score
