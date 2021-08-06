@@ -247,7 +247,7 @@ model2 = LCAModel(
     demand,
     method,
     write_dir,
-    num_params=222049,
+    num_params=None,
     uncertain_exchanges_types=("bio", "cf"),
 )
 num_params2 = len(model2)
@@ -260,9 +260,8 @@ print(scores2)
 model1 = LCAModelBase(
     demand,
     method,
-    {
-        "bio": model2.uncertain_params["bio"],
-    },
+    {"cf": model2.uncertain_params["cf"]},
+    {"cf": model2.uncertain_params_selected_where_dict["cf"]},
 )
 num_params1 = len(model1)
 np.random.seed(234333)
