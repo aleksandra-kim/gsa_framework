@@ -224,7 +224,11 @@
 import bw2data as bd
 import bw2calc as bc
 import numpy as np
-from gsa_framework.models.life_cycle_assessment import LCAModelCall
+from gsa_framework.models.life_cycle_assessment import LCAModelBase, LCAModel
+
+write_dir = (
+    "/Users/akim/PycharmProjects/gsa-framework-master/dev/write_files/protocol_gsa"
+)
 
 bd.projects.set_current("GSA for protocol")
 co = bd.Database("CH consumption 1.0")
@@ -236,17 +240,33 @@ method = ("IPCC 2013", "climate change", "GWP 100a", "uncertain")
 lca = bc.LCA(demand, method)
 lca.lci()
 lca.lcia()
+iterations = 10
 
-model = LCAModelCall(
+
+model2 = LCAModel(
     demand,
     method,
-    {"tech": lca.tech_params},
+    write_dir,
+    num_params=222049,
+    uncertain_exchanges_types=("bio", "cf"),
 )
+num_params2 = len(model2)
+np.random.seed(234333)
+X2 = np.random.rand(iterations, num_params2)
+Xr2 = model2.rescale(X2)
+scores2 = model2(Xr2)
+print(scores2)
 
-iterations = 10
-num_params = len(model)
-X = np.random.rand(iterations, num_params)
-Xr = model.rescale(X)
-scores = model(Xr)
-
-print(scores)
+model1 = LCAModelBase(
+    demand,
+    method,
+    {
+        "bio": model2.uncertain_params["bio"],
+    },
+)
+num_params1 = len(model1)
+np.random.seed(234333)
+X1 = np.random.rand(iterations, num_params1)
+Xr1 = model1.rescale(X1)
+scores1 = model1(Xr1)
+print(scores1)
