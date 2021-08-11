@@ -220,9 +220,9 @@ class LCAModel(LCAModelBase):
         else:
             self.uncertain_params_selected_where_dict = {}
             for exchanges_type in uncertain_exchanges_types:
-                self.uncertain_params_selected_where_dict[exchanges_type] = np.arange(
-                    sum(self.get_params(exchanges_type)["uncertainty_type"] > 1)
-                )
+                self.uncertain_params_selected_where_dict[exchanges_type] = np.where(
+                    self.get_params(exchanges_type)["uncertainty_type"] > 1
+                )[0]
         uncertain_params = {}
         for uncertain_exchange_type in uncertain_exchanges_types:
             uncertain_params[uncertain_exchange_type] = self.get_params(
