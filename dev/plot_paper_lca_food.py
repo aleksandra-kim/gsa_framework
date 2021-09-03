@@ -12,7 +12,7 @@ from dev.utils_paper_plotting import *
 normalize = lambda val: (val - min(val)) / (max(val) - min(val))
 color_all = color_blue_rgb
 color_inf = color_orange_rgb
-color_sca = color_blue_orange_av_rgb
+color_sca = color_purple_rgb
 
 
 if __name__ == "__main__":
@@ -518,33 +518,30 @@ if __name__ == "__main__":
     # #################################
     # region
 
-    # # 4. Spearman and Wasserstein for the table
+    # 4. Spearman and Wasserstein for the table
     # rho, _ = spearmanr(Y_arr.T, Y_dict['all'])
     # wdist = []
     # for arr in Y_arr:
     #     wdist.append(wasserstein_distance(arr, Y_dict['all']))
     #
-    # lca_scores_axis_title = r"$\text{LCA scores, [kg CO}_2\text{-eq}]$"
-    # all_inputs_text = r"$\text{All inputs vary}$"
-    # inf_inputs_text =  r"$\text{Only influential inputs vary}$"
-    #
-    # fig = make_subplots(
-    #     rows=1,
-    #     cols=2,
-    #     horizontal_spacing=0.2,
-    #     column_widths=[0.38, 0.6]
-    # )
-    #
-    # num_bins = 60
-    # opacity = 0.7
-    # start,end = 0,50
-    # Y1 = Y_dict['all']
-    # sa_ind = 2
-    # Y2 = Y_arr[sa_ind,:]
-    # # Ymin = min(np.hstack([Y1, Y2]))-20
-    # # Ymax = max(np.hstack([Y1, Y2]))+20
-    # Ymin = 220
-    # Ymax = 300
+    lca_scores_axis_title = r"$\text{LCA scores, [kg CO}_2\text{-eq}]$"
+    all_inputs_text = r"$\text{All inputs vary}$"
+    inf_inputs_text = r"$\text{Only influential inputs vary}$"
+
+    fig = make_subplots(
+        rows=1, cols=2, horizontal_spacing=0.2, column_widths=[0.38, 0.6]
+    )
+
+    num_bins = 60
+    opacity = 0.7
+    start, end = 0, 50
+    Y1 = Y_dict["all"]
+    sa_ind = 1
+    Y2 = Y_arr[sa_ind, :]
+    # Ymin = min(np.hstack([Y1, Y2]))-20
+    # Ymax = max(np.hstack([Y1, Y2]))+20
+    Ymin = 220
+    Ymax = 300
 
     # Validation correlation
     # x = np.arange(start, end)
@@ -572,104 +569,159 @@ if __name__ == "__main__":
     # fig.update_xaxes(title_text=r"$\text{Subset of 50/2000 datapoints}$", row=1, col=1, )
 
     # Validation scatter
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=Y1,
-    #         y=Y2,
-    #         # name=trace_name3,
-    #         mode="markers",
-    #         marker=dict(
-    #             color=color_sca,
-    #             line=dict(
-    #                 width=1,
-    #                 color="#782e69",
-    #             ),
-    #         ),
-    #         showlegend=False,
-    #         opacity=0.65,
-    #     ),
-    #     row=1,
-    #     col=1,
-    # )
-    # fig.update_xaxes(title_text=lca_scores_axis_title, color=color_all, row=1, col=1, range=[Ymin,Ymax])
-    # fig.update_yaxes(title_text=lca_scores_axis_title, color=color_inf, row=1, col=1, range=[Ymin,Ymax])
-    #
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=[Ymin,Ymax],
-    #         y=[Ymin,Ymax],
-    #         mode="lines",
-    #         marker=dict(
-    #             color="gray",
-    #             line=dict(
-    #                 width=0.01,
-    #                 color="gray",
-    #             ),
-    #         ),
-    #         showlegend=False,
-    #         opacity=0.75,
-    #     ),
-    #     row=1,
-    #     col=1,
-    # )
-    #
-    # # Validation histogram
-    # bin_min = min(np.hstack([Y1, Y2]))
-    # bin_max = max(np.hstack([Y1, Y2]))
-    # bins_ = np.linspace(bin_min, bin_max, num_bins, endpoint=True)
-    # freq1, bins1 = np.histogram(Y1, bins=bins_)
-    # freq2, bins2 = np.histogram(Y2, bins=bins_)
-    #
-    # fig.add_trace(
-    #     go.Bar(
-    #         x=bins1,
-    #         y=freq1,
-    #         name=all_inputs_text,
-    #         opacity=opacity,
-    #         marker=dict(color=color_all),
-    #         showlegend=True,
-    #     ),
-    #     row=1, col=2,
-    # )
+    fig.add_trace(
+        go.Scatter(
+            x=Y1,
+            y=Y2,
+            # name=trace_name3,
+            mode="markers",
+            marker=dict(
+                color=color_blue_orange_av_rgb,
+                line=dict(
+                    width=1,
+                    color=color_purple_rgb,
+                ),
+                opacity=0.25,
+            ),
+            showlegend=False,
+        ),
+        row=1,
+        col=1,
+    )
+    fig.update_xaxes(
+        title_text=lca_scores_axis_title,
+        color=color_all,
+        row=1,
+        col=1,
+        range=[Ymin, Ymax],
+    )
+    fig.update_yaxes(
+        title_text=lca_scores_axis_title,
+        color=color_inf,
+        row=1,
+        col=1,
+        range=[Ymin, Ymax],
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=[Ymin, Ymax],
+            y=[Ymin, Ymax],
+            mode="lines",
+            marker=dict(
+                color="black",
+                # line=dict(
+                #     width=0.01,
+                #     color="black",
+                # ),
+            ),
+            showlegend=False,
+            opacity=0.4,
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Validation histogram
+    bin_min = min(np.hstack([Y1, Y2]))
+    bin_max = max(np.hstack([Y1, Y2]))
+    bins_ = np.linspace(bin_min, bin_max, num_bins, endpoint=True)
+    freq1, bins1 = np.histogram(Y1, bins=bins_)
+    freq2, bins2 = np.histogram(Y2, bins=bins_)
+
+    fig.add_trace(
+        go.Scatter(
+            x=bins1,
+            y=freq1,
+            name=all_inputs_text,
+            opacity=opacity,
+            # marker=dict(
+            #     color='white',
+            #
+            # ),
+            line=dict(color=color_all, width=1, shape="hvh"),
+            showlegend=True,
+            fill="tozeroy",
+        ),
+        row=1,
+        col=2,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=bins2,
+            y=freq2,
+            name=inf_inputs_text,
+            opacity=opacity,
+            # marker=dict(
+            #     color='white',
+            #     line=dict(color=color_inf)
+            # ),
+            line=dict(color=color_inf, width=1, shape="hvh"),
+            showlegend=True,
+            fill="tozeroy",
+        ),
+        row=1,
+        col=2,
+    )
     # fig.add_trace(
     #     go.Bar(
     #         x=bins2,
     #         y=freq2,
     #         name=inf_inputs_text,
     #         opacity=opacity,
-    #         marker=dict(color=color_inf),
+    #         marker=dict(
+    #             color='white',
+    #             line=dict(color=color_inf)
+    #         ),
     #         showlegend=True,
     #     ),
     #     row=1, col=2,
     # )
-    # fig.update_layout(barmode="overlay")
-    # fig.update_yaxes(title_text=r"$\text{Frequency}$", row=1, col=2, title_standoff=2)
-    # fig.update_xaxes(title_text=lca_scores_axis_title, row=1, col=2)
-    #
-    # # Both
-    # fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor=color_gray_hex,
-    #                  zeroline=True, zerolinewidth=1, zerolinecolor=color_gray_hex,
-    #                  showline=True, linewidth=1, linecolor=color_gray_hex)
-    # fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor=color_gray_hex,
-    #                  zeroline=True, zerolinewidth=1, zerolinecolor=color_black_hex,
-    #                  showline=True, linewidth=1, linecolor=color_gray_hex, )
-    # fig.update_layout(
-    #     width=600, height=250,
-    #     paper_bgcolor='rgba(255,255,255,1)',
-    #     plot_bgcolor='rgba(255,255,255,1)',
-    #     legend=dict(
-    #         x=0.5,
-    #         y=-0.36,
-    #         orientation='h',
-    #         xanchor='center',
-    #         font=dict(size=14),
-    #     ),
-    #     margin=dict(l=0, r=0, t=0, b=0),
-    # )
-    # # fig.show()
-    # sa_name_save =  list(filepath_val_dict.keys())[sa_ind+1]
-    # save_fig(fig, "lca_validation_{}".format(sa_name_save), fig_format, write_dir_fig)
-    # print()
+    fig.update_layout(barmode="overlay")
+    fig.update_yaxes(title_text=r"$\text{Frequency}$", row=1, col=2, title_standoff=2)
+    fig.update_xaxes(title_text=lca_scores_axis_title, row=1, col=2)
+
+    # Both
+    fig.update_xaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor=color_gray_hex,
+        zeroline=True,
+        zerolinewidth=1,
+        zerolinecolor=color_gray_hex,
+        showline=True,
+        linewidth=1,
+        linecolor=color_gray_hex,
+    )
+    fig.update_yaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor=color_gray_hex,
+        zeroline=True,
+        zerolinewidth=1,
+        zerolinecolor=color_black_hex,
+        showline=True,
+        linewidth=1,
+        linecolor=color_gray_hex,
+    )
+    fig.update_layout(
+        width=600,
+        height=250,
+        paper_bgcolor="rgba(255,255,255,1)",
+        plot_bgcolor="rgba(255,255,255,1)",
+        legend=dict(
+            x=0.5,
+            y=-0.36,
+            orientation="h",
+            xanchor="center",
+            font=dict(size=14),
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+    )
+    # fig.show()
+    sa_name_save = list(filepath_val_dict.keys())[sa_ind + 1]
+    save_fig(fig, "lca_validation_{}".format(sa_name_save), fig_format, write_dir_fig)
+    print()
 
     # endregion
 
