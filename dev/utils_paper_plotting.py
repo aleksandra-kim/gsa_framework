@@ -5,13 +5,22 @@ color_blue_tuple = (29, 105, 150)
 color_purple_tuple = (95, 70, 144)
 color_purple_rgb = "rgb(95, 70, 144)"
 color_green_rgb = "rgb(36, 121, 108)"
+color_green_tuple = (36, 121, 108)
 color_pink_rgb = "rgb(148, 52, 110)"
+color_pink_tuple = (148, 52, 110)
 color_yellow_rgb = "rgb(237, 173, 8)"
+color_yellow_tuple = (237, 173, 8)
 color_gray_hex = "#b2bcc0"
+color_gray_tuple = (178, 188, 192)
+color_lightgray_hex = "#eef1fc"
+color_darkgray_hex = "#485063"
+color_darkgray_tuple = (72, 80, 99)
 color_black_hex = "#212931"
+color_black_tuple = (33, 41, 49)
 color_orange_rgb = "rgb(217,95,2)"
 color_orange_tuple = (217, 95, 2)
 color_blue_orange_av_rgb = "rgb(123,100,76)"
+color_blue_orange_av_tuple = (123, 100, 76)
 
 
 def save_fig(
