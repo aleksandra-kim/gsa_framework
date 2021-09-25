@@ -158,8 +158,8 @@ def compute_rho_choice(matR, vecR, matS=None, vecS=None, rho_choice="spearmanr")
 
 
 #######################
-### Robustness class ###
-#######################
+# ## Robustness class ###
+# ######################
 class Robustness:
     """Class that computes statistics to monitor robustness and convergence of sensitivity indices and rankings."""
 
@@ -197,24 +197,24 @@ class Robustness:
             self.confidence_intervals,
             self.num_params_screening,
         )
-        self.rankings_convergence = self.get_rankings_convergence_to_last(
-            self.sa_mean_results, num_ranks=self.num_ranks
-        )
-        self.bootstrap_rankings = self.get_bootstrap_rankings_2(
-            self.bootstrap_data,
-            self.sa_mean_results,
-            self.bootstrap_ranking_tag,
-            self.num_ranks,
-            rho_choice=self.rho_choice,
-        )
-        self.bootstrap_rankings_width_percentiles = (
-            self.get_bootstrap_rankings_width_percentiles(
-                self.bootstrap_rankings,
-                q_min=self.q_min,
-                q_max=self.q_max,
-            )
-        )
-        self.stat_medians = self.get_stat_medians(self.bootstrap_data)
+#         self.rankings_convergence = self.get_rankings_convergence_to_last(
+#             self.sa_mean_results, num_ranks=self.num_ranks
+#         )
+#         self.bootstrap_rankings = self.get_bootstrap_rankings_2(
+#             self.bootstrap_data,
+#             self.sa_mean_results,
+#             self.bootstrap_ranking_tag,
+#             self.num_ranks,
+#             rho_choice=self.rho_choice,
+#         )
+#         self.bootstrap_rankings_width_percentiles = (
+#             self.get_bootstrap_rankings_width_percentiles(
+#                 self.bootstrap_rankings,
+#                 q_min=self.q_min,
+#                 q_max=self.q_max,
+#             )
+#         )
+#         self.stat_medians = self.get_stat_medians(self.bootstrap_data)
 
     def remove_nans(self, stability_dicts):
         for stability_dict in stability_dicts:
