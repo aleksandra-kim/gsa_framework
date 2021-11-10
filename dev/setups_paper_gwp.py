@@ -54,6 +54,45 @@ def setup_lca_model_protocol(path_base, num_params=None, write_dir=None):
     return model, write_dir, gsa_seed
 
 
+def setup_lca_model_protocol_narrow_bio(path_base, num_params=None, write_dir=None):
+    # LCA model
+    bd.projects.set_current("GSA for protocol narrow bio")
+    co = bd.Database("CH consumption 1.0")
+    demand_act = [act for act in co if "Food" in act["name"]]
+    assert len(demand_act) == 1
+    demand_act = demand_act[0]
+    demand = {demand_act: 1}
+    method = ("IPCC 2013", "climate change", "GWP 100a", "uncertain")
+    # num_params
+    if num_params is None:
+        lca = bc.LCA(demand, method)
+        lca.lci()
+        lca.lcia()
+        print("LCA score is {}".format(lca.score))
+        n_uncertain_tech = len(lca.tech_params[lca.tech_params["uncertainty_type"] > 1])
+        n_uncertain_bio = len(lca.bio_params[lca.bio_params["uncertainty_type"] > 1])
+        n_uncertain_cf = len(lca.cf_params[lca.cf_params["uncertainty_type"] > 1])
+        num_params_stats = n_uncertain_tech + n_uncertain_bio + n_uncertain_cf
+        print("Total number of uncertain exchanges is {}".format(num_params_stats))
+        print(
+            "   tech={}, bio={}, cf={}".format(
+                n_uncertain_tech, n_uncertain_bio, n_uncertain_cf
+            )
+        )
+    # Define some variables
+    if write_dir is None:
+        write_dir = path_base / "protocol_gsa_narrow_bio"
+    model = LCAModel(
+        demand, 
+        method, 
+        write_dir, 
+        num_params=num_params,
+        uncertain_exchanges_types=["tech", "bio", "cf"],
+    )
+    gsa_seed = 4000238
+    return model, write_dir, gsa_seed
+
+
 def setup_lca_model_oases(
     path_base, num_params=None, write_dir_name=None, flag_generate_scores_dict=False
 ):
@@ -246,12 +285,13 @@ def setup_xgbo_morris4(num_params, iterations, setup_morris4_model, path_base):
 
 def write_X_chunks(gsa, n_workers):
     X = gsa.generate_unitcube_samples_based_on_method(gsa.iterations)
-    gsa.create_model_output_dir()
     print(X.shape, gsa.dirpath_Y)
     iter_chunk = gsa.iterations // n_workers
     for i in range(n_workers):
         start = iter_chunk * i
         end = iter_chunk * (i + 1)
+        if i == n_workers-1:
+            end = max(iter_chunk * (i + 1), gsa.iterations)
         print(i, start, end)
         X_chunk = X[start:end, :]
         filepath_X_chunk = gsa.dirpath_Y / "X.unitcube.{}.{}.pickle".format(
