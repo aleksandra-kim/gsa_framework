@@ -14,11 +14,13 @@ from gsa_framework.utils import read_hdf5_array, read_pickle
 from gsa_framework.visualization.plotting import plot_histogram_Y
 from dev.utils_paper_plotting import *
 
+from scipy.stats import wasserstein_distance
+
 
 show_figure1 = False
 save_figure1 = False
 
-show_figure2 = True
+show_figure2 = False
 save_figure2 = False
 
 show_figure3 = False
@@ -32,6 +34,16 @@ save_figure5 = False
 
 show_figure6 = False
 save_figure6 = False
+
+show_figure7 = False
+save_figure7 = True
+option7 = "with_3"
+
+show_figure8 = False
+save_figure8 = False
+
+show_figure9 = False
+save_figure9 = False
 
 
 if __name__ == "__main__":
@@ -55,7 +67,10 @@ if __name__ == "__main__":
     write_dir = path_base / "protocol_gsa"
     write_dir_arr = write_dir / "arrays"
     write_dir_fig = write_dir / "figures"
-    write_dir_sct = write_dir / "supply_chain"
+    if option7 == "with_3":
+        write_dir_sct = write_dir / "supply_chain"
+    elif option7 == "without_3":
+        write_dir_sct = write_dir / "supply_chain_without_step_3"
 
     fig_format = ["pdf", "png"]
     num_bins = 60
@@ -64,11 +79,11 @@ if __name__ == "__main__":
     color_inf = color_orange_rgb
     color_sca = color_purple_rgb
     opacity = 0.65
-    lca_scores_axis_title = r"$\text{LCA scores, [kg CO}_2\text{-eq}]$"
-    lca_scores_axis_title_short = r"$\text{LCA scores}$"
-    all_inputs_text = r"$\text{All inputs vary}$"
-    inf_inputs_text = r"$\text{Only influential vary}$"
-    inf_inputs_long_text = r"$\text{Only influential inputs vary}$"
+    lca_scores_axis_title = r"$\text{LCIA scores, [kg CO}_2\text{-eq}]$"
+    lca_scores_axis_title_short = r"$\text{LCIA scores}$"
+    all_inputs_text = r"$\text{All inputs vary, } Y_{\text{all}}$"
+    inf_inputs_text = r"$\text{Only influential vary, } Y_{\text{inf}}$"
+    inf_inputs_long_text = r"$\text{Only influential inputs vary, } Y_{\text{inf}}$"
 
     ########################################################
     ### FIGURE 1: Uncertainty distribution of LCA scores ###
@@ -157,7 +172,7 @@ if __name__ == "__main__":
         )
 
         if default_Y is not None:
-            trace_name_default = r"$\text{Static LCA score}$"
+            trace_name_default = r"$\text{Deterministic LCIA score}$"
             color_default_Y = "red"
             fig.add_trace(
                 go.Scatter(
@@ -225,9 +240,9 @@ if __name__ == "__main__":
         if save_figure1:
             save_fig(fig, "lca_scores_uncertainty", fig_format, write_dir_fig)
 
-    ########################################################
-    ### FIGURE 2: Uncertainty distribution of LCA scores ###
-    ########################################################
+    #######################################################
+    ### FIGURE 2: Overlaps between SCT and our approach ###
+    #######################################################
 
     cutoffs = [1e-2, 1e-3, 1e-4]
     overlap_params = [100, 200, 400, 800, 1600]
@@ -272,7 +287,7 @@ if __name__ == "__main__":
 
     parameter_choice_dict_sct = {}
     for cutoff in cutoffs:
-        cutoff_str = "%.2E" % Decimal(cutoff)
+        cutoff_str = "%.2e" % Decimal(cutoff)
         parameter_choice_dict_sct[cutoff] = {}
         for num_params_ranking in overlap_params:
             # --> SCT
@@ -284,7 +299,7 @@ if __name__ == "__main__":
 
     overlaps = {}
     for cutoff in cutoffs:
-        cutoff_str = "%.2E" % Decimal(cutoff)
+        cutoff_str = "%.2e" % Decimal(cutoff)
         overlaps[cutoff] = {}
         for num_params_ranking in overlap_params:
             tech_lsa = parameter_choice_dict_lsa[num_params_ranking]["tech"]
@@ -349,6 +364,43 @@ if __name__ == "__main__":
         },
     }
 
+    val_dict_without_3 = {
+        "sct": {
+            100: read_hdf5_array(
+                write_dir_arr / "validation.Y.100inf.2000.100023423.sct_without_3.hdf5"
+            ).flatten(),
+            200: read_hdf5_array(
+                write_dir_arr / "validation.Y.200inf.2000.100023423.sct_without_3.hdf5"
+            ).flatten(),
+            400: read_hdf5_array(
+                write_dir_arr / "validation.Y.400inf.2000.100023423.sct_without_3.hdf5"
+            ).flatten(),
+            800: read_hdf5_array(
+                write_dir_arr / "validation.Y.800inf.2000.100023423.sct_without_3.hdf5"
+            ).flatten(),
+            1600: read_hdf5_array(
+                write_dir_arr / "validation.Y.1600inf.2000.100023423.sct_without_3.hdf5"
+            ).flatten(),
+        },
+        "lsa": {
+            100: read_hdf5_array(
+                write_dir_arr / "validation.Y.100inf.2000.100023423.localSA.hdf5"
+            ).flatten(),
+            200: read_hdf5_array(
+                write_dir_arr / "validation.Y.200inf.2000.100023423.localSA.hdf5"
+            ).flatten(),
+            400: read_hdf5_array(
+                write_dir_arr / "validation.Y.400inf.2000.100023423.localSA.hdf5"
+            ).flatten(),
+            800: read_hdf5_array(
+                write_dir_arr / "validation.Y.800inf.2000.100023423.localSA.hdf5"
+            ).flatten(),
+            1600: read_hdf5_array(
+                write_dir_arr / "validation.Y.1600inf.2000.100023423.localSA.hdf5"
+            ).flatten(),
+        },
+    }
+
     Yall = read_hdf5_array(
         write_dir_arr / "validation.Y.all.2000.100023423.hdf5"
     ).flatten()
@@ -364,7 +416,7 @@ if __name__ == "__main__":
 
     nrows = len(overlap_params)
     ncols = len(cutoffs) + 2
-    cutoffs_str = [r"$\underline{\tau = %.2E}$" % Decimal(cutoff) for cutoff in cutoffs]
+    cutoffs_str = [r"$\underline{\tau = %.2e}$" % Decimal(cutoff) for cutoff in cutoffs]
 
     fig = make_subplots(
         rows=nrows,
@@ -902,7 +954,8 @@ if __name__ == "__main__":
             showline=True,
             linewidth=1,
             linecolor=color_gray_hex,
-            title_text=r"$Y_\text{all}$",
+            title_text=r"$\text{LCIA scores, } Y_\text{all}$",
+            title_font=dict(size=fontsize - 3),
             range=[Ymin, Ymax],
             title_font_color=color_all,
             tickcolor=color_all,
@@ -927,7 +980,8 @@ if __name__ == "__main__":
             showline=True,
             linewidth=1,
             linecolor=color_gray_hex,
-            title_text=r"$Y_\text{inf}$",
+            title_text=r"$\text{LCIA scores, } Y_\text{inf}$",
+            title_font=dict(size=fontsize - 3),
             range=[Ymin, Ymax],
             title_font_color=color_inf,
             tickcolor=color_inf,
@@ -941,7 +995,7 @@ if __name__ == "__main__":
             col=col,
         )
 
-    color_corr_diff = color_pink_rgb
+    color_corr_diff = color_lightblue_hex
     if show_figure3 or save_figure3:
         nrows = 5
         ncols = 6
@@ -1011,7 +1065,7 @@ if __name__ == "__main__":
                 line=dict(
                     dash="dot",
                 ),
-                name=r"$\text{Ranking when screening with contributions}$",
+                name=r"$\text{(i) Ranking when screening with contributions}$",
                 legendrank=2,
                 legendgroup="main",
                 legendgrouptitle=dict(text="Spearman correlation plot"),
@@ -1034,7 +1088,7 @@ if __name__ == "__main__":
                 line=dict(
                     dash="dot",
                 ),
-                name=r"$\text{Increase in } \rho \text{ when screening with contributions}$",
+                name=r"$\text{(ii) Increase in } \rho \text{ when screening with contributions}$",
                 legendrank=4,
                 legendgroup="main",
                 showlegend=True,
@@ -1053,7 +1107,7 @@ if __name__ == "__main__":
                     color=color_darkgray_hex,
                     symbol="circle",
                 ),
-                name=r"$\text{Ranking when screening with local SA}$",
+                name=r"$\text{(i) Ranking when screening with local SA}$",
                 legendrank=1,
                 legendgroup="main",
                 showlegend=True,
@@ -1071,7 +1125,7 @@ if __name__ == "__main__":
                     color=color_corr_diff,
                     symbol="circle",
                 ),
-                name=r"$\text{Increase in } \rho \text{ when screening with local SA}$",
+                name=r"$\text{(ii) Increase in } \rho \text{ when screening with local SA}$",
                 legendrank=3,
                 legendgroup="main",
                 showlegend=True,
@@ -1088,9 +1142,10 @@ if __name__ == "__main__":
             col=1,
         )
         fig.update_yaxes(
-            title_text=r"$\text{Spearman correlation } \rho$",
+            title_text=r"$\text{(i) Spearman correlation } \rho$",
             range=[-0.1, 1.1],
             secondary_y=False,
+            tickvals=[0, 0.25, 0.5, 0.75, 1.0],
             row=1,
             col=1,
         )
@@ -1100,20 +1155,39 @@ if __name__ == "__main__":
             showticklabels=True,
             showgrid=True,
             gridwidth=1,
-            gridcolor=color_corr_diff,
+            gridcolor=color_gray_hex,
             zeroline=True,
-            zerolinewidth=2,
+            zerolinewidth=1,
             zerolinecolor=color_corr_diff,
             showline=True,
             linewidth=1,
             linecolor=color_corr_diff,
-            title_text=r"$\text{Relative increase in } \rho$",
-            range=[-0.05, 0.2],
+            title_text=r"$\text{(ii) Relative increase in } \rho$",
+            range=[-0.1 / 5, 1.1 / 5],
             secondary_y=True,
             title_font_color=color_corr_diff,
             tickcolor=color_corr_diff,
             tickfont_color=color_corr_diff,
             title_standoff=2,
+            row=1,
+            col=1,
+        )
+
+        fig.update_yaxes(
+            rangemode="tozero",
+            scaleanchor="y",
+            scaleratio=1,
+            constraintoward="bottom",
+            secondary_y=True,
+            row=1,
+            col=1,
+        )
+        fig.update_yaxes(
+            rangemode="tozero",
+            scaleanchor="y2",
+            scaleratio=0.2,
+            constraintoward="bottom",
+            secondary_y=False,
             row=1,
             col=1,
         )
@@ -1229,9 +1303,9 @@ if __name__ == "__main__":
     if save_figure3:
         save_fig(fig, "gsa_ranking", fig_format, write_dir_fig)
 
-    ########################################################
-    ### FIGURE 1: Uncertainty distribution of LCA scores ###
-    ########################################################
+    ######################################################
+    ### FIGURE SI: Narrowed distribution of LCA scores ###
+    ######################################################
     color_narrow = color_purple_rgb
 
     filepath_Y = write_dir_arr / "validation.Y.all.2000.100023423.hdf5"
@@ -1257,11 +1331,12 @@ if __name__ == "__main__":
             go.Scatter(
                 x=bins,
                 y=freq,
-                name=r"$\text{All inputs vary with original uncertainties}$",
+                name=r"$\text{(i) All inputs vary with original uncertainties}$",
                 opacity=opacity,
                 line=dict(color=color_all, width=1, shape="hvh"),
                 showlegend=True,
                 fill="tozeroy",
+                legendrank=1,
             ),
         )
 
@@ -1269,11 +1344,12 @@ if __name__ == "__main__":
             go.Scatter(
                 x=binn,
                 y=freqn,
-                name=r"$\text{All inputs vary with 20 reduced uncertainties}$",
+                name=r"$\text{(ii) All inputs vary with 20 reduced uncertainties}$",
                 opacity=opacity,
                 line=dict(color=color_narrow, width=1, shape="hvh"),
                 showlegend=True,
                 fill="tozeroy",
+                legendrank=3,
             ),
         )
 
@@ -1282,7 +1358,7 @@ if __name__ == "__main__":
                 x=[np.mean(Y) - np.std(Y), np.mean(Y) - np.std(Y)],
                 y=[0, 210],
                 mode="lines",
-                name=r"$\text{mean } \pm \text{ standard deviation, original uncertainty}$",
+                name=r"$\text{(i) mean } \pm \text{ standard deviation, original uncertainty}$",
                 opacity=opacity,
                 # marker=dict(
                 #     color="black",
@@ -1295,6 +1371,7 @@ if __name__ == "__main__":
                     width=1,
                 ),
                 showlegend=True,
+                legendrank=2,
             ),
         )
 
@@ -1306,7 +1383,7 @@ if __name__ == "__main__":
                 ],
                 y=[0, 210],
                 mode="lines",
-                name=r"$\text{mean } \pm \text{ standard deviation, reduced uncertainty}$",
+                name=r"$\text{(ii) mean } \pm \text{ standard deviation, reduced uncertainty}$",
                 opacity=opacity,
                 # marker=dict(
                 #     color="black",
@@ -1319,6 +1396,7 @@ if __name__ == "__main__":
                     width=2,
                 ),
                 showlegend=True,
+                legendrank=4,
             ),
         )
 
@@ -1679,3 +1757,881 @@ if __name__ == "__main__":
         if save_figure6:
             save_fig(fig, "convergence20_{}".format(option), fig_format, write_dir_fig)
         # if save_figure6: save_fig(fig, "convergence20_legend", fig_format, write_dir_fig)
+
+    ####################################################################
+    ### FIGURE 2 - version  2: Overlaps between SCT and our approach ###
+    ####################################################################
+
+    cutoffs = [1e-2, 1e-3, 1e-4]
+    overlap_params = [100, 200, 400, 800, 1600]
+    # --> Our results
+    filepath_S = write_dir_arr / "S.correlationsGsa.randomSampling.80000.4000238.pickle"
+    spearman = read_pickle(filepath_S)["spearman"]
+    S_sorted = np.argsort(np.abs(spearman))[::-1]
+    filepath = write_dir_arr / "parameter_choice_rm_lowinf.pickle"
+    parameter_choice_rm_lowinf = read_pickle(filepath)
+    filepath_model = write_dir_arr / "model.pickle"
+    model = read_pickle(filepath_model)
+    len_tech = model.uncertain_exchange_lengths["tech"]
+    len_bio = model.uncertain_exchange_lengths["bio"]
+    len_cf = model.uncertain_exchange_lengths["cf"]
+
+    parameter_choice_dict_lsa = {}
+    for num_params_ranking in overlap_params:
+        # --> Our results
+        parameter_choice_lsa = parameter_choice_rm_lowinf[S_sorted[:num_params_ranking]]
+        parameter_choice_lsa_tech = parameter_choice_lsa[
+            parameter_choice_lsa < len_tech
+        ]
+        parameter_choice_lsa_bio = (
+            parameter_choice_lsa[
+                np.logical_and(
+                    parameter_choice_lsa >= len_tech,
+                    parameter_choice_lsa < len_tech + len_bio,
+                )
+            ]
+            - len_tech
+        )
+        parameter_choice_lsa_cf = (
+            parameter_choice_lsa[parameter_choice_lsa >= len_tech + len_bio]
+            - len_tech
+            - len_bio
+        )
+        parameter_choice_dict_lsa[num_params_ranking] = {
+            "tech": parameter_choice_lsa_tech,
+            "bio": parameter_choice_lsa_bio,
+            "cf": parameter_choice_lsa_cf,
+        }
+
+    parameter_choice_dict_sct = {}
+    for cutoff in cutoffs:
+        cutoff_str = "%.2e" % Decimal(cutoff)
+        parameter_choice_dict_sct[cutoff] = {}
+        for num_params_ranking in overlap_params:
+            # --> SCT
+            filename = "cutoff{}.params{}.pickle".format(cutoff_str, num_params_ranking)
+            filepath = write_dir_sct / filename
+            parameter_choice_dict_sct[cutoff][num_params_ranking] = read_pickle(
+                filepath
+            )["ranking"]["parameter_choice_dict"]
+
+    overlaps = {}
+    for cutoff in cutoffs:
+        cutoff_str = "%.2e" % Decimal(cutoff)
+        overlaps[cutoff] = {}
+        for num_params_ranking in overlap_params:
+            tech_lsa = parameter_choice_dict_lsa[num_params_ranking]["tech"]
+            bio_lsa = parameter_choice_dict_lsa[num_params_ranking]["bio"]
+            cf_lsa = parameter_choice_dict_lsa[num_params_ranking]["cf"]
+            tech_sct = parameter_choice_dict_sct[cutoff][num_params_ranking]["tech"]
+            bio_sct = parameter_choice_dict_sct[cutoff][num_params_ranking]["bio"]
+            cf_sct = parameter_choice_dict_sct[cutoff][num_params_ranking]["cf"]
+            overlaps[cutoff][num_params_ranking] = {
+                "tech": {
+                    "overlap": len(np.intersect1d(tech_lsa, tech_sct)),
+                    "len_lsa": len(tech_lsa),
+                    "len_sct": len(tech_sct),
+                },
+                "bio": {
+                    "overlap": len(np.intersect1d(bio_lsa, bio_sct)),
+                    "len_lsa": len(bio_lsa),
+                    "len_sct": len(bio_sct),
+                },
+                "cf": {
+                    "overlap": len(np.intersect1d(cf_lsa, cf_sct)),
+                    "len_lsa": len(cf_lsa),
+                    "len_sct": len(cf_sct),
+                },
+            }
+
+    # # --> Validation files
+    # val_dict = {
+    #     "sct": {
+    #         100: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.100inf.2000.100023423.sct.hdf5"
+    #         ).flatten(),
+    #         200: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.200inf.2000.100023423.sct.hdf5"
+    #         ).flatten(),
+    #         400: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.400inf.2000.100023423.sct.hdf5"
+    #         ).flatten(),
+    #         800: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.800inf.2000.100023423.sct.hdf5"
+    #         ).flatten(),
+    #         1600: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.1600inf.2000.100023423.sct.hdf5"
+    #         ).flatten(),
+    #     },
+    #     "lsa": {
+    #         100: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.100inf.2000.100023423.localSA.hdf5"
+    #         ).flatten(),
+    #         200: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.200inf.2000.100023423.localSA.hdf5"
+    #         ).flatten(),
+    #         400: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.400inf.2000.100023423.localSA.hdf5"
+    #         ).flatten(),
+    #         800: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.800inf.2000.100023423.localSA.hdf5"
+    #         ).flatten(),
+    #         1600: read_hdf5_array(
+    #             write_dir_arr / "validation.Y.1600inf.2000.100023423.localSA.hdf5"
+    #         ).flatten(),
+    #     },
+    # }
+
+    Yall = read_hdf5_array(
+        write_dir_arr / "validation.Y.all.2000.100023423.hdf5"
+    ).flatten()
+    bin_min = min(Yall)
+    bin_max = max(Yall)
+
+    if option7 == "with_3":
+        val_dict_use = val_dict
+    elif option7 == "without_3":
+        val_dict_use = val_dict_without_3
+
+    title_text_str_all = []
+    for screening_name, data_dict in val_dict_use.items():
+        for num_params_ranking, Yinf in data_dict.items():
+            rho, _ = spearmanr(Yall, Yinf)
+            title_text_str = r"$\rho = {:4.3f}$".format(rho)
+            title_text_str_all.append(title_text_str)
+
+    nrows = len(overlap_params)
+    ncols = len(cutoffs) + 2
+    cutoffs_str = []
+    for cutoff in cutoffs:
+        decimal_str = "%.1e" % Decimal(cutoff)
+        cutoffs_str.append(
+            r"$\underline{"
+            + r"\tau = {}e^".format(decimal_str[0:3])
+            + "{-"
+            + "{}".format(decimal_str[-1])
+            + "}}$"
+        )
+
+    fig = make_subplots(
+        rows=nrows,
+        cols=ncols,
+        shared_xaxes=False,
+        shared_yaxes=False,
+        subplot_titles=[
+            [],
+            [],
+            [],
+            title_text_str_all[0],
+            title_text_str_all[5],
+            [],
+            [],
+            [],
+            title_text_str_all[1],
+            title_text_str_all[6],
+            [],
+            [],
+            [],
+            title_text_str_all[2],
+            title_text_str_all[7],
+            [],
+            [],
+            [],
+            title_text_str_all[3],
+            title_text_str_all[8],
+            [],
+            [],
+            [],
+            title_text_str_all[4],
+            title_text_str_all[9],
+        ],
+        vertical_spacing=0.10,
+        horizontal_spacing=0.11,
+    )
+
+    color_sct = "white"
+    color_lsa = color_darkgray_hex
+    marker_pattern_shape = "/"
+    fontsize = 16
+
+    ### First half
+    #################
+
+    if show_figure7 or save_figure7:
+        showlegend = True
+        xpos = [0.052, 0.276, 0.5, 0.724, 0.948]
+        ipos = 0
+        # y_sct_all = {row+1: {col+1: [] for col in range(ncols-2)} for row in range(nrows) }
+        # y_lsa_all = {row + 1: {col + 1: [] for col in range(ncols - 2)} for row in range(nrows)}
+
+        cutoff_base = 1e-3
+        width_base = {}
+        for row, num_params_ranking in enumerate(overlap_params):
+            data = overlaps[cutoff_base][num_params_ranking]
+            height_cf = data["cf"]["overlap"]
+            width_base[num_params_ranking] = [
+                data["tech"]["overlap"] / height_cf,
+                data["bio"]["overlap"] / height_cf,
+                1,
+            ]
+
+        yrange = {}
+        for row, num_params_ranking in enumerate(overlap_params):
+            ymax_lower = -np.infty
+            ymax_upper = -np.infty
+            width_base_current = width_base[num_params_ranking]
+            for col, cutoff in enumerate(cutoffs):
+                data = overlaps[cutoff][num_params_ranking]
+                y_overlap = [
+                    data["tech"]["overlap"] / width_base_current[0],
+                    data["bio"]["overlap"] / width_base_current[1],
+                    data["cf"]["overlap"] / width_base_current[2],
+                ]
+                y_sct = [
+                    data["tech"]["len_sct"] / width_base_current[0] - y_overlap[0],
+                    data["bio"]["len_sct"] / width_base_current[1] - y_overlap[1],
+                    data["cf"]["len_sct"] / width_base_current[2] - y_overlap[2],
+                ]
+                y_sct_abs = np.array(y_sct) + np.array(y_overlap)
+                y_lsa = [
+                    data["tech"]["len_lsa"] / width_base_current[0] - y_overlap[0],
+                    data["bio"]["len_lsa"] / width_base_current[1] - y_overlap[1],
+                    data["cf"]["len_lsa"] / width_base_current[2] - y_overlap[2],
+                ]
+                if max(y_sct_abs) > ymax_upper:
+                    ymax_upper = max(y_sct_abs)
+                if max(y_lsa) > ymax_lower:
+                    ymax_lower = max(y_lsa)
+            yrange[row] = [-ymax_lower, ymax_upper * 1.15]
+
+        for col, cutoff in enumerate(cutoffs):
+            for row, num_params_ranking in enumerate(overlap_params):
+                data = overlaps[cutoff][num_params_ranking]
+                width_base_current = width_base[num_params_ranking]
+                if row in [0, 1]:
+                    bar_spacing = 1.5
+                elif row == 2:
+                    bar_spacing = 1.8
+                elif row == 3:
+                    bar_spacing = 3
+                else:
+                    bar_spacing = 3.8
+                x = [
+                    width_base_current[0] / 2,
+                    width_base_current[0] + bar_spacing + width_base_current[1] / 2,
+                    width_base_current[0]
+                    + width_base_current[1]
+                    + 2 * bar_spacing
+                    + width_base_current[2] / 2,
+                ]
+                y_overlap = [
+                    data["tech"]["overlap"] / width_base_current[0],
+                    data["bio"]["overlap"] / width_base_current[1],
+                    data["cf"]["overlap"] / width_base_current[2],
+                ]
+                y_sct = [
+                    data["tech"]["len_sct"] / width_base_current[0] - y_overlap[0],
+                    data["bio"]["len_sct"] / width_base_current[1] - y_overlap[1],
+                    data["cf"]["len_sct"] / width_base_current[2] - y_overlap[2],
+                ]
+                y_lsa = [
+                    data["tech"]["len_lsa"] / width_base_current[0] - y_overlap[0],
+                    data["bio"]["len_lsa"] / width_base_current[1] - y_overlap[1],
+                    data["cf"]["len_lsa"] / width_base_current[2] - y_overlap[2],
+                ]
+                n_contributions = (
+                    data["tech"]["len_sct"]
+                    + data["bio"]["len_sct"]
+                    + data["cf"]["len_sct"]
+                )
+                i_axis = row * ncols + col + 1
+                if n_contributions < num_params_ranking:
+                    fig.add_trace(
+                        go.Bar(
+                            x=[],
+                            y=[],
+                        ),
+                        col=col + 1,
+                        row=row + 1,
+                    )
+                    fig.add_annotation(
+                        x=0.5,
+                        y=0.8,  # annotation point
+                        xref="x{} domain".format(i_axis),
+                        yref="y{} domain".format(i_axis),
+                        text=r"$\text{screening based on}$",
+                        showarrow=False,
+                        xanchor="center",
+                        font=dict(
+                            size=fontsize - 3,
+                        ),
+                    )
+                    fig.add_annotation(
+                        x=0.5,
+                        y=0.5,  # annotation point
+                        xref="x{} domain".format(i_axis),
+                        yref="y{} domain".format(i_axis),
+                        text=r"$\text{contributions resulted in}$",
+                        showarrow=False,
+                        xanchor="center",
+                        font=dict(
+                            size=fontsize - 3,
+                        ),
+                    )
+                    fig.add_annotation(
+                        x=0.5,
+                        y=0.18,  # annotation point
+                        xref="x{} domain".format(i_axis),
+                        yref="y{} domain".format(i_axis),
+                        text=r"$\text{only }k_{\text{inf}} = "
+                        + "{}".format(n_contributions)
+                        + r"\text{ inputs}$",
+                        showarrow=False,
+                        xanchor="center",
+                        font=dict(
+                            size=fontsize - 3,
+                        ),
+                    )
+                else:
+                    # y_sct_all[row+1][col+1] = np.ceil(max(y_sct))
+                    # y_lsa_all[row + 1][col + 1] = np.ceil(max(y_lsa))
+                    fig.add_trace(
+                        go.Bar(
+                            x=x,
+                            y=-np.array(y_overlap),
+                            width=width_base_current,
+                            marker=dict(
+                                color=color_lsa,
+                                pattern=dict(shape=marker_pattern_shape),
+                            ),
+                            name=r"$\text{# of overlapping inputs}$",
+                            legendrank=2,
+                            showlegend=showlegend,
+                        ),
+                        col=col + 1,
+                        row=row + 1,
+                    )
+                    fig.add_trace(
+                        go.Bar(
+                            x=x,
+                            y=y_sct,
+                            width=width_base_current,
+                            marker=dict(
+                                color=color_sct,
+                            ),
+                            name=r"$\text{# of inputs when screening with contributions}$",
+                            legendrank=1,
+                            showlegend=showlegend,
+                        ),
+                        col=col + 1,
+                        row=row + 1,
+                    )
+                    fig.add_trace(
+                        go.Bar(
+                            x=x,
+                            y=-np.array(y_lsa),
+                            width=width_base_current,
+                            marker=dict(
+                                color=color_lsa,
+                            ),
+                            name=r"$\text{# of inputs when screening with local SA}$",
+                            legendrank=3,
+                            showlegend=showlegend,
+                        ),
+                        col=col + 1,
+                        row=row + 1,
+                    )
+                    showlegend = False
+                    title_text_str = r"$\bigcap" + r" = {} + {} + {} = {}$".format(
+                        data["tech"]["overlap"],
+                        data["bio"]["overlap"],
+                        data["cf"]["overlap"],
+                        data["tech"]["overlap"]
+                        + data["bio"]["overlap"]
+                        + data["cf"]["overlap"],
+                    )
+                    text_sct = (
+                        r"$\text{SCT = "
+                        + "{}".format(
+                            data["tech"]["overlap"],
+                        )
+                        + "$}"
+                    )
+                    fig.update_xaxes(
+                        title_text=title_text_str, row=row + 1, col=col + 1
+                    )
+
+                    if option7 == "with_3":
+                        if row == 0:
+                            if col == 0:
+                                spacing = max(y_sct) * 0.44
+                            else:
+                                spacing = max(y_sct) * 0.58
+                        elif row == 1:
+                            spacing = max(y_sct) * 0.5
+                        elif row == 2:
+                            spacing = max(y_sct) * 0.32
+                        else:
+                            spacing = max(y_sct) * 0.35
+                    elif option7 == "without_3":
+                        if row == 0:
+                            if col == 0:
+                                spacing = max(y_sct) * 0.23
+                            else:
+                                spacing = max(y_sct) * 0.23
+                        elif row == 1:
+                            spacing = max(y_sct) * 0.28
+                        elif row == 2:
+                            spacing = max(y_sct) * 0.28
+                        elif row == 3:
+                            spacing = max(y_sct) * 0.3
+                        else:
+                            spacing = max(y_sct) * 0.34
+
+                    fig.add_annotation(
+                        x=x[0],
+                        y=y_sct[0] + spacing,
+                        xref="x{}".format(i_axis),
+                        yref="y{}".format(i_axis),
+                        text=r"$\text{TECH}$",
+                        showarrow=False,
+                        xanchor="center",
+                        font=dict(
+                            size=fontsize - 4,
+                        ),
+                    )
+                    fig.add_annotation(
+                        x=x[1],
+                        y=y_sct[1] + spacing,
+                        xref="x{}".format(i_axis),
+                        yref="y{}".format(i_axis),
+                        text=r"$\text{BIO}$",
+                        showarrow=False,
+                        xanchor="center",
+                        font=dict(
+                            size=fontsize - 4,
+                        ),
+                    )
+                    if col == 0 and row == 0 and option7 == "with_3":
+                        fig.add_annotation(
+                            x=x[2],
+                            y=y_sct[2] + spacing,
+                            xref="x{}".format(i_axis),
+                            yref="y{}".format(i_axis),
+                            text=r"$\text{ CF}$",
+                            showarrow=False,
+                            xanchor="center",
+                            font=dict(
+                                size=fontsize - 4,
+                            ),
+                        )
+                    else:
+                        fig.add_annotation(
+                            x=x[2],
+                            y=y_sct[2] + spacing,
+                            xref="x{}".format(i_axis),
+                            yref="y{}".format(i_axis),
+                            text=r"$\text{CF}$",
+                            showarrow=False,
+                            xanchor="center",
+                            font=dict(
+                                size=fontsize - 4,
+                            ),
+                        )
+
+                if row == 0:
+                    fig.add_annotation(
+                        x=xpos[col],
+                        y=1.08,  # annotation point
+                        xref="paper",
+                        yref="paper",
+                        text=cutoffs_str[col],
+                        showarrow=False,
+                        xanchor="center",
+                        font=dict(
+                            size=fontsize,
+                        ),
+                    )
+                    ipos += 1
+
+        fig.update_layout(
+            barmode="relative",
+            width=200 * nrows,
+            height=160 * ncols,
+            paper_bgcolor="rgba(255,255,255,1)",
+            plot_bgcolor="rgba(255,255,255,1)",
+            margin=dict(l=10, r=40, t=100, b=10),
+            legend=dict(
+                x=0.5,
+                y=-0.10,
+                xanchor="center",
+                font_size=14,
+                orientation="h",
+                traceorder="normal",
+                itemsizing="constant",
+                # bgcolor=color_lightgray_hex,
+                bordercolor=color_darkgray_hex,
+                borderwidth=1,
+            ),
+        )
+        fig.update_traces(
+            marker=dict(
+                line_color=color_darkgray_hex,
+                line_width=1.6,
+                pattern_fillmode="replace",
+            )
+        )
+        fig.update_xaxes(
+            showticklabels=False,
+            showline=True,
+            linewidth=1,
+            linecolor=color_gray_hex,
+        )
+        fig.update_yaxes(
+            visible=False,
+            showticklabels=False,
+        )
+        for row in range(nrows):
+            if overlap_params[row] == 1600:
+                params_str = "1'600"
+            else:
+                params_str = str(overlap_params[row])
+            title_text = (
+                r"$\underline{k_{\text{inf}} = " + r"{}".format(params_str) + r"}$"
+            )
+            fig.update_yaxes(
+                title_text=title_text,
+                col=1,
+                row=row + 1,
+                visible=True,
+                title_standoff=50,
+                title_font_size=fontsize,
+            )
+            # for col in [1,2,3]:
+            #     fig.update_yaxes(
+            #         range=[-max(list(y_lsa_all[row+1].values())), max(list(y_sct_all[row+1].values()))],
+            #         row=row+1,
+            #         col=col
+            #     )
+
+        for col in [1, 2, 3]:
+            for row in range(nrows):
+                fig.update_yaxes(
+                    visible=True,
+                    zeroline=True,
+                    zerolinewidth=1.5,
+                    zerolinecolor=color_orange_rgb,
+                    range=yrange[row],
+                    row=row + 1,
+                    col=col,
+                )
+                if col == 1 and row in [1, 2, 3, 4]:
+                    fig.update_yaxes(
+                        row=row + 1,
+                        col=col,
+                        zeroline=False,
+                    )
+
+        ### Second half
+        ##################
+        Ymin = min(Yall)
+        Ymax = max(Yall)
+        col = len(cutoffs) + 1
+        scatter_str_screening = [r"$\text{Screening based on}$"] * 2
+        scatter_str = [
+            r"$\underline{\text{contributions}}$",
+            r"$\underline{\text{local SA}}$",
+        ]
+        showlegend = True
+
+        for screening_name, data_dict in val_dict_use.items():
+            row = 1
+            for num_params_ranking, Yinf in data_dict.items():
+                fig.add_trace(
+                    go.Scatter(
+                        x=Yall,
+                        y=Yinf,
+                        # name=trace_name3,
+                        mode="markers",
+                        marker=dict(
+                            color=color_blue_orange_av_rgb,
+                            line=dict(
+                                width=1,
+                                color=color_purple_rgb,
+                            ),
+                            opacity=0.25,
+                        ),
+                        name=r"$\text{Scatter plot between } Y_{\text{all}} \text{ and } Y_{\text{inf}}$",
+                        legendrank=4,
+                        showlegend=showlegend,
+                    ),
+                    row=row,
+                    col=col,
+                )
+                showlegend = False
+                if row == len(overlap_params):
+                    fig.update_xaxes(
+                        title_text=r"$\text{LCIA scores, } Y_\text{all}$",
+                        title_font=dict(
+                            size=fontsize - 3,
+                        ),
+                        title_standoff=10,
+                        row=row,
+                        col=col,
+                    )
+                fig.update_xaxes(
+                    visible=True,
+                    showticklabels=True,
+                    showgrid=True,
+                    gridwidth=1,
+                    gridcolor=color_gray_hex,
+                    zeroline=True,
+                    zerolinewidth=1,
+                    zerolinecolor=color_black_hex,
+                    showline=True,
+                    linewidth=1,
+                    linecolor=color_gray_hex,
+                    # color=color_darkgray_hex,
+                    row=row,
+                    col=col,
+                    range=[Ymin, Ymax],
+                )
+                if col == len(cutoffs) + 2:
+                    fig.update_yaxes(
+                        title_text=r"$\text{LCIA scores, } Y_\text{inf}$",
+                        title_font=dict(
+                            size=fontsize - 3,
+                        ),
+                        title_standoff=10,
+                        row=row,
+                        col=col,
+                    )
+                if col >= len(cutoffs) + 1:
+                    fig.update_yaxes(
+                        visible=True,
+                        showticklabels=True,
+                        showgrid=True,
+                        gridwidth=1,
+                        gridcolor=color_gray_hex,
+                        zeroline=True,
+                        zerolinewidth=1,
+                        zerolinecolor=color_black_hex,
+                        showline=True,
+                        linewidth=1,
+                        linecolor=color_gray_hex,
+                        # color=color_darkgray_hex,
+                        range=[Ymin, Ymax],
+                        side="right",
+                        row=row,
+                        col=col,
+                    )
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=[Ymin, Ymax],
+                        y=[Ymin, Ymax],
+                        mode="lines",
+                        marker=dict(
+                            color="black",
+                            # line=dict(
+                            #     width=0.01,
+                            #     color="black",
+                            # ),
+                        ),
+                        showlegend=False,
+                        opacity=0.4,
+                    ),
+                    row=row,
+                    col=col,
+                )
+                if row == 1:
+                    fig.add_annotation(
+                        x=xpos[col - 1],
+                        y=1.11,  # annotation point
+                        xref="paper",
+                        yref="paper",
+                        text=scatter_str_screening[col - 4],
+                        showarrow=False,
+                        xanchor="center",
+                        font=dict(
+                            size=fontsize,
+                        ),
+                    )
+                    fig.add_annotation(
+                        x=xpos[col - 1],
+                        y=1.08,  # annotation point
+                        xref="paper",
+                        yref="paper",
+                        text=scatter_str[col - 4],
+                        showarrow=False,
+                        xanchor="center",
+                        font=dict(
+                            size=fontsize,
+                        ),
+                    )
+                    ipos += 1
+                row += 1
+            col += 1
+
+        fig.add_annotation(
+            x=xpos[1],
+            y=1.16,  # annotation point
+            xref="paper",
+            yref="paper",
+            text=r"$\text{(i)}$",
+            showarrow=False,
+            xanchor="center",
+            font=dict(
+                size=fontsize,
+            ),
+        )
+        fig.add_annotation(
+            x=(xpos[3] + xpos[4]) / 2,
+            y=1.16,  # annotation point
+            xref="paper",
+            yref="paper",
+            text=r"$\text{(ii)}$",
+            showarrow=False,
+            xanchor="center",
+            font=dict(
+                size=fontsize,
+            ),
+        )
+
+    if show_figure7:
+        fig.show()
+    if save_figure7:
+        if option7 == "with_3":
+            save_fig(fig, "sct_lsa_overlap_v2", fig_format, write_dir_fig)
+        elif option7 == "without_3":
+            save_fig(
+                fig, "sct_lsa_overlap_v2_without_step_3", fig_format, write_dir_fig
+            )
+
+    ##########################
+    ### Graphical abstract ###
+    ##########################
+    show_figure8 = False
+    save_figure8 = True
+    if show_figure8 or save_figure8:
+
+        fig = go.Figure()
+        num_bins = 30
+        opacity = 0.99
+
+        option = "Y_narrow"
+        if option == "Y":
+            Y_use = Y
+            color_use = color_all
+        else:
+            Y_use = Y_narrow
+            color_use = color_purple_rgb
+
+        bins_ = np.linspace(bin_min, bin_max, num_bins, endpoint=True)
+        freq, bins = np.histogram(Y_use, bins=bins_)
+
+        fig.add_trace(
+            go.Scatter(
+                x=bins,
+                y=freq,
+                name=all_inputs_text,
+                opacity=opacity,
+                line=dict(color=color_use, width=1, shape="hvh"),
+                showlegend=False,
+                fill="tozeroy",
+            ),
+        )
+
+        # fig.update_yaxes(title_text=r"$\text{Frequency}$", range=[-10, 130])
+        fig.update_xaxes(
+            title_text=r"$\textbf{LCIA scores}$",
+            title_font_size=32,
+            title_standoff=5,
+        )
+
+        # Both
+        fig.update_xaxes(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor=color_darkgray_hex,
+            zeroline=True,
+            zerolinewidth=4,
+            zerolinecolor=color_black_hex,
+            showline=True,
+            linewidth=1,
+            linecolor=color_darkgray_hex,
+            tickmode="array",
+            tickvals=[150, 200, 250, 300],
+            ticktext=["", "", "", ""],
+            range=[150, 301],
+        )
+        fig.update_yaxes(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor=color_darkgray_hex,
+            zeroline=True,
+            zerolinewidth=4,
+            zerolinecolor=color_black_hex,
+            showline=True,
+            linewidth=1,
+            linecolor=color_darkgray_hex,
+            tickmode="array",
+            tickvals=[100, 200, 300, 400],
+            ticktext=["", "", "", ""],
+            range=[0, 408],
+        )
+        fig.update_layout(
+            width=162,
+            height=110,
+            paper_bgcolor="rgba(255,255,255,1)",
+            plot_bgcolor="rgba(255,255,255,1)",
+            legend=dict(
+                x=0.85,
+                y=0.95,
+                orientation="v",
+                xanchor="center",
+                font=dict(size=14),
+                # bgcolor=color_lightgray_hex,
+                bordercolor=color_darkgray_hex,
+                borderwidth=1,
+            ),
+            margin=dict(l=2, r=2, t=2, b=2),
+        )
+        if show_figure8:
+            fig.show()
+        if save_figure8:
+            save_fig(
+                fig, "graphical_abstract_{}".format(option), fig_format, write_dir_fig
+            )
+
+    if show_figure9 or save_figure9:
+
+        fig = go.Figure()
+
+        x = [408741, 20000, 2000, 200, 20]
+
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=[1, 0.9999, 0.9885, 0.986, 0.948],
+                mode="markers+lines",
+                line=dict(color=color_all, width=1),
+            ),
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=[1, 0.9999, 0.902, 0.850, 0.823],
+                mode="markers+lines",
+                line=dict(color=color_orange_rgb, width=1),
+            ),
+        )
+
+        fig.update_xaxes(type="log")
+        fig.update_yaxes(range=[0.5, 1.1])
+
+        if show_figure9:
+            fig.show()
+        if save_figure9:
+            save_fig(fig, "graphical_abstract", fig_format, write_dir_fig)

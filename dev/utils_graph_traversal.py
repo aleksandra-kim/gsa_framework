@@ -7,9 +7,7 @@ def filter_technosphere_exchanges(lca, cutoff=0.005, max_calc=1e4):
     """Use brightway's GraphTraversal to identify the relevant
     technosphere exchanges in a non-stochastic LCA."""
     start = time()
-    res = bc.GraphTraversal().calculate(
-        lca.demand, lca.method, cutoff=cutoff, max_calc=max_calc
-    )
+    res = bc.GraphTraversal().calculate(lca, cutoff=cutoff, max_calc=max_calc)
 
     # get all edges
     technosphere_exchange_indices = []
@@ -17,10 +15,8 @@ def filter_technosphere_exchanges(lca, cutoff=0.005, max_calc=1e4):
         if e["to"] != -1:  # filter out head introduced in graph traversal
             technosphere_exchange_indices.append((e["from"], e["to"]))
     print(
-        "TECHNOSPHERE {} filtering resulted in {} of {} exchanges and took {} iterations in {} seconds.".format(
-            res["lca"].technosphere_matrix.shape,
+        "TECHNOSPHERE filtering resulted in {} exchanges and took {} iterations in {} seconds.".format(
             len(technosphere_exchange_indices),
-            res["lca"].technosphere_matrix.getnnz(),
             res["counter"],
             np.round(time() - start, 2),
         )
@@ -32,9 +28,7 @@ def filter_uncertain_technosphere_exchanges(lca, cutoff=0.005, max_calc=1e4):
     """Use brightway's GraphTraversal to identify the relevant
     technosphere exchanges in a non-stochastic LCA."""
     start = time()
-    res = bc.GraphTraversal().calculate(
-        lca.demand, lca.method, cutoff=cutoff, max_calc=max_calc
-    )
+    res = bc.GraphTraversal().calculate(lca, cutoff=cutoff, max_calc=max_calc)
     # get all edges
     uncertain_technosphere_exchange_indices = []
     for e in res["edges"]:

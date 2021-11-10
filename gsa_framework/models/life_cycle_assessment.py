@@ -1,9 +1,10 @@
-import brightway2 as bw
 import numpy as np
 from pathlib import Path
 import pickle
 from copy import deepcopy
 from stats_arrays import uncertainty_choices, MCRandomNumberGenerator
+import bw2calc as bc
+import bw2data as bd
 
 # Local imports
 from gsa_framework.models.model_base import ModelBase
@@ -50,7 +51,7 @@ class LCAModelBase(ModelBase):
     ):
         self.func_unit = func_unit
         self.method = method
-        self.lca = bw.LCA(self.func_unit, self.method)
+        self.lca = bc.LCA(self.func_unit, self.method)
         self.lca.lci()
         self.lca.lcia()
         self.uncertain_params = uncertain_params
@@ -83,7 +84,7 @@ class LCAModelBase(ModelBase):
             self.uncertain_params_selected_where_dict,
         )
         self.choices = uncertainty_choices
-        method_unit = bw.Method(self.method).metadata["unit"]
+        method_unit = bd.Method(self.method).metadata["unit"]
         self.output_name = "LCIA scores, [{}]".format(method_unit)
 
     def initialize(self, uncertain_params_selected_where_dict):
@@ -199,7 +200,7 @@ class LCAModel(LCAModelBase):
         num_params=None,
         uncertain_exchanges_types=("tech", "bio", "cf"),
     ):
-        self.lca = bw.LCA(func_unit, method)
+        self.lca = bc.LCA(func_unit, method)
         self.lca.lci()
         self.lca.lcia()
         # for uncertain_exchange_type in uncertain_exchanges_types:

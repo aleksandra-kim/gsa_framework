@@ -14,6 +14,7 @@ color_gray_hex = "#b2bcc0"
 color_gray_tuple = (178, 188, 192)
 color_lightgray_hex = "#eef1fc"
 color_darkgray_hex = "#485063"
+color_darkgray_rgb = "rgb(72, 80, 99)"
 color_darkgray_tuple = (72, 80, 99)
 color_black_hex = "#212931"
 color_black_tuple = (33, 41, 49)
@@ -21,6 +22,7 @@ color_orange_rgb = "rgb(217,95,2)"
 color_orange_tuple = (217, 95, 2)
 color_blue_orange_av_rgb = "rgb(123,100,76)"
 color_blue_orange_av_tuple = (123, 100, 76)
+color_lightblue_hex = "#98a5c0"  # "#598baf"
 
 
 def save_fig(
@@ -45,6 +47,7 @@ sa_plot = {
         "stat": r"$Stat(\hat{\rho})$",
         "stat_indices": r"$Stat_{indices}(\hat{\rho})$",
         "stat_ranking": r"$Stat_{ranking}(\hat{\rho})$",
+        "underlined_name": r"$\underline{\text{Spearman correlation coefficients}}$",
     },
     "salt": {
         "name": r"$\text{Sobol total order indices}$",
@@ -53,6 +56,7 @@ sa_plot = {
         "stat": r"$Stat(\hat{S}^T)$",
         "stat_indices": r"$Stat_{indices}(\hat{S}^T)$",
         "stat_ranking": r"$Stat_{ranking}(\hat{S}^T)$",
+        "underlined_name": r"$\underline{\text{Sobol total order indices}}$",
     },
     "delt": {
         "name": r"$\text{Delta indices}$",
@@ -61,6 +65,7 @@ sa_plot = {
         "stat": r"$Stat(\hat{\delta})$",
         "stat_indices": r"$Stat_{indices}(\hat{\delta})$",
         "stat_ranking": r"$Stat_{ranking}(\hat{\delta})$",
+        "underlined_name": r"$\underline{\text{Delta indices}}$",
     },
     "xgbo": {
         "name": r"$\text{XGBoost importances}$",
@@ -69,5 +74,6 @@ sa_plot = {
         "stat": r"$Stat(\hat{I}^2)$",
         "stat_indices": r"$Stat_{indices}(\hat{I}^2)$",
         "stat_ranking": r"$Stat_{ranking}(\hat{I}^2)$",
+        "underlined_name": r"$\underline{\text{XGBoost importances}}$",
     },
 }

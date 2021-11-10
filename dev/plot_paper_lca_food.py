@@ -31,6 +31,7 @@ if __name__ == "__main__":
     fig_format = ["pdf"]
 
     all_gsa_names = [v["name"] for v in sa_plot.values()]
+    all_gsa_names_underlined = [v["underlined_name"] for v in sa_plot.values()]
 
     # GSA results
     filepath_gsa_corr = (
@@ -118,6 +119,116 @@ if __name__ == "__main__":
         bootstrap_ranking_tag=bootstrap_ranking_tag,
         num_params_screening=int(0.90 * num_params),
     )
+
+    sa_names = ["spearman", "total", "delta", "total_gain"]
+    convergence_steps = [9, 19, 29, -1]
+    subplot_titles = []
+    for row, convergence_step in enumerate(convergence_steps):
+        # list_ = []
+        for col, sa_name in enumerate(sa_names):
+            if sa_name == "total_gain" and convergence_step != -1:
+                convergence_step -= 2
+            iteration = st.iterations[sa_name][convergence_step]
+            iteration_str = (
+                r"$\text{"
+                + "{}".format(iteration // 1000)
+                + "'{:03}".format(iteration % 1000)
+                + " MC samples}$"
+            )
+            subplot_titles.append(iteration_str)
+        # subplot_titles.append(list_)
+
+    input_ind = 9790  # 4962
+    nrows = len(convergence_steps)
+    ncols = len(sa_names)
+    num_bins = 16
+    fig = make_subplots(
+        rows=nrows,
+        cols=ncols,
+        subplot_titles=subplot_titles,
+        shared_xaxes=True,
+        shared_yaxes=True,
+        vertical_spacing=0.1,
+        horizontal_spacing=0.08,
+    )
+    xpos = [0.096875, 0.365625, 0.634375, 0.903125]
+    opacity = 0.65
+    for row, convergence_step in enumerate(convergence_steps):
+        for col, sa_name in enumerate(sa_names):
+            if sa_name == "total_gain" and convergence_step != -1:
+                convergence_step -= 2
+            x = st.bootstrap_data[sa_name][convergence_step][:, input_ind]
+            # bins_ = np.linspace(min(x), max(x), num_bins, endpoint=True)
+            freq, bins = np.histogram(x, bins=16, density=False)
+
+            fig.add_trace(
+                go.Scatter(
+                    x=bins,
+                    y=freq / sum(freq),
+                    # name=all_inputs_text,
+                    opacity=opacity,
+                    line=dict(color=color_blue_rgb, width=1, shape="hvh"),
+                    showlegend=False,
+                    fill="tozeroy",
+                    mode="lines",
+                ),
+                row=row + 1,
+                col=col + 1,
+            )
+    for ipos, sa_name in enumerate(all_gsa_names_underlined):
+        fig.add_annotation(
+            x=xpos[ipos],
+            y=1.07,  # annotation point
+            xref="paper",
+            yref="paper",
+            text=sa_name,
+            showarrow=False,
+            xanchor="center",
+            yanchor="bottom",
+            font=dict(
+                size=16,
+            ),
+        )
+
+    fig.update_xaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor=color_gray_hex,
+        zeroline=True,
+        zerolinewidth=1,
+        zerolinecolor=color_black_hex,
+        showline=True,
+        linewidth=1,
+        linecolor=color_gray_hex,
+    )
+    fig.update_xaxes(
+        title=r"$\text{Sensitivity index}$",
+        row=nrows,
+    )
+
+    fig.update_yaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor=color_gray_hex,
+        zeroline=True,
+        zerolinewidth=1,
+        zerolinecolor=color_black_hex,
+        showline=True,
+        linewidth=1,
+        linecolor=color_gray_hex,
+    )
+    fig.update_yaxes(title=r"$\text{Frequency}$", col=1)
+    fig.update_layout(
+        width=ncols * 240,
+        height=nrows * 140,
+        paper_bgcolor="rgba(255,255,255,1)",
+        plot_bgcolor="rgba(255,255,255,1)",
+        margin=dict(l=0, r=0, t=60, b=0),
+    )
+    save_fig(fig, "histograms_bootstrap_data", fig_format, write_dir_fig)
+    # fig.show()
+
+    print()
 
     ### 1. Plot  GSA  results
     ######################

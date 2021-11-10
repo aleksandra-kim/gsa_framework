@@ -25,7 +25,7 @@ def get_amounts_shift(uncertain_params_all_exchanges, shift_median=True):
         normal_mean = m
         normal_median = normal_mean
 
-        # 2. Normal
+        # 2. Uniform
         uniform_where = np.where(
             uncertain_params["uncertainty_type"] == sa.UniformUncertainty.id
         )[0]
