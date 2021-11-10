@@ -62,6 +62,7 @@ class SensitivityAnalysisMethod:
         available_memory=2,  # GB
         bytes_per_entry=8,  # TODO should be able to change numpy array precision!
         use_parallel=True,
+        tag=None,
     ):
         self.model = model
         self.write_dir = Path(write_dir)
@@ -79,6 +80,7 @@ class SensitivityAnalysisMethod:
         self.available_memory = available_memory
         self.bytes_per_entry = bytes_per_entry
         self.use_parallel = use_parallel
+        self.tag = tag
 
     def make_dirs(self):
         """Create subdirectories where intermediate results will be stored, such arrays and figures."""
@@ -121,11 +123,12 @@ class SensitivityAnalysisMethod:
         )
 
     def create_model_output_dirname(self):
-        dirname = "Y.{}.{}.{}".format(self.sampling_label, self.iterations, self.seed)
+        dirname = "Y.{}.{}.{}.{}".format(self.sampling_label, self.iterations, self.seed, self.tag)
         return dirname
 
     def create_model_output_dir(self):
-        dirpath = self.write_dir / self.dirpath_Y
+        dirname_Y = self.create_model_output_dirname()
+        dirpath = self.write_dir / dirname_Y
         dirpath.mkdir(parents=True, exist_ok=True)
 
     def create_model_output_i_chunk_filename(self, i, start, end):
