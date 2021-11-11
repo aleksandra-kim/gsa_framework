@@ -23,7 +23,7 @@ lca = bc.LCA(demand, method)
 lca.lci()
 lca.lcia()
 
-cutoff = 0.007  # percentage of the total score, cutoff=0.005 means 0.5 percent
+cutoff = 1e-3  # percentage of the total score, cutoff=0.005 means 0.5 percent
 score_cutoff = cutoff * lca.score
 
 # tech_inds = filter_technosphere_exchanges(lca, cutoff)
@@ -69,5 +69,3 @@ for uncertain_exchange_type, exc_list in subset_exchanges_dict.items():
             where_list.append(where[0])
     where_list = sorted(where_list)
     parameter_choice_dict[uncertain_exchange_type] = where_list
-
-print()
