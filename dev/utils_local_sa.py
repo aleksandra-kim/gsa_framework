@@ -9,7 +9,53 @@ from gsa_framework.utils import read_pickle, write_pickle
 WHERE_BIO_REVERSE_DICT = 2
 
 
-def bio_params_local_sa(lca, write_dir, const_factors=(0.1, 10)):
+def get_tech_params_local_sa(
+    where_tech_lsa, lca, write_dir, const_factors=(0.1, 10), tag=None
+):
+    """Local SA for technosphere exchanges."""
+
+    path_lsa_tech = Path(write_dir) / "LSA_scores_tech_{}.pickle".format(tag)
+
+    if not path_lsa_tech.exists():
+        # 1. lca related
+        d = lca.demand_array
+        B = lca.biosphere_matrix
+        C = sum(lca.characterization_matrix)
+        reverse_dict = lca.reverse_dict()[0]
+        # 2. Find zero indices using Local SA
+        where_tech_lsa.sort()
+        num_params = len(where_tech_lsa)
+        tech_params_lsa = lca.tech_params[where_tech_lsa]
+        rows = tech_params_lsa["row"]
+        cols = tech_params_lsa["col"]
+        # 3. Constant factor
+        const_factor = np.tile(const_factors, (num_params, 1))
+        N = const_factor.shape[1]
+        # 4. Preparation for saving of the results
+        lsa_scores_tech = {}
+        # 5. Run LSA
+        for i, where in enumerate(where_tech_lsa):
+            scores = np.empty(N)
+            scores[:] = np.nan
+            for j in range(N):
+                A = deepcopy(lca.technosphere_matrix)
+                A[rows[i], cols[i]] *= const_factor[i, j]
+                scores[j] = C * B * spsolve(A, d)
+                del A
+            lsa_scores_tech[int(where)] = dict(
+                input=reverse_dict[rows[i]],
+                output=reverse_dict[cols[i]],
+                scores=deepcopy(scores),
+            )
+        # 6. Save results
+        write_pickle(lsa_scores_tech, path_lsa_tech)
+    else:
+        lsa_scores_tech = read_pickle(path_lsa_tech)
+
+    return lsa_scores_tech
+
+
+def get_bio_params_local_sa(lca, write_dir, const_factors=(0.1, 10)):
     """Local SA for biosphere parameters."""
 
     path_lsa_bio = Path(write_dir) / "LSA_scores_bio.pickle"
@@ -82,7 +128,7 @@ def bio_params_local_sa(lca, write_dir, const_factors=(0.1, 10)):
     return lsa_scores_bio
 
 
-def cf_params_local_sa(lca, write_dir, const_factors=(0.1, 10)):
+def get_cf_params_local_sa(lca, write_dir, const_factors=(0.1, 10)):
     """Local SA for characterization factors."""
 
     path_lsa_cf = Path(write_dir) / "LSA_scores_cf.pickle"
