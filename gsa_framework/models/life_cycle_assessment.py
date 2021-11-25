@@ -86,6 +86,16 @@ class LCAModelBase(ModelBase):
         self.choices = uncertainty_choices
         method_unit = bd.Method(self.method).metadata["unit"]
         self.output_name = "LCIA scores, [{}]".format(method_unit)
+        
+        self.default_uncertain_amounts = get_amounts_shift(
+            self.uncertain_params, shift_median=False
+        )
+        self.static_output = get_lca_score_shift(
+            self.default_uncertain_amounts,
+            self.uncertain_params_selected_where_dict,
+            self.lca,
+        )
+        self.adjusted_score = self.static_output - self.lca.score 
 
     def initialize(self, uncertain_params_selected_where_dict):
         num_params = len(self)
@@ -239,15 +249,15 @@ class LCAModel(LCAModelBase):
         self.num_params, self.uncertain_exchange_lengths = self.initialize(
             self.uncertain_params_selected_where_dict,
         )
-        self.default_uncertain_amounts = get_amounts_shift(
-            self.uncertain_params, shift_median=False
-        )
-        self.static_output = get_lca_score_shift(
-            self.default_uncertain_amounts,
-            self.uncertain_params_selected_where_dict,
-            self.lca,
-        )
-        self.adjusted_score = self.static_output - self.lca.score  # 2675.372419737564
+#         self.default_uncertain_amounts = get_amounts_shift(
+#             self.uncertain_params, shift_median=False
+#         )
+#         self.static_output = get_lca_score_shift(
+#             self.default_uncertain_amounts,
+#             self.uncertain_params_selected_where_dict,
+#             self.lca,
+#         )
+#         self.adjusted_score = self.static_output - self.lca.score  # 2675.372419737564
 
     def make_dirs(self):
         """Create subdirectories where intermediate results can be stored."""
