@@ -1,10 +1,11 @@
-import numpy as np
-from pathlib import Path
-import bw2data as bd
-import bw2calc as bc
-from gsa_framework.utils import read_pickle, write_pickle
-
-from dev.utils_graph_traversal import filter_technosphere_exchanges
+# import numpy as np
+# from pathlib import Path
+# import bw2data as bd
+# import bw2calc as bc
+#
+# from gsa_framework.utils import read_pickle, write_pickle
+#
+# from dev.utils_graph_traversal import filter_technosphere_exchanges
 
 # def filter_technosphere_exchanges_with_uncertainty(lca, cutoff=0.005, max_calc=1e4):
 #     """Use brightway's GraphTraversal to identify the relevant
@@ -12,6 +13,22 @@ from dev.utils_graph_traversal import filter_technosphere_exchanges
 #     technosphere_exchange_indices = filter_uncertain_technosphere_exchanges(lca, cutoff, max_calc)
 #
 #     return technosphere_exchange_indices
+
+from pathlib import Path
+import bw2io as bi
+
+dir_lca_files = Path("/Users/akim/Documents/LCA_files/")
+project_filepath = (
+    dir_lca_files / "brightway2-project-GSA-backup.16-November-2021-11-50AM.tar.gz"
+)
+bi.restore_project_directory(project_filepath)
+
+import bw2data as bd
+
+bd.projects.set_current("GSA")
+
+
+print(len(ei))
 
 if __name__ == "__main__":
 
@@ -33,6 +50,9 @@ if __name__ == "__main__":
     lca = bc.LCA(demand, uncertain_method)
     lca.lci()
     lca.lcia()
+
+    ei = bd.Database("ecoinvent 3.8 cutoff")
+    diesel_acts = {act["name"] for act in ei if "diesel" in act["name"].lower()}
 
     cutoff = 0.01
     max_calc = 1e3
