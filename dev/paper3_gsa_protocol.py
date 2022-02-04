@@ -33,13 +33,9 @@ if __name__ == "__main__":
     path_base = Path(
         "/Users/akim/PycharmProjects/gsa-framework-master/dev/write_files/"
     )
-    # path_base = Path('/data/user/kim_a/protocol_gsa')
-    write_dir = path_base / "protocol_gsa_paper3"
-    write_dir_sct = write_dir / "supply_chain"
-    write_dir_sct.mkdir(exist_ok=True, parents=True)
-
-    bd.projects.set_current("GSA for protocol paper 3")
-    co = bd.Database("CH consumption 1.0")
+    write_dir = path_base / "protocol_gsa_food_bw2"
+    bd.projects.set_current("GSA for archetypes")
+    co = bd.Database("swiss consumption 1.0")
     demand_act = [act for act in co if "Food" in act["name"]]
     assert len(demand_act) == 1
     demand_act = demand_act[0]
@@ -48,6 +44,28 @@ if __name__ == "__main__":
     static_lca = bc.LCA(demand, uncertain_method, use_distributions=False)
     static_lca.lci()
     static_lca.lcia()
+
+    # Biosphere, remove non-influential inputs (Step 1)
+    lca = static_lca
+    cutoff = 1e-3
+    inv = lca.characterized_inventory
+    finv = inv.multiply(abs(inv) > abs(lca.score * cutoff))
+    biosphere_exchange_indices = list(zip(*finv.nonzero()))
+    explained_fraction = finv.sum() / lca.score
+    # print('Explained fraction of LCA score:', explained_fraction)
+    print(
+        "BIOSPHERE {} filtering resulted in {} of {} exchanges ({}% of total impact)".format(
+            inv.shape,
+            finv.nnz,
+            inv.nnz,
+            np.round(explained_fraction * 100, 2),
+        )
+    )
+
+    # Local SA for biosphere
+
+    write_dir_sct = write_dir / "supply_chain"
+    write_dir_sct.mkdir(exist_ok=True, parents=True)
 
     lca = bc.LCA(demand, uncertain_method, use_distributions=True)
     lca.lci()
