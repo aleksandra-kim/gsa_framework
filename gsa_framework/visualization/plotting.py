@@ -133,11 +133,14 @@ def plot_histogram_Y1_Y2(
         )
     if showtitle:
         from scipy.stats import wasserstein_distance
-        wdist = wasserstein_distance(Y1,Y2)
+
+        wdist = wasserstein_distance(Y1, Y2)
         fig.update_layout(
-            title = dict(
+            title=dict(
                 text="Wasserstein distance = {:7.3f}".format(wdist),
-                font = dict(size=14,),
+                font=dict(
+                    size=14,
+                ),
             )
         )
 
@@ -214,7 +217,8 @@ def plot_correlation_Y1_Y2(
                 color=color3,
                 line=dict(
                     width=1,
-                    color="#782e69",
+                    # color="#782e69",
+                    color="black",
                 ),
             ),
             showlegend=False,
@@ -259,15 +263,20 @@ def plot_correlation_Y1_Y2(
     )
     if showtitle:
         from scipy.stats import spearmanr
-        pearson_coef  = np.corrcoef([Y1, Y2])[0,-1]
+
+        pearson_coef = np.corrcoef([Y1, Y2])[0, -1]
         spearman_coef, _ = spearmanr(Y1, Y2)
         fig.update_layout(
-            title = dict(
-                text="Pearson = {:4.3f}, Spearman = {:4.3f}".format(pearson_coef, spearman_coef),
-                font = dict(size=14,),
+            title=dict(
+                text="Pearson = {:4.3f}, Spearman = {:4.3f}".format(
+                    pearson_coef, spearman_coef
+                ),
+                font=dict(
+                    size=14,
+                ),
             )
         )
-    
+
     return fig
 
 
