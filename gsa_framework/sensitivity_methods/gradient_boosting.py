@@ -6,7 +6,7 @@ import xgboost as xgb
 from ..utils import read_hdf5_array
 from sklearn.model_selection import train_test_split
 
-##############################
+# #############################
 # ## Tuning parameters info ###
 # #############################
 # eta : 0.3
@@ -173,7 +173,7 @@ def xgboost_indices_stability(
     test_size=0.2,
     xgb_model=None,
     importance_types=None,  # TODO set default to empty list?
-    flag_return_xgb_model=False,w
+    flag_return_xgb_model=False,
 ):
     S_dict = xgboost_indices_base(
         Y,
