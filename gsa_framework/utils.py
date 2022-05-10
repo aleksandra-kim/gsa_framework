@@ -1,5 +1,6 @@
 import numpy as np
-import h5py, pickle
+import h5py
+import pickle
 from scipy.stats import norm
 
 get_z_alpha_2 = lambda confidence_level: norm.ppf(0.5 + confidence_level / 2)

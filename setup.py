@@ -45,7 +45,6 @@ setup(
         "xgboost",
         "pre-commit",
         "sphinxcontrib-bibtex",
-        "brightway2",
         "jenkspy",
     ],
     url="https://github.com/aleksandra-kim/gsa_framework",

@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from decimal import Decimal
 from scipy.stats import spearmanr
+import h5py
 
 import bw2data as bd
 import bw2calc as bc
@@ -37,7 +38,7 @@ save_figure6 = False
 
 show_figure7 = False
 save_figure7 = True
-option7 = "with_3"
+option7 = "without_3"
 
 show_figure8 = False
 save_figure8 = False
@@ -95,6 +96,7 @@ if __name__ == "__main__":
 
     if show_figure1 or save_figure1:
         default_Y = lca.score
+        # default_Y = 211.5767012
 
         fig = go.Figure()
 
@@ -118,7 +120,7 @@ if __name__ == "__main__":
                 x=[np.mean(Y)],
                 y=[0, 0],
                 mode="markers",
-                name=r"$\text{distribution mean}$",
+                name=r"$\text{Distribution mean}$",
                 opacity=opacity,
                 marker=dict(
                     color="black",
@@ -134,7 +136,7 @@ if __name__ == "__main__":
                 x=[np.mean(Y) - np.std(Y), np.mean(Y) - np.std(Y)],
                 y=[0, 130],
                 mode="lines",
-                name=r"$\text{mean } \pm \text{ standard deviation}$",
+                name=r"$\text{Mean } \pm \text{ standard deviation}$",
                 opacity=opacity,
                 # marker=dict(
                 #     color="black",
@@ -249,6 +251,7 @@ if __name__ == "__main__":
     # --> Our results
     filepath_S = write_dir_arr / "S.correlationsGsa.randomSampling.80000.4000238.pickle"
     spearman = read_pickle(filepath_S)["spearman"]
+
     S_sorted = np.argsort(np.abs(spearman))[::-1]
     filepath = write_dir_arr / "parameter_choice_rm_lowinf.pickle"
     parameter_choice_rm_lowinf = read_pickle(filepath)
@@ -416,7 +419,8 @@ if __name__ == "__main__":
 
     nrows = len(overlap_params)
     ncols = len(cutoffs) + 2
-    cutoffs_str = [r"$\underline{\tau = %.2e}$" % Decimal(cutoff) for cutoff in cutoffs]
+    cutoffs_str = [r"$\underline{\tau = %.0e}$" % Decimal(cutoff) for cutoff in cutoffs]
+    cutoffs_str = [c.replace("0", "") for c in cutoffs_str]
 
     fig = make_subplots(
         rows=nrows,
@@ -614,7 +618,7 @@ if __name__ == "__main__":
         )
         for row in range(nrows):
             if overlap_params[row] == 1600:
-                params_str = "1'600"
+                params_str = "1\ 600"
             else:
                 params_str = str(overlap_params[row])
             title_text = (
@@ -1904,14 +1908,16 @@ if __name__ == "__main__":
     ncols = len(cutoffs) + 2
     cutoffs_str = []
     for cutoff in cutoffs:
-        decimal_str = "%.1e" % Decimal(cutoff)
-        cutoffs_str.append(
-            r"$\underline{"
-            + r"\tau = {}e^".format(decimal_str[0:3])
-            + "{-"
-            + "{}".format(decimal_str[-1])
-            + "}}$"
-        )
+        decimal_str = "%.0e" % Decimal(cutoff)
+        decimal_str = decimal_str.replace("0", "")
+        # cutoffs_str.append(
+        #     r"$\underline{"
+        #     + r"\tau = {}e".format(decimal_str[0:3])
+        #     + "{-"
+        #     + "{}".format(decimal_str[-1])
+        #     + "}}$"
+        # )
+        cutoffs_str.append(r"$\underline{" + r"\tau = {}".format(decimal_str) + r"}$")
 
     fig = make_subplots(
         rows=nrows,
@@ -2293,7 +2299,7 @@ if __name__ == "__main__":
         )
         for row in range(nrows):
             if overlap_params[row] == 1600:
-                params_str = "1'600"
+                params_str = "1\ 600"
             else:
                 params_str = str(overlap_params[row])
             title_text = (

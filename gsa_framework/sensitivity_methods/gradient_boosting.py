@@ -104,13 +104,14 @@ def xgboost_indices_base(
     tuning_parameters["base_score"] = np.mean(Y)
     random_state = tuning_parameters.get("random_state", None)
     num_boost_round = tuning_parameters.get("n_estimators")
-    tuning_parameters.pop("n_estimators")
+    # tuning_parameters.pop("n_estimators")
     # 3. Prepare training and testing sets for  gradient boosting trees
     X_train, X_test, Y_train, Y_test = train_test_split(
         X,
         Y,
         test_size=test_size,
         random_state=random_state,
+        shuffle=False,
     )
 
     dtrain = xgb.DMatrix(X_train, Y_train)
