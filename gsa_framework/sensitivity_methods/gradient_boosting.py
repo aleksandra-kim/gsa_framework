@@ -111,6 +111,7 @@ def xgboost_indices_base(
         Y,
         test_size=test_size,
         random_state=random_state,
+        shuffle=False,
     )
 
     dtrain = xgb.DMatrix(X_train, Y_train)
